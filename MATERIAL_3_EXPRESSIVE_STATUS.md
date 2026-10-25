@@ -14,7 +14,7 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 2** | Expressive QuickSettings & Morphing Pastilles |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
 | **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
 | **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) |  **Completed** | `crates/penumbra-services/src/theme.rs`, `penumbra-shell/src/theme.rs` | 63/63 cargo tests passed |
-| **Phase 5** | Homescreen & Floating System Insets Polish | ⏳ *In Progress* | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | Pending |
+| **Phase 5** | Homescreen & Floating System Insets Polish |  **Completed** | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | 63/63 cargo tests passed |
 
 ---
 
@@ -133,12 +133,30 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo check --workspace`: Passed (0 errors, 0 warnings).
   - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
 
+### 7. Phase 5: Homescreen & Floating System Insets Polish
+- **Commit**: `7fd170c` (*feat(homescreen): implement Phase 5 floating Pixel capsule search bar, 32px squircle folder expansion, and uniform 24px icon masks*)
+- **Implementation**:
+  - **Floating Google Pixel Search Bar**:
+    - [`crates/penumbra-shell/ui/app_surface.slint`](crates/penumbra-shell/ui/app_surface.slint): Elevated floating capsule layout with tactile press squash (`23px` margin, `parent.width - 46px` width on press), `Theme.surface-container-highest` background, and `Theme.specular-rim-active` border.
+    - Integrated bold Google "G" pill badge in `Theme.primary-container` with `Theme.on-primary-container` typography.
+    - Added dedicated Assistant microphone chip and Google Lens / Camera search badge with specular glass highlights.
+  - **Squircle Folder Modal Expansion**:
+    - Upgraded folder modal popup dialog into a Material 3 Expressive $32\text{px}$ sheet (`Theme.radius-card`) with `Theme.surface-container-high` and `Theme.specular-rim-active`.
+    - Integrated smooth vertical slide-in and opacity fade driven by `Theme.duration-medium` ($300\text{ms}$) with emphasized decelerate easing (`cubic-bezier(0.05, 0.7, 0.1, 1.0)`).
+  - **Uniform $24\text{px}$ App Squircle Mask Alignment**:
+    - Added canonical `radius-squircle: 24px;` token to [`crates/penumbra-shell/ui/theme.slint`](crates/penumbra-shell/ui/theme.slint).
+    - Unified icon containers across [`shortcut_tile.slint`](crates/penumbra-shell/ui/shortcut_tile.slint), [`app_drawer.slint`](crates/penumbra-shell/ui/app_drawer.slint), [`dock.slint`](crates/penumbra-shell/ui/dock.slint), [`app_surface.slint`](crates/penumbra-shell/ui/app_surface.slint), and [`recents_slider.slint`](crates/penumbra-shell/ui/recents_slider.slint) to strictly follow the $24\text{px}$ squircle curvature and Monet surface container tokens.
+  - **Floating System Insets Polish**:
+    - [`top_bar.slint`](crates/penumbra-shell/ui/top_bar.slint): Applied `Theme.specular-rim` to subtle bottom edge separator.
+    - [`nav_bar.slint`](crates/penumbra-shell/ui/nav_bar.slint): Updated gesture pill indicator and keyboard toggle to consume `Theme.outline`, `Theme.primary`, and `Theme.surface-container` dynamic tokens.
+- **Verification**:
+  - `cargo check --workspace`: Passed (0 errors, 0 warnings).
+  - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
+
 ---
 
-## Active Plan Roadmap (Next Phases)
+## Final Architecture Status: All 5 Phases Fully Implemented & Verified 
 
-### Phase 5: Homescreen & Floating System Insets Polish
-- [ ] Floating capsule search bar with Google "G" badge, mic pill, lens search.
-- [ ] Squircle folder expansion animation ($32\text{px}$ radius).
-- [ ] Uniform $24\text{px}$ app squircle mask alignment across grid and dock.
+All core foundations and expressive milestones specified in [`MATERIAL_3_EXPRESSIVE_PLAN.md`](MATERIAL_3_EXPRESSIVE_PLAN.md) are fully implemented, verified with comprehensive tests, and recorded in this ledger.
+
 
