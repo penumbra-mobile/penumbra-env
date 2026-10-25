@@ -12,8 +12,8 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Foundation 0B** | Layer-Shell Slint Alpha Zero-Fill |  **Completed** | `crates/layer-shell-slint/src/*` | True transparency verified on DRM |
 | **Phase 1** | M3E 12-Tier Container & Optical Palette |  **Completed** | `crates/penumbra-shell/ui/theme.slint` | 48/48 cargo tests passed |
 | **Phase 2** | Expressive QuickSettings & Morphing Pastilles |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
-| **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) | ⏳ *In Progress* | `crates/penumbra-shell/ui/quick_settings_slider.slint` | Pending |
-| **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) | 📅 *Queued* | `crates/penumbra-services/`, `penumbra-shell/src/config.rs` | Pending |
+| **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
+| **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) | ⏳ *In Progress* | `crates/penumbra-services/`, `penumbra-shell/src/config.rs` | Pending |
 | **Phase 5** | Homescreen & Floating System Insets Polish | 📅 *Queued* | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | Pending |
 
 ---
@@ -94,15 +94,30 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo check --workspace --features native-drm`: Passed.
   - `cargo test --workspace`: **All 48 tests passed**.
 
+### 5. Phase 3: Fluid Elastic Sliders with Overscroll Resistance
+- **Commit**: `6aecf01` (*feat(sliders): implement Phase 3 fluid elastic sliders with boundary resistance and icon state morphing*)
+- **Implementation**:
+  - **Boundary Elastic Stretch**:
+    - [`crates/penumbra-shell/ui/quick_settings_slider.slint`](crates/penumbra-shell/ui/quick_settings_slider.slint) & [`crates/penumbra-shell/ui/quick_settings.slint`](crates/penumbra-shell/ui/quick_settings.slint): When dragged beyond $0.0$ or $1.0$, sliders apply smooth compressive boundary tension:
+      $$\Delta x_{\text{visual}} = \text{sign}(\Delta x) \cdot \sqrt{|\Delta x| \cdot 1.5}$$
+    - On touch release, snaps back to boundaries with an underdamped cubic-bezier curve (`Theme.duration-short`).
+    - The active fill bar expands continuously into the boundary overscroll space.
+  - **Dynamic Inset Text Contrast**:
+    - Percentage text flips from `Theme.on-surface-variant` to `Theme.on-primary` when fill exceeds $88\%$.
+    - Center label flips from `Theme.on-surface` to `Theme.on-primary` when fill exceeds $38\%$.
+    - Icon flips from `Theme.on-surface` to `Theme.on-primary` when fill exceeds $8\%$.
+  - **Icon State Morphing**:
+    - [`crates/penumbra-shell/ui/icon.slint`](crates/penumbra-shell/ui/icon.slint): Added `brightness-low`, `volume-mute`, `volume-low`, and `bell` vector SVG paths.
+    - Brightness slider dynamically switches between low and high radiating ray patterns based on fill ratio ($< 0.35$ vs $\ge 0.35$).
+    - Volume slider dynamically animates from `volume-mute` (slashed X) to `volume-low` (single wave) to `volume` (double waves).
+- **Verification**:
+  - `cargo check --workspace`: Passed.
+  - `cargo check --workspace --features native-drm`: Passed.
+  - `cargo test --workspace`: **All 48 tests passed**.
+
 ---
 
 ## Active Plan Roadmap (Next Phases)
-
-### Phase 3: Fluid Elastic Sliders with Overscroll Resistance
-- [ ] Logarithmic boundary stretch when dragged past limits:
-  $$\Delta x_{\text{visual}} = \text{sign}(\Delta x) \cdot \ln(1 + |\Delta x| \cdot 0.35)$$
-- [ ] Dynamic inset text contrast based on fill passing threshold.
-- [ ] Dynamic ray/wave patterns on brightness and volume icons.
 
 ### Phase 4: Dynamic Monet Theming
 - [ ] Color quantizer service in `penumbra-services` sampling 100 pixels from wallpaper.
