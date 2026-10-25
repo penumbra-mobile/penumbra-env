@@ -11,8 +11,8 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Foundation 0A** | Progressive Dual-Kawase Compositor Blur |  **Completed** | `crates/penumbra-comp/src/render/*` | DRM scanout GL pass verified |
 | **Foundation 0B** | Layer-Shell Slint Alpha Zero-Fill |  **Completed** | `crates/layer-shell-slint/src/*` | True transparency verified on DRM |
 | **Phase 1** | M3E 12-Tier Container & Optical Palette |  **Completed** | `crates/penumbra-shell/ui/theme.slint` | 48/48 cargo tests passed |
-| **Phase 2** | Expressive QuickSettings & Morphing Pastilles | ⏳ *In Progress* | `crates/penumbra-shell/ui/quick_settings*` | Pending |
-| **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) | 📅 *Queued* | `crates/penumbra-shell/ui/quick_settings_slider.slint` | Pending |
+| **Phase 2** | Expressive QuickSettings & Morphing Pastilles |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
+| **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) | ⏳ *In Progress* | `crates/penumbra-shell/ui/quick_settings_slider.slint` | Pending |
 | **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) | 📅 *Queued* | `crates/penumbra-services/`, `penumbra-shell/src/config.rs` | Pending |
 | **Phase 5** | Homescreen & Floating System Insets Polish | 📅 *Queued* | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | Pending |
 
@@ -75,14 +75,28 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo check --workspace --features native-drm`: Passed.
   - `cargo test --workspace`: **All 48 tests passed**.
 
+### 4. Phase 2: Expressive QuickSettings & Morphing Pastilles
+- **Commit**: `c998800` (*feat(qs): implement Phase 2 Material 3 Expressive pastilles, touch squash physics, and swipe-to-dismiss notifications*)
+- **Implementation**:
+  - **Tactile Touch Squash Physics ($0.96\times$)**:
+    - [`crates/penumbra-shell/ui/quick_settings_slider.slint`](crates/penumbra-shell/ui/quick_settings_slider.slint) (`TileView`): Inner tile container dynamically insets by $2.5\text{px}$ horizontally and $1.5\text{px}$ vertically on pointer down, squashing from `radius-tile` ($28\text{px}$) to `radius-tile-squash` ($22\text{px}$) with cubic-bezier spring release.
+    - [`crates/penumbra-shell/ui/quick_settings.slint`](crates/penumbra-shell/ui/quick_settings.slint) (`QuickToggle`): Added identical $0.96\times$ touch compression and brightness elevation feedback.
+  - **Two-Stage Shape Morphing**:
+    - Compact QQS ($y \le 300\text{px}$): 4 circular capsules across with centered icon badges.
+    - Expanded QS ($y > 300\text{px}$): Smoothly transforms into 2-column pastilles ($185 \times 64\text{px}$) with the icon smoothly gliding to the left margin ($12\text{px}$) and primary title/subtitle cross-fading in.
+  - **Stacked Notification Pastilles with Swipe-to-Dismiss**:
+    - Added `NotificationCard` with individual elevation card geometry (`surface-container-low`), $16\text{px}$ item radius, and specular rim.
+    - Interactive horizontal touch tracking ($dx > 100\text{px}$) with continuous alpha fadeout and dismissal.
+    - "Clear all" rounded pill chip with active press ripple feedback.
+    - Fully wired `notification-dismissed` and `clear-notifications` callbacks in [`crates/penumbra-shell/src/bin/quick_settings.rs`](crates/penumbra-shell/src/bin/quick_settings.rs) against dynamic `Rc<VecModel<NotificationData>>`.
+- **Verification**:
+  - `cargo check --workspace`: Passed.
+  - `cargo check --workspace --features native-drm`: Passed.
+  - `cargo test --workspace`: **All 48 tests passed**.
+
 ---
 
 ## Active Plan Roadmap (Next Phases)
-
-### Phase 2: Expressive QuickSettings & Morphing Pastilles
-- [ ] Add touch squash micro-interaction: $0.96\times$ compression on pointer down with spring release.
-- [ ] Implement two-stage shape morphing: Compact 4-icon QQS ($y \le 320\text{px}$) expanding into $2 \times 3$ pastilles ($185 \times 64\text{px}$) with subtitle.
-- [ ] Stacked notification pastilles with individual elevation cards and horizontal swipe-to-dismiss ($dx > 120\text{px}$).
 
 ### Phase 3: Fluid Elastic Sliders with Overscroll Resistance
 - [ ] Logarithmic boundary stretch when dragged past limits:
