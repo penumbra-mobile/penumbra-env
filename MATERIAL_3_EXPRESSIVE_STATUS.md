@@ -13,8 +13,8 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 1** | M3E 12-Tier Container & Optical Palette |  **Completed** | `crates/penumbra-shell/ui/theme.slint` | 48/48 cargo tests passed |
 | **Phase 2** | Expressive QuickSettings & Morphing Pastilles |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
 | **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
-| **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) | ⏳ *In Progress* | `crates/penumbra-services/`, `penumbra-shell/src/config.rs` | Pending |
-| **Phase 5** | Homescreen & Floating System Insets Polish | 📅 *Queued* | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | Pending |
+| **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) |  **Completed** | `crates/penumbra-services/src/theme.rs`, `penumbra-shell/src/theme.rs` | 63/63 cargo tests passed |
+| **Phase 5** | Homescreen & Floating System Insets Polish | ⏳ *In Progress* | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | Pending |
 
 ---
 
@@ -115,15 +115,30 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo check --workspace --features native-drm`: Passed.
   - `cargo test --workspace`: **All 48 tests passed**.
 
+### 6. Phase 4: Dynamic Monet Theming & Live IPC Sync
+- **Commit**: `a15d7b0` (*feat(theme): implement Dynamic Monet Theming with color quantizer and IPC sync*)
+- **Implementation**:
+  - **Dominant Color Extraction & Quantization Engine**:
+    - [`crates/penumbra-services/src/theme.rs`](crates/penumbra-services/src/theme.rs): Fast $16 \times 16$ grid sampling (256 sample points) filtering outlier luminance ($l < 0.10$ or $l > 0.92$), scoring chromatic saturation vs luminance distance, and bucketing into 16 hue bins.
+    - Full Material 3 tonal palette generation: derives primary, secondary, and tertiary tones (80/20/30/90) and harmoniously tinted OLED dark surface containers from any image or seed RGB.
+    - Atomic file serialization to `$XDG_RUNTIME_DIR/penumbra-theme.json` via temporary file writing and atomic POSIX rename.
+  - **Slint Dynamic Theme Globals**:
+    - [`crates/penumbra-shell/ui/theme.slint`](crates/penumbra-shell/ui/theme.slint): Converted all color tokens (`primary`, `surface`, `surface-container-*`, `on-surface`, `outline`, etc.) into mutable `in-out property` bindings.
+    - [`crates/penumbra-shell/ui/shell_root.slint`](crates/penumbra-shell/ui/shell_root.slint): Exported `Theme` global for client code accessibility.
+    - [`crates/penumbra-shell/src/theme.rs`](crates/penumbra-shell/src/theme.rs): Added `hex_to_slint_color`, `apply_monet_palette!` macro, and `start_theme_watcher` for lightweight, non-blocking 500ms modified-time file observing.
+  - **Asynchronous Wallpaper Hookup & Cross-Process IPC**:
+    - [`crates/penumbra-shell/src/bin/homescreen.rs`](crates/penumbra-shell/src/bin/homescreen.rs): Runs color extraction asynchronously on startup and inside `on_select_wallpaper` / `on_clear_wallpaper` worker threads, syncing to IPC and updating Slint tokens via `slint::invoke_from_event_loop`.
+    - [`crates/penumbra-shell/src/bin/quick_settings.rs`](crates/penumbra-shell/src/bin/quick_settings.rs), [`top_bar.rs`](crates/penumbra-shell/src/bin/top_bar.rs), [`nav_bar.rs`](crates/penumbra-shell/src/bin/nav_bar.rs), and [`main.rs`](crates/penumbra-shell/src/main.rs): Initialized with `load_current_theme()` on startup and subscribed to runtime wallpaper theme updates.
+- **Verification**:
+  - `cargo check --workspace`: Passed (0 errors, 0 warnings).
+  - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
+
 ---
 
 ## Active Plan Roadmap (Next Phases)
 
-### Phase 4: Dynamic Monet Theming
-- [ ] Color quantizer service in `penumbra-services` sampling 100 pixels from wallpaper.
-- [ ] IPC theme publishing over `/run/user/<uid>/penumbra-theme.json` to update Slint properties live.
-
 ### Phase 5: Homescreen & Floating System Insets Polish
 - [ ] Floating capsule search bar with Google "G" badge, mic pill, lens search.
 - [ ] Squircle folder expansion animation ($32\text{px}$ radius).
-- [ ] Uniform $24\text{px}$ app squircle mask alignment.
+- [ ] Uniform $24\text{px}$ app squircle mask alignment across grid and dock.
+
