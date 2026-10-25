@@ -450,7 +450,7 @@ export component AppSurface inherits Rectangle {
             y: (self.origin-y-f * 1px) + (self.snap-row * 105px) + 4px;
             width: 58px;
             height: 58px;
-            border-radius: 20px;
+            border-radius: Theme.radius-squircle;
             background: #ADC6FF22;
             border-width: 2px;
             border-color: Theme.primary;
@@ -462,7 +462,7 @@ export component AppSurface inherits Rectangle {
             y: 770px;
             width: 240px;
             height: 64px;
-            border-radius: 32px;
+            border-radius: Theme.radius-card;
             background: #ADC6FF22;
             border-width: 2px;
             border-color: Theme.primary;
@@ -629,14 +629,19 @@ export component AppSurface inherits Rectangle {
 
         // Bottom Google Pixel Search Bar (Material 3 Expressive floating capsule)
         Rectangle {
-            x: 20px;
+            x: search-ta.pressed ? 23px : 20px;
             y: 720px;
-            width: parent.width - 40px;
+            width: search-ta.pressed ? parent.width - 46px : parent.width - 40px;
             height: 52px;
             border-radius: Theme.radius-pill;
-            background: Theme.surface-container-high;
+            background: search-ta.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
             border-width: 1px;
-            border-color: Theme.specular-rim;
+            border-color: search-ta.pressed ? Theme.specular-rim-active : Theme.specular-rim;
+
+            animate x, width, background, border-color {
+                duration: Theme.duration-short;
+                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+            }
 
             search-ta := TouchArea {
                 property <float> last-y: 0.0;
@@ -673,46 +678,80 @@ export component AppSurface inherits Rectangle {
             }
 
             HorizontalLayout {
-                padding-left: 18px;
-                padding-right: 18px;
+                padding-left: 12px;
+                padding-right: 12px;
                 alignment: space-between;
 
                 HorizontalLayout {
                     spacing: 12px;
                     alignment: center;
 
-                    Text {
-                        text: "G";
-                        font-size: 19px;
-                        font-weight: 800;
-                        color: Theme.primary;
-                        vertical-alignment: center;
+                    // Google "G" Badge Pill
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: Theme.primary-container;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
+
+                        Text {
+                            text: "G";
+                            font-size: 16px;
+                            font-weight: 800;
+                            color: Theme.on-primary-container;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
 
                     Text {
                         text: "Search apps & web...";
-                        font-size: Theme.font-label;
-                        color: #c4c6d0;
+                        font-size: Theme.font-body;
+                        font-weight: 500;
+                        color: Theme.on-surface-variant;
                         vertical-alignment: center;
                     }
                 }
 
                 HorizontalLayout {
-                    spacing: 12px;
+                    spacing: 8px;
                     alignment: center;
 
-                    Text {
-                        text: "🎙";
-                        font-size: 16px;
-                        color: Theme.primary;
-                        vertical-alignment: center;
+                    // Assistant Microphone Pill Chip
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: Theme.surface-container;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
+
+                        Text {
+                            text: "🎙";
+                            font-size: 14px;
+                            color: Theme.primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
 
-                    Text {
-                        text: "✦";
-                        font-size: 16px;
-                        color: #c4c6d0;
-                        vertical-alignment: center;
+                    // Google Lens Camera Search Chip
+                    Rectangle {
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 16px;
+                        background: Theme.surface-container;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
+
+                        Text {
+                            text: "📷";
+                            font-size: 14px;
+                            color: Theme.secondary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }
@@ -758,21 +797,24 @@ export component AppSurface inherits Rectangle {
             }
         }
 
-        // Folder Card
+        // Folder Card (Material 3 Expressive 32px rounded sheet)
         Rectangle {
             x: 36px;
-            y: 180px;
+            y: root.is-folder-open ? 180px : 220px;
             width: parent.width - 72px;
             height: 380px;
-            border-radius: 28px;
-            background: root.is-folder-open ? #1C1924F8 : transparent;
+            border-radius: Theme.radius-card;
+            background: root.is-folder-open ? Theme.surface-container-high : transparent;
             border-width: root.is-folder-open ? 1.5px : 0px;
-            border-color: root.is-folder-open ? #ffffff22 : transparent;
-            drop-shadow-blur: root.is-folder-open ? 24px : 0px;
-            drop-shadow-color: root.is-folder-open ? #000000AA : transparent;
+            border-color: root.is-folder-open ? Theme.specular-rim-active : transparent;
+            drop-shadow-blur: root.is-folder-open ? 32px : 0px;
+            drop-shadow-color: root.is-folder-open ? #000000CC : transparent;
             clip: true;
             opacity: root.is-folder-open ? 1.0 : 0.0;
-            animate opacity { duration: 150ms; }
+            animate opacity, y {
+                duration: Theme.duration-medium;
+                easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+            }
 
             VerticalLayout {
                 padding: 24px;
@@ -844,7 +886,7 @@ export component AppSurface inherits Rectangle {
                                     height: 58px;
                                     x: (parent.width - self.width) / 2;
                                     y: 0px;
-                                    border-radius: 18px;
+                                    border-radius: Theme.radius-squircle;
                                     border-width: 2px;
                                     border-color: Theme.primary;
                                     background: #ADC6FF22;
@@ -1007,8 +1049,8 @@ export component AppSurface inherits Rectangle {
             y: Math.clamp(root.drag-y - 30px, 0px, parent.height - 60px);
             width: 60px;
             height: 60px;
-            border-radius: 20px;
-            background: root.dragging-is-folder ? #1F1C25F0 : #2b2832EE;
+            border-radius: Theme.radius-squircle;
+            background: root.dragging-is-folder ? Theme.surface-container-high : Theme.surface-bright;
             border-width: 2px;
             border-color: Theme.primary;
 

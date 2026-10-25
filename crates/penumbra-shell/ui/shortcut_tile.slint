@@ -80,10 +80,10 @@ export component ShortcutTile inherits Rectangle {
                 width: (root.is-down && !root.is-dragging) ? 52px : 56px;
                 height: (root.is-down && !root.is-dragging) ? 52px : 56px;
                 x: (parent.width - self.width) / 2;
-                border-radius: 20px;
-                background: root.tile-is-folder ? #25222d : ((root.is-down && !root.is-dragging) ? #2e2a37 : #1f1c25);
-                border-width: root.is-editing ? 2px : 0px;
-                border-color: root.is-editing ? Theme.primary : transparent;
+                border-radius: Theme.radius-squircle;
+                background: root.tile-is-folder ? Theme.surface-container-high : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container);
+                border-width: root.is-editing ? 2px : 1px;
+                border-color: root.is-editing ? Theme.primary : Theme.specular-rim;
                 clip: false;
 
                 animate width, height { duration: 110ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.0); }
@@ -94,7 +94,7 @@ export component ShortcutTile inherits Rectangle {
                     width: 100%;
                     height: 100%;
                     clip: true;
-                    border-radius: 20px;
+                    border-radius: Theme.radius-squircle;
 
                     if root.tile-has-icon: Image {
                         source: root.tile-icon;

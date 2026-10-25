@@ -41,9 +41,10 @@ export component DrawerAppTile inherits Rectangle {
         Rectangle {
             width: (root.is-down && !root.is-dragging) ? 52px : 56px;
             height: (root.is-down && !root.is-dragging) ? 52px : 56px;
-            border-radius: 20px;
-            background: (root.is-down && !root.is-dragging) ? #2e2a37 : #221f28;
-            border-width: 0px;
+            border-radius: Theme.radius-squircle;
+            background: (root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container;
+            border-width: 1px;
+            border-color: Theme.specular-rim;
             clip: true;
             x: (parent.width - self.width) / 2;
 
