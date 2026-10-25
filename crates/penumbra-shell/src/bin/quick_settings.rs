@@ -21,7 +21,7 @@ use penumbra_services::{
 };
 use penumbra_shell::ipc::ShellState;
 use penumbra_shell::quick_settings::{tile, QuickSettingsConfig, TileDefinition, TileState};
-use slint::{ModelRc, VecModel};
+use slint::{Model, ModelRc, VecModel};
 
 slint::include_modules!();
 
@@ -285,15 +285,34 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     refresh_tiles();
 
-    // Notification stack. The org.freedesktop.Notifications D-Bus server is not wired yet,
-    // so only the system status card is shown.
-    qs.set_notifications(ModelRc::from(Rc::new(VecModel::from(vec![
+    // Notification stack with dynamic model supporting swipe-to-dismiss and clear-all
+    let notifs_model = Rc::new(VecModel::from(vec![
         NotificationData {
-            app: "Penumbra".into(),
-            title: "Penumbra Core • Wayland Ready".into(),
-            body: "Wayland convergence active: DSI phone shell ready".into(),
+            app: "Penumbra Core".into(),
+            title: "Wayland Ready • M3 Expressive".into(),
+            body: "Dual-Kawase blur & progressive backdrop active".into(),
         },
-    ]))));
+    ]));
+    qs.set_notifications(ModelRc::from(Rc::clone(&notifs_model)));
+
+    {
+        let notifs = Rc::clone(&notifs_model);
+        qs.on_notification_dismissed(move |idx| {
+            if (idx as usize) < notifs.row_count() {
+                info!("Quick Settings: Notification at index {idx} dismissed");
+                notifs.remove(idx as usize);
+            }
+        });
+    }
+    {
+        let notifs = Rc::clone(&notifs_model);
+        qs.on_clear_notifications(move || {
+            info!("Quick Settings: Cleared all notifications");
+            while notifs.row_count() > 0 {
+                notifs.remove(0);
+            }
+        });
+    }
 
     {
         let registry = Rc::clone(&registry);

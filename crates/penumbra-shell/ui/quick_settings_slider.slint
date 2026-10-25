@@ -17,6 +17,88 @@ export struct NotificationData {
 }
 
 // Single morphing tile: `morph` 0.0 = compact icon cell, 1.0 = full pastille.
+// Stacked Notification Pastille with swipe-to-dismiss gesture
+component NotificationCard inherits Rectangle {
+    in property <NotificationData> data;
+    in property <int> index;
+    callback dismiss(int);
+
+    property <length> swipe-x: 0px;
+    property <float> touch-start-x: 0.0;
+    property <bool> is-swiping: false;
+
+    height: 72px;
+    background: transparent;
+
+    card := Rectangle {
+        x: root.swipe-x;
+        width: parent.width;
+        height: parent.height;
+        border-radius: Theme.radius-item;
+        background: Theme.surface-container-low;
+        border-width: 1px;
+        border-color: Theme.specular-rim;
+        opacity: 1.0 - Math.clamp(Math.abs(root.swipe-x) / 180px, 0.0, 1.0);
+
+        animate x { duration: root.is-swiping ? 0ms : 200ms; easing: ease-out; }
+        animate opacity { duration: root.is-swiping ? 0ms : 200ms; easing: ease-out; }
+
+        TouchArea {
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    root.touch-start-x = self.mouse-x / 1px;
+                    root.is-swiping = true;
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    root.is-swiping = false;
+                    if (Math.abs(root.swipe-x) > 100px) {
+                        root.dismiss(root.index);
+                    } else {
+                        root.swipe-x = 0px;
+                    }
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    let dx = (self.mouse-x / 1px) - root.touch-start-x;
+                    root.swipe-x = dx * 1px;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            spacing: 12px;
+            alignment: center;
+
+            Rectangle {
+                width: 38px;
+                height: 38px;
+                border-radius: Theme.radius-pill;
+                background: Theme.primary-container;
+                Icon {
+                    name: "bell";
+                    icon-size: 19px;
+                    icon-color: Theme.primary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+                Text { text: root.data.app; font-size: Theme.font-caption; color: Theme.on-surface-variant; overflow: elide; }
+                Text { text: root.data.title; font-size: Theme.font-body; font-weight: 700; color: Theme.on-surface; overflow: elide; }
+                Text { text: root.data.body; font-size: Theme.font-caption; color: Theme.on-surface-variant; overflow: elide; }
+            }
+        }
+    }
+}
+
+// Single morphing tile: `morph` 0.0 = compact icon cell, 1.0 = full pastille.
+// Material 3 Expressive tactile squash: 0.96x compression on pointer down.
 component TileView inherits Rectangle {
     in property <float> morph: 1.0;
     in property <TileData> data;
@@ -27,6 +109,9 @@ component TileView inherits Rectangle {
     property <float> touch-start-y: 0.0;
     property <bool> is-down: false;
     property <bool> did-long-press: false;
+
+    background: transparent;
+    opacity: root.data.enabled ? 1.0 : 0.5;
 
     lp-timer := Timer {
         interval: 400ms;
@@ -40,14 +125,78 @@ component TileView inherits Rectangle {
         }
     }
 
-    border-radius: 18px + 4px * root.morph;
-    background: !root.data.enabled ? Theme.surface-low : (root.data.active ? Theme.primary : Theme.surface-high);
-    opacity: root.data.enabled ? 1.0 : 0.5;
-    border-width: 1px;
-    border-color: root.data.active ? Theme.specular-rim-active : Theme.specular-rim;
-    clip: true;
+    // Inner tile container that compresses 0.96x on pointer down
+    inner-tile := Rectangle {
+        property <length> squash-dx: root.is-down ? 2.5px : 0px;
+        property <length> squash-dy: root.is-down ? 1.5px : 0px;
 
-    animate background { duration: 160ms; easing: ease-out; }
+        x: self.squash-dx;
+        y: self.squash-dy;
+        width: parent.width - 2 * self.squash-dx;
+        height: parent.height - 2 * self.squash-dy;
+
+        border-radius: root.is-down ? Theme.radius-tile-squash : (Theme.radius-item + (Theme.radius-tile - Theme.radius-item) * root.morph);
+        background: !root.data.enabled ? Theme.surface-container-low : (root.data.active ? (root.is-down ? Theme.primary.brighter(8%) : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high));
+        border-width: 1px;
+        border-color: root.data.active ? Theme.specular-rim-active : Theme.specular-rim;
+        clip: true;
+
+        animate x, y, width, height, border-radius {
+            duration: Theme.duration-short;
+            easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+        }
+        animate background, border-color {
+            duration: Theme.duration-short;
+            easing: ease-out;
+        }
+
+        // Icon badge slides from the cell centre (compact QQS) to the left edge (expanded QS).
+        Rectangle {
+            width: 38px;
+            height: 38px;
+            x: (parent.width - self.width) / 2 * (1.0 - root.morph) + 12px * root.morph;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.radius-pill;
+            background: root.data.active ? Theme.on-primary : Theme.surface-container-highest;
+
+            animate x, background {
+                duration: Theme.duration-short;
+                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+            }
+
+            Icon {
+                name: root.data.icon-name;
+                icon-size: 19px;
+                icon-color: root.data.active ? Theme.primary : Theme.on-surface;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        VerticalLayout {
+            x: 58px;
+            width: Math.max(0px, parent.width - 66px);
+            y: 0px;
+            height: parent.height;
+            alignment: center;
+            spacing: 2px;
+            opacity: Math.clamp((root.morph - 0.25) / 0.55, 0.0, 1.0);
+
+            Text {
+                text: root.data.title;
+                font-size: Theme.font-body;
+                font-weight: 700;
+                color: root.data.active ? Theme.on-primary : Theme.on-surface;
+                overflow: elide;
+            }
+            Text {
+                text: root.data.subtitle;
+                font-size: Theme.font-caption;
+                color: root.data.active ? Theme.on-primary : Theme.on-surface-variant;
+                overflow: elide;
+            }
+        }
+    }
 
     TouchArea {
         pointer-event(event) => {
@@ -77,46 +226,6 @@ component TileView inherits Rectangle {
                     }
                 }
             }
-        }
-    }
-
-    // Icon badge slides from the cell centre (compact) to the left edge (expanded).
-    Rectangle {
-        width: 36px;
-        height: 36px;
-        x: (parent.width - self.width) / 2 * (1.0 - root.morph) + 12px * root.morph;
-        y: (parent.height - self.height) / 2;
-        border-radius: 18px;
-        background: root.data.active ? Theme.on-primary : Theme.surface-highest;
-        Icon {
-            name: root.data.icon-name;
-            icon-size: 18px;
-            icon-color: root.data.active ? Theme.primary : Theme.on-surface;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-        }
-    }
-
-    VerticalLayout {
-        x: 56px;
-        width: parent.width - 62px;
-        y: 0px;
-        height: parent.height;
-        alignment: center;
-        spacing: 2px;
-        opacity: Math.clamp((root.morph - 0.4) / 0.6, 0.0, 1.0);
-        Text {
-            text: root.data.title;
-            font-size: 13px;
-            font-weight: 700;
-            color: root.data.active ? Theme.on-primary : Theme.on-surface;
-            overflow: elide;
-        }
-        Text {
-            text: root.data.subtitle;
-            font-size: 11px;
-            color: root.data.active ? Theme.on-primary : Theme.on-surface-variant;
-            overflow: elide;
         }
     }
 }
@@ -243,6 +352,8 @@ export component QuickSettingsSlider inherits Rectangle {
     callback drag-delta(length /* dy */);
     callback drag-released(length /* current_y */, float /* velocity */);
     callback fast-pull-up();
+    callback notification-dismissed(int);
+    callback clear-notifications();
 
     // Visible shade height in px (0 = closed .. 915 = fully open).
     property <length> disp: Math.clamp(root.slide-offset-y + 915px, 0px, 915px);
@@ -455,26 +566,45 @@ export component QuickSettingsSlider inherits Rectangle {
                 x: root.pad;
                 y: root.below-tiles + root.qs-block-h * root.morph;
                 width: parent.width - 2 * root.pad;
-                spacing: 8px;
+                spacing: 10px;
+
                 if root.notifications.length == 0: Text {
                     text: "No notifications";
-                    font-size: 12px;
+                    font-size: Theme.font-label;
                     color: Theme.on-surface-variant;
                     horizontal-alignment: center;
                 }
-                for n in root.notifications: Rectangle {
-                    height: 64px;
-                    border-radius: Theme.radius-tile;
-                    background: Theme.surface-low;
-                    border-width: 1px;
-                    border-color: Theme.specular-rim;
-                    VerticalLayout {
-                        padding: 12px;
-                        spacing: 2px;
-                        alignment: center;
-                        Text { text: n.app; font-size: 10px; color: Theme.on-surface-variant; overflow: elide; }
-                        Text { text: n.title; font-size: 13px; font-weight: 700; color: Theme.on-surface; overflow: elide; }
-                        Text { text: n.body; font-size: 11px; color: Theme.on-surface-variant; overflow: elide; }
+
+                for n[idx] in root.notifications: NotificationCard {
+                    data: n;
+                    index: idx;
+                    dismiss(i) => { root.notification-dismissed(i); }
+                }
+
+                if root.notifications.length > 0: HorizontalLayout {
+                    alignment: end;
+                    padding-top: 4px;
+                    Rectangle {
+                        height: 32px;
+                        width: 92px;
+                        border-radius: Theme.radius-pill;
+                        background: clear-btn-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
+                        animate background { duration: Theme.duration-short; }
+
+                        clear-btn-touch := TouchArea {
+                            clicked => { root.clear-notifications(); }
+                        }
+
+                        Text {
+                            text: "Clear all";
+                            font-size: Theme.font-caption;
+                            font-weight: 700;
+                            color: Theme.primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }

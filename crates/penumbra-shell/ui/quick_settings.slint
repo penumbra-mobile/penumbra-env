@@ -82,65 +82,78 @@ component QuickToggle inherits Rectangle {
     callback clicked();
 
     height: 72px;
-    border-radius: Theme.radius-tile;
-    background: root.is-active ? Theme.primary : Theme.surface-high;
-    border-width: 1px;
-    border-color: root.is-active ? Theme.specular-rim-active : Theme.specular-rim;
+    background: transparent;
 
-    animate background { duration: 180ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
-    animate border-color { duration: 180ms; easing: ease-out; }
+    inner-toggle := Rectangle {
+        property <length> squash-dx: toggle-touch.pressed ? 2.5px : 0px;
+        property <length> squash-dy: toggle-touch.pressed ? 1.5px : 0px;
 
-    TouchArea {
-        clicked => {
-            root.is-active = !root.is-active;
-            root.clicked();
+        x: self.squash-dx;
+        y: self.squash-dy;
+        width: parent.width - 2 * self.squash-dx;
+        height: parent.height - 2 * self.squash-dy;
+
+        border-radius: toggle-touch.pressed ? Theme.radius-tile-squash : Theme.radius-tile;
+        background: root.is-active ? (toggle-touch.pressed ? Theme.primary.brighter(8%) : Theme.primary) : (toggle-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-high);
+        border-width: 1px;
+        border-color: root.is-active ? Theme.specular-rim-active : Theme.specular-rim;
+        clip: true;
+
+        animate x, y, width, height, border-radius { duration: Theme.duration-short; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate background, border-color { duration: Theme.duration-short; easing: ease-out; }
+
+        HorizontalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            spacing: 12px;
+            alignment: start;
+
+            // Circular icon badge
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.radius-pill;
+                background: root.is-active ? Theme.on-primary : Theme.surface-container-highest;
+
+                animate background { duration: Theme.duration-short; easing: ease-out; }
+
+                Text {
+                    text: root.icon-text;
+                    font-size: 18px;
+                    color: root.is-active ? Theme.primary : Theme.on-surface;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // Title and Subtitle Text Column
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: root.title;
+                    font-size: Theme.font-body;
+                    font-weight: 700;
+                    color: root.is-active ? Theme.on-primary : Theme.on-surface;
+                    overflow: elide;
+                }
+
+                Text {
+                    text: root.subtitle;
+                    font-size: Theme.font-caption;
+                    color: root.is-active ? Theme.on-primary : Theme.on-surface-variant;
+                    overflow: elide;
+                }
+            }
         }
     }
 
-    HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        spacing: 12px;
-        alignment: start;
-
-        // Circular icon badge
-        Rectangle {
-            width: 40px;
-            height: 40px;
-            y: (parent.height - self.height) / 2;
-            border-radius: Theme.radius-pill;
-            background: root.is-active ? Theme.on-primary : Theme.surface-highest;
-
-            animate background { duration: 180ms; easing: ease-out; }
-
-            Text {
-                text: root.icon-text;
-                font-size: 18px;
-                color: root.is-active ? Theme.primary : Theme.on-surface;
-                vertical-alignment: center;
-                horizontal-alignment: center;
-            }
-        }
-
-        // Title and Subtitle Text Column
-        VerticalLayout {
-            alignment: center;
-            spacing: 2px;
-
-            Text {
-                text: root.title;
-                font-size: Theme.font-body;
-                font-weight: 700;
-                color: root.is-active ? Theme.on-primary : Theme.on-surface;
-                overflow: elide;
-            }
-
-            Text {
-                text: root.subtitle;
-                font-size: Theme.font-caption;
-                color: root.is-active ? Theme.on-primary : Theme.on-surface-variant;
-                overflow: elide;
-            }
+    toggle-touch := TouchArea {
+        clicked => {
+            root.is-active = !root.is-active;
+            root.clicked();
         }
     }
 }
