@@ -1,48 +1,111 @@
 export global Theme {
-    // Material 3 Expressive OLED Pitch-Black Palette
-    out property <color> base-surface: #0D0B10;
-    out property <color> surface-lowest: #17151D;
-    out property <color> surface-low: #1E1B24;
-    out property <color> surface-high: #27232E;
-    out property <color> surface-container-high: #27232E;
-    out property <color> surface-highest: #332E3C;
-    out property <color> surface-variant: #44474F;
+    // =========================================================================
+    // Material 3 Expressive (M3E) Tonal Surface Hierarchy
+    // Pure OLED Pitch-Black to High-Contrast Elevated Glass Containers
+    // =========================================================================
+    out property <color> surface: #141218;                  // Standard baseline dark surface
+    out property <color> surface-dim: #110f15;              // Dimmed / recessed background
+    out property <color> surface-bright: #38353d;           // Luminous high-contrast surface
+    out property <color> surface-container-lowest: #0b0a0e; // Deepest OLED pitch black container (0dp)
+    out property <color> surface-container-low: #17151d;    // Low-elevation card container (1dp)
+    out property <color> surface-container: #1e1b24;        // Resting sheet / pastille container (2dp)
+    out property <color> surface-container-high: #27232e;   // Elevated tile / slider chassis (3dp)
+    out property <color> surface-container-highest: #36343b;// High-emphasis floating capsule (4dp)
+    out property <color> surface-variant: #44474f;          // Chip outline, subtle separator
 
-    // Accent Roles
-    out property <color> primary: #ADC6FF;          // Dynamic Iris Blue
+    // Backward-Compatible Aliases
+    out property <color> base-surface: #0b0a0e;
+    out property <color> surface-lowest: #17151d;
+    out property <color> surface-low: #1e1b24;
+    out property <color> surface-high: #27232e;
+    out property <color> surface-highest: #36343b;
+
+    // =========================================================================
+    // Dynamic Tonal Accent Roles (Pixel Monet Palette)
+    // =========================================================================
+    // Primary: Dynamic Iris Periwinkle (Tonal 80 / 20 / 30 / 90)
+    out property <color> primary: #ADC6FF;
     out property <color> on-primary: #002E69;
     out property <color> primary-container: #254070;
     out property <color> on-primary-container: #D8E2FF;
+    out property <color> inverse-primary: #3B5E99;
+
+    // Secondary: Cool Steel Slate (Tonal 80 / 20 / 30 / 90)
     out property <color> secondary: #BFC6DC;
     out property <color> on-secondary: #283141;
+    out property <color> secondary-container: #3E4758;
+    out property <color> on-secondary-container: #DBE2F9;
 
-    // Content Roles
-    out property <color> on-surface: #E3E2E6;
-    out property <color> on-surface-variant: #C4C6D0;
-    out property <color> outline: #8E9099;
-    out property <color> outline-variant: #44474F;
+    // Tertiary: Expressive Wildflower Rose (Tonal 80 / 20 / 30 / 90)
+    out property <color> tertiary: #EFB8C8;
+    out property <color> on-tertiary: #492532;
+    out property <color> tertiary-container: #633B48;
+    out property <color> on-tertiary-container: #FFD8E4;
 
-    // Sensor / Privacy Indicator
+    // Error / Critical Alerts
+    out property <color> error: #FFB4AB;
+    out property <color> on-error: #690005;
+    out property <color> error-container: #93000A;
+    out property <color> on-error-container: #FFDAD6;
+
+    // =========================================================================
+    // Content & Boundary Roles
+    // =========================================================================
+    out property <color> on-surface: #E3E2E6;               // Primary typography & icons
+    out property <color> on-surface-variant: #C4C6D0;       // Secondary label / caption text
+    out property <color> inverse-surface: #E3E2E6;
+    out property <color> inverse-on-surface: #303033;
+    out property <color> outline: #8E9099;                  // Unselected boundary strokes
+    out property <color> outline-variant: #44474F;          // Recessed borders & dividers
+
+    // =========================================================================
+    // Specular Fresnel Highlights & Glass Scrim Overlays
+    // =========================================================================
+    out property <color> specular-rim: #ffffff14;           // 8% white glass specular edge
+    out property <color> specular-rim-active: #ffffff33;    // 20% active component glass edge
+    out property <color> specular-rim-glow: #ffffff50;      // 31% focus highlight edge
+    out property <color> glass-scrim-thin: #0b0a0e40;       // 25% organic scrim
+    out property <color> glass-scrim-medium: #0b0a0e80;     // 50% organic scrim
+    out property <color> glass-scrim-deep: #0b0a0ecc;       // 80% organic scrim
+    out property <color> glass-card: #1e1b2488;             // 53% translucent blur pass-through
+
+    // Hardware Sensor / Privacy Indicators
     out property <color> privacy-green: #48E885;
     out property <color> privacy-green-glow: #48E88533;
+    out property <color> charging-accent: #48E885;
 
-    // Specular Rim Highlight
-    out property <color> specular-rim: #ffffff14;    // rgba(255, 255, 255, 0.08)
-    out property <color> specular-rim-active: #ffffff2e;
+    // =========================================================================
+    // Expressive Geometry Radii
+    // =========================================================================
+    out property <length> radius-pill: 9999px;              // Fluid capsules & pastilles
+    out property <length> radius-card: 32px;                // Large sheets & modal surfaces
+    out property <length> radius-tile: 28px;                // QuickSettings toggles (resting)
+    out property <length> radius-tile-squash: 22px;         // QuickSettings toggles (pressed)
+    out property <length> radius-item: 16px;                // Notification pastilles & menu rows
+    out property <length> radius-small: 16px;               // Small chips
+    out property <length> radius-xs: 8px;                   // Micro badges & tags
 
-    // Geometry Radii
-    out property <length> radius-pill: 9999px;
-    out property <length> radius-tile: 28px;
-    out property <length> radius-card: 36px;
-    out property <length> radius-small: 16px;
-    out property <length> radius-xs: 8px;
+    // =========================================================================
+    // Expressive Durations
+    // Canonical Bezier Curves (Use in Slint animate clauses):
+    //   Standard:              cubic-bezier(0.2, 0.0, 0.0, 1.0)
+    //   Emphasized Decelerate: cubic-bezier(0.05, 0.7, 0.1, 1.0)
+    //   Emphasized Accelerate: cubic-bezier(0.3, 0.0, 0.8, 0.15)
+    // =========================================================================
+    out property <duration> duration-micro: 100ms;          // Micro haptic responses
+    out property <duration> duration-short: 150ms;          // Touch squash & pastille state changes
+    out property <duration> duration-medium: 300ms;         // Modal expansions & card morphing
+    out property <duration> duration-long: 500ms;           // Drawer pull & layout restructuring
 
-    // Font Sizes
-    out property <length> font-headline: 32px;
-    out property <length> font-clock-large: 64px;
-    out property <length> font-clock-mid: 42px;
-    out property <length> font-title: 19px;
-    out property <length> font-body: 14px;
-    out property <length> font-label: 12px;
-    out property <length> font-caption: 11px;
+    // =========================================================================
+    // Expressive Typography Hierarchy (Google Sans / Inter Scale)
+    // =========================================================================
+    out property <length> font-clock-large: 64px;           // Lockscreen hero clock
+    out property <length> font-clock-mid: 42px;             // QuickSettings header clock
+    out property <length> font-display: 36px;               // Large feature titles
+    out property <length> font-headline: 32px;              // Primary drawer headers
+    out property <length> font-title: 19px;                 // Tile titles & dialog titles
+    out property <length> font-body: 14px;                  // Standard readable content
+    out property <length> font-label: 12px;                 // Subtitles, badges, sliders
+    out property <length> font-caption: 11px;               // Battery %, timestamps, micro tags
 }

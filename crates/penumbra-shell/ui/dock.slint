@@ -13,10 +13,10 @@ export component BottomDock inherits Rectangle {
 
     width: 380px;
     height: 68px;
-    border-radius: self.height / 2;
-    background: root.reject-drop ? #ba1a1acc : #18151ed9; // Material 3 Expressive deep tonal shelf
-    border-width: root.reject-drop ? 1.5px : 0px;
-    border-color: root.reject-drop ? #ff897d : transparent;
+    border-radius: Theme.radius-pill;
+    background: root.reject-drop ? Theme.error-container : Theme.surface-container-high;
+    border-width: 1px;
+    border-color: root.reject-drop ? Theme.error : Theme.specular-rim;
     clip: true;
 
     // Shake animation on drop rejection

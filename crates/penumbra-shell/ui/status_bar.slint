@@ -192,7 +192,7 @@ export component StatusBar inherits Rectangle {
                             width: Math.clamp((parent.width - 3px) * (root.battery-pct / 100.0), 2px, parent.width - 3px);
                             height: parent.height - 3px;
                             border-radius: 1.5px;
-                            background: root.battery-pct < 20.0 ? #FFB4AB : (root.is-charging ? Theme.privacy-green : Theme.primary);
+                            background: root.battery-pct < 20.0 ? Theme.error : (root.is-charging ? Theme.privacy-green : Theme.primary);
                         }
                     }
 

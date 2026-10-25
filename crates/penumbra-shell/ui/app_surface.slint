@@ -157,7 +157,7 @@ export component AppSurface inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #000000;
+        background: Theme.surface-container-lowest;
         opacity: root.is-dragging-app ? 0.15 : (root.has-wallpaper ? (0.20 + (root.drawer-progress * 0.65)) : (root.drawer-progress * 0.85));
     }
 
@@ -381,8 +381,10 @@ export component AppSurface inherits Rectangle {
                     // Weather Pill
                     Rectangle {
                         height: 26px;
-                        border-radius: 13px;
-                        background: #24212c;
+                        border-radius: Theme.radius-pill;
+                        background: Theme.surface-container-high;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
 
                         HorizontalLayout {
                             padding-left: 10px;
@@ -625,15 +627,16 @@ export component AppSurface inherits Rectangle {
             }
         }
 
-        // Bottom Google Pixel Search Bar (Material 3 Expressive - no glass)
+        // Bottom Google Pixel Search Bar (Material 3 Expressive floating capsule)
         Rectangle {
             x: 20px;
             y: 720px;
             width: parent.width - 40px;
             height: 52px;
-            border-radius: 26px;
-            background: #1e1b24;
-            border-width: 0px;
+            border-radius: Theme.radius-pill;
+            background: Theme.surface-container-high;
+            border-width: 1px;
+            border-color: Theme.specular-rim;
 
             search-ta := TouchArea {
                 property <float> last-y: 0.0;
@@ -794,8 +797,10 @@ export component AppSurface inherits Rectangle {
                     Rectangle {
                         width: 32px;
                         height: 32px;
-                        border-radius: 16px;
-                        background: #322E3E;
+                        border-radius: Theme.radius-pill;
+                        background: Theme.surface-container-highest;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
 
                         Text {
                             text: "✕";
