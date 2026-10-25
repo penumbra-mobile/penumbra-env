@@ -42,6 +42,8 @@ CLAUDE.md
 *.prompt.md
 *.instructions.md
 *.agent.md
+MATERIAL_3_EXPRESSIVE_PLAN.md
+*PLAN.md
 
 # OS specific files
 .DS_Store
