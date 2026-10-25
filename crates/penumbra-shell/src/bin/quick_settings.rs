@@ -19,6 +19,7 @@ use penumbra_services::{
     apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
     BatteryService, NetworkService,
 };
+use penumbra_shell::apply_monet_palette;
 use penumbra_shell::ipc::ShellState;
 use penumbra_shell::quick_settings::{tile, QuickSettingsConfig, TileDefinition, TileState};
 use slint::{Model, ModelRc, VecModel};
@@ -85,6 +86,24 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The final surface size is determined by the layer-shell geometry passed to the client.
     let qs = QuickSettingsWindow::new()?;
     let ui_weak = qs.as_weak();
+
+    // Initialize Monet dynamic theme
+    let initial_palette = penumbra_shell::theme::load_current_theme();
+    {
+        let theme = Theme::get(&qs);
+        apply_monet_palette!(theme, initial_palette);
+    }
+
+    // Dynamic IPC Theme Watcher
+    let _theme_timer = {
+        let ui_weak = ui_weak.clone();
+        penumbra_shell::theme::start_theme_watcher(move |palette| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let theme = Theme::get(&ui);
+                apply_monet_palette!(theme, palette);
+            }
+        })
+    };
 
     // Initially retracted off-screen: y = -915px
     qs.set_slide_offset_y(-915.0);

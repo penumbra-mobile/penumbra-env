@@ -3,60 +3,60 @@ export global Theme {
     // Material 3 Expressive (M3E) Tonal Surface Hierarchy
     // Pure OLED Pitch-Black to High-Contrast Elevated Glass Containers
     // =========================================================================
-    out property <color> surface: #141218;                  // Standard baseline dark surface
-    out property <color> surface-dim: #110f15;              // Dimmed / recessed background
-    out property <color> surface-bright: #38353d;           // Luminous high-contrast surface
-    out property <color> surface-container-lowest: #0b0a0e; // Deepest OLED pitch black container (0dp)
-    out property <color> surface-container-low: #17151d;    // Low-elevation card container (1dp)
-    out property <color> surface-container: #1e1b24;        // Resting sheet / pastille container (2dp)
-    out property <color> surface-container-high: #27232e;   // Elevated tile / slider chassis (3dp)
-    out property <color> surface-container-highest: #36343b;// High-emphasis floating capsule (4dp)
-    out property <color> surface-variant: #44474f;          // Chip outline, subtle separator
+    in-out property <color> surface: #141218;                  // Standard baseline dark surface
+    in-out property <color> surface-dim: #110f15;              // Dimmed / recessed background
+    in-out property <color> surface-bright: #38353d;           // Luminous high-contrast surface
+    in-out property <color> surface-container-lowest: #0b0a0e; // Deepest OLED pitch black container (0dp)
+    in-out property <color> surface-container-low: #17151d;    // Low-elevation card container (1dp)
+    in-out property <color> surface-container: #1e1b24;        // Resting sheet / pastille container (2dp)
+    in-out property <color> surface-container-high: #27232e;   // Elevated tile / slider chassis (3dp)
+    in-out property <color> surface-container-highest: #36343b;// High-emphasis floating capsule (4dp)
+    in-out property <color> surface-variant: #44474f;          // Chip outline, subtle separator
 
     // Backward-Compatible Aliases
-    out property <color> base-surface: #0b0a0e;
-    out property <color> surface-lowest: #17151d;
-    out property <color> surface-low: #1e1b24;
-    out property <color> surface-high: #27232e;
-    out property <color> surface-highest: #36343b;
+    in-out property <color> base-surface: #0b0a0e;
+    in-out property <color> surface-lowest: #17151d;
+    in-out property <color> surface-low: #1e1b24;
+    in-out property <color> surface-high: #27232e;
+    in-out property <color> surface-highest: #36343b;
 
     // =========================================================================
     // Dynamic Tonal Accent Roles (Pixel Monet Palette)
     // =========================================================================
     // Primary: Dynamic Iris Periwinkle (Tonal 80 / 20 / 30 / 90)
-    out property <color> primary: #ADC6FF;
-    out property <color> on-primary: #002E69;
-    out property <color> primary-container: #254070;
-    out property <color> on-primary-container: #D8E2FF;
-    out property <color> inverse-primary: #3B5E99;
+    in-out property <color> primary: #ADC6FF;
+    in-out property <color> on-primary: #002E69;
+    in-out property <color> primary-container: #254070;
+    in-out property <color> on-primary-container: #D8E2FF;
+    in-out property <color> inverse-primary: #3B5E99;
 
     // Secondary: Cool Steel Slate (Tonal 80 / 20 / 30 / 90)
-    out property <color> secondary: #BFC6DC;
-    out property <color> on-secondary: #283141;
-    out property <color> secondary-container: #3E4758;
-    out property <color> on-secondary-container: #DBE2F9;
+    in-out property <color> secondary: #BFC6DC;
+    in-out property <color> on-secondary: #283141;
+    in-out property <color> secondary-container: #3E4758;
+    in-out property <color> on-secondary-container: #DBE2F9;
 
     // Tertiary: Expressive Wildflower Rose (Tonal 80 / 20 / 30 / 90)
-    out property <color> tertiary: #EFB8C8;
-    out property <color> on-tertiary: #492532;
-    out property <color> tertiary-container: #633B48;
-    out property <color> on-tertiary-container: #FFD8E4;
+    in-out property <color> tertiary: #EFB8C8;
+    in-out property <color> on-tertiary: #492532;
+    in-out property <color> tertiary-container: #633B48;
+    in-out property <color> on-tertiary-container: #FFD8E4;
 
     // Error / Critical Alerts
-    out property <color> error: #FFB4AB;
-    out property <color> on-error: #690005;
-    out property <color> error-container: #93000A;
-    out property <color> on-error-container: #FFDAD6;
+    in-out property <color> error: #FFB4AB;
+    in-out property <color> on-error: #690005;
+    in-out property <color> error-container: #93000A;
+    in-out property <color> on-error-container: #FFDAD6;
 
     // =========================================================================
     // Content & Boundary Roles
     // =========================================================================
-    out property <color> on-surface: #E3E2E6;               // Primary typography & icons
-    out property <color> on-surface-variant: #C4C6D0;       // Secondary label / caption text
-    out property <color> inverse-surface: #E3E2E6;
-    out property <color> inverse-on-surface: #303033;
-    out property <color> outline: #8E9099;                  // Unselected boundary strokes
-    out property <color> outline-variant: #44474F;          // Recessed borders & dividers
+    in-out property <color> on-surface: #E3E2E6;               // Primary typography & icons
+    in-out property <color> on-surface-variant: #C4C6D0;       // Secondary label / caption text
+    in-out property <color> inverse-surface: #E3E2E6;
+    in-out property <color> inverse-on-surface: #303033;
+    in-out property <color> outline: #8E9099;                  // Unselected boundary strokes
+    in-out property <color> outline-variant: #44474F;          // Recessed borders & dividers
 
     // =========================================================================
     // Specular Fresnel Highlights & Glass Scrim Overlays

@@ -15,6 +15,8 @@ use tracing_subscriber::FmtSubscriber;
 
 use layer_shell_slint::{Anchor, KeyboardInteractivity, Layer, LayerConfig};
 use penumbra_gestures::Spring;
+use penumbra_services::MonetPalette;
+use penumbra_shell::apply_monet_palette;
 use penumbra_shell::apps::{discover_installed_apps, find_single_app, launch_app, InstalledApp};
 use penumbra_shell::config::{load_layout_config, save_layout_config};
 use penumbra_shell::ipc::{read_windows, send_command, PhoneMode, ShellState};
@@ -175,6 +177,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ui = HomescreenWindow::new()?;
     let ui_weak = ui.as_weak();
 
+    // Initialize Monet dynamic theme
+    let initial_palette = penumbra_shell::theme::load_current_theme();
+    {
+        let theme = Theme::get(&ui);
+        apply_monet_palette!(theme, initial_palette);
+    }
+
+    // Helper to dynamically extract Monet palette and sync to IPC + Theme
+    let sync_monet_theme = {
+        let ui_weak = ui_weak.clone();
+        move |wallpaper_path: Option<std::path::PathBuf>| {
+            let ui_weak = ui_weak.clone();
+            std::thread::spawn(move || {
+                let palette = match wallpaper_path {
+                    Some(ref p) if p.exists() => MonetPalette::from_image_path(p)
+                        .unwrap_or_else(|_| MonetPalette::default_dark()),
+                    _ => MonetPalette::default_dark(),
+                };
+                let ipc_path = MonetPalette::default_ipc_path();
+                let _ = palette.save_to_ipc_path(&ipc_path);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let theme = Theme::get(&ui);
+                        apply_monet_palette!(theme, palette);
+                    }
+                });
+            });
+        }
+    };
+
     // 3. Telemetry Clock (updates every second)
     let clock_timer = Timer::default();
     {
@@ -217,6 +249,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         ui.set_has_blurred_wallpaper(false);
                     }
+                    sync_monet_theme(Some(wp_path.to_path_buf()));
                     loaded = true;
                 }
             }
@@ -241,6 +274,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         } else {
                             ui.set_has_blurred_wallpaper(false);
                         }
+                        sync_monet_theme(Some(p.to_path_buf()));
                         break;
                     }
                 }
@@ -755,6 +789,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let ui_weak = ui_weak.clone();
         let layout_config = Rc::clone(&layout_config);
+        let sync_theme = sync_monet_theme.clone();
         ui.on_select_wallpaper(move |path_slint| {
             let path_str = path_slint.as_str().to_string();
             let path = std::path::Path::new(&path_str);
@@ -775,6 +810,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     cfg.set_wallpaper(&path_str);
                     save_layout_config(&cfg);
                     info!("Wallpaper updated and saved: {}", path_str);
+                    sync_theme(Some(path.to_path_buf()));
                 }
             }
         });
@@ -783,6 +819,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let ui_weak = ui_weak.clone();
         let layout_config = Rc::clone(&layout_config);
+        let sync_theme = sync_monet_theme.clone();
         ui.on_clear_wallpaper(move || {
             if let Some(ui) = ui_weak.upgrade() {
                 ui.set_has_wallpaper(false);
@@ -793,6 +830,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cfg.set_wallpaper("");
             save_layout_config(&cfg);
             info!("Wallpaper cleared");
+            sync_theme(None);
         });
     }
 

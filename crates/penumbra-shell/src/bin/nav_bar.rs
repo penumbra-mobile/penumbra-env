@@ -20,6 +20,7 @@ use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use layer_shell_slint::{Anchor, KeyboardInteractivity, Layer, LayerConfig};
+use penumbra_shell::apply_monet_palette;
 use penumbra_shell::ipc::{read_windows, send_command, PhoneMode, ShellState};
 
 slint::include_modules!();
@@ -47,6 +48,24 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Instantiate Slint NavBarWindow component.
     let bar = NavBarWindow::new()?;
     let ui_weak = bar.as_weak();
+
+    // Initialize Monet dynamic theme
+    let initial_palette = penumbra_shell::theme::load_current_theme();
+    {
+        let theme = Theme::get(&bar);
+        apply_monet_palette!(theme, initial_palette);
+    }
+
+    // Dynamic IPC Theme Watcher
+    let _theme_timer = {
+        let ui_weak = ui_weak.clone();
+        penumbra_shell::theme::start_theme_watcher(move |palette| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let theme = Theme::get(&ui);
+                apply_monet_palette!(theme, palette);
+            }
+        })
+    };
 
     // Wire keyboard toggle button on navigation bar
     bar.on_keyboard_toggle_clicked(|| {

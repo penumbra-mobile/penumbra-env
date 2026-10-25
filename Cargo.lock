@@ -3849,6 +3849,9 @@ name = "penumbra-services"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "image",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "zbus",

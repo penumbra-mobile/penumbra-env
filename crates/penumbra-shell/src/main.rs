@@ -16,6 +16,7 @@ use apps::{discover_installed_apps, find_single_app, launch_app, InstalledApp};
 
 mod config;
 use config::{load_layout_config, save_layout_config};
+use penumbra_shell::apply_monet_palette;
 
 slint::include_modules!();
 
@@ -354,6 +355,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let t0 = Instant::now();
     let ui = ShellRoot::new()?;
     info!("ShellRoot::new completed in {:.2?}", t0.elapsed());
+
+    // Initialize Monet dynamic theme
+    let initial_palette = penumbra_shell::theme::load_current_theme();
+    {
+        let theme = Theme::get(&ui);
+        apply_monet_palette!(theme, initial_palette);
+    }
+
+    // Dynamic IPC Theme Watcher
+    let _theme_timer = {
+        let ui_weak = ui.as_weak();
+        penumbra_shell::theme::start_theme_watcher(move |palette| {
+            if let Some(ui) = ui_weak.upgrade() {
+                let theme = Theme::get(&ui);
+                apply_monet_palette!(theme, palette);
+            }
+        })
+    };
 
     let t1 = Instant::now();
     ui.set_convergence_mode(args.dual_screen && !args.phone_only);
