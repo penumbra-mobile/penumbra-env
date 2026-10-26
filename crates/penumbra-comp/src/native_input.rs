@@ -72,6 +72,14 @@ pub(crate) struct NavTouchTracker {
     pub tracker: penumbra_gestures::VelocityTracker,
 }
 
+/// Tracks a touch gesture pulling down the Quick Settings and Notification shade from the top status bar.
+pub(crate) struct ShadeTouchTracker {
+    pub slot: i32,
+    pub start_pos: Point<f64, Logical>,
+    pub tracker: penumbra_gestures::VelocityTracker,
+    pub is_dragging: bool,
+}
+
 /// Input bookkeeping for the native panel.
 pub(crate) struct InputState {
     pointer: PointerHandle<PenumbraServerState>,
@@ -83,6 +91,7 @@ pub(crate) struct InputState {
     touch: Option<TouchContact>,
     edge_gesture: Option<EdgeBackGesture>,
     pub nav_tracker: Option<NavTouchTracker>,
+    pub shade_tracker: Option<ShadeTouchTracker>,
     pub power_press_time: Option<std::time::Instant>,
     pub power_dialog_triggered: bool,
     pub last_tap_time: Option<std::time::Instant>,
@@ -104,6 +113,7 @@ impl InputState {
             touch: None,
             edge_gesture: None,
             nav_tracker: None,
+            shade_tracker: None,
             power_press_time: None,
             power_dialog_triggered: false,
             last_tap_time: None,
@@ -411,6 +421,21 @@ pub(crate) fn handle(
                         }
                     }
 
+            // Quick Settings shade pull-down gesture:
+            // Intercept if touching the top status bar area (y <= STATUS_BAR_H) and drawer is not already open.
+            let is_top_zone = pos.y <= STATUS_BAR_H as f64;
+            if is_top_zone && !server.shell_state.drawer_open && input.shade_tracker.is_none() {
+                let mut tracker = penumbra_gestures::VelocityTracker::new(0.8);
+                tracker.start(pos.x, pos.y, std::time::Duration::ZERO);
+                input.shade_tracker = Some(ShadeTouchTracker {
+                    slot,
+                    start_pos: pos,
+                    tracker,
+                    is_dragging: false,
+                });
+                return;
+            }
+
             // Only the first finger drives the emulated pointer.
             if input.touch.is_some() {
                 return;
@@ -549,6 +574,40 @@ pub(crate) fn handle(
                         edge.triggered = true;
                     } else if !edge.from_left && dx < -35.0 && (-dx) > dy * 1.1 {
                         edge.triggered = true;
+                    }
+                    return;
+                }
+            }
+
+            if let Some(ref mut shade) = input.shade_tracker {
+                if shade.slot == slot {
+                    let elapsed = input.started.elapsed();
+                    let (_vx, _vy) = shade.tracker.update(pos.x, pos.y, elapsed);
+                    let dy = pos.y - shade.start_pos.y;
+                    let dx = (pos.x - shade.start_pos.x).abs();
+
+                    // Trigger downward drag once downward motion exceeds 5px and is downward dominant
+                    if !shade.is_dragging && dy > 5.0 && dy > dx * 0.8 {
+                        shade.is_dragging = true;
+                    }
+
+                    if shade.is_dragging {
+                        // Android 17 Material 3 Expressive progressive boundary resistance:
+                        // 1:1 response up to 320px (compact shade threshold),
+                        // then 0.85 resistance for full expansion up to 915px.
+                        let shade_disp = if dy <= 320.0 {
+                            dy
+                        } else {
+                            320.0 + (dy - 320.0) * 0.85
+                        }.clamp(0.0, PHONE_H as f64);
+
+                        let progress = (shade_disp / PHONE_H as f64).clamp(0.0, 1.0);
+
+                        server.shell_state.drawer_open = true;
+                        server.shell_state.drawer_dragging = true;
+                        server.shell_state.drawer_pull_dy = shade_disp;
+                        server.shell_state.drawer_progress = progress;
+                        let _ = server.shell_state.save();
                     }
                     return;
                 }
@@ -788,6 +847,66 @@ pub(crate) fn handle(
                     return;
                 }
             }
+
+            if let Some(shade) = input.shade_tracker.take() {
+                if shade.slot == slot {
+                    let vy = shade.tracker.velocity_y();
+                    let (_last_x, last_y) = shade.tracker.last_position();
+                    let dy = last_y - shade.start_pos.y;
+
+                    if shade.is_dragging {
+                        let shade_disp = if dy <= 320.0 {
+                            dy
+                        } else {
+                            320.0 + (dy - 320.0) * 0.85
+                        }.clamp(0.0, PHONE_H as f64);
+
+                        // Android 17 Material 3 Expressive snap rules:
+                        let target_offset = if vy < -120.0 {
+                            -915.0
+                        } else if vy < -40.0 {
+                            if shade_disp < 600.0 { -915.0 } else { -565.0 }
+                        } else if vy > 400.0 {
+                            0.0
+                        } else if vy > 60.0 {
+                            if shade_disp > 420.0 { 0.0 } else { -565.0 }
+                        } else if shade_disp < 160.0 {
+                            -915.0
+                        } else if shade_disp < 500.0 {
+                            -565.0
+                        } else {
+                            0.0
+                        };
+
+                        let is_open = target_offset > -900.0;
+                        tracing::info!(
+                            shade_disp,
+                            vy,
+                            target_offset,
+                            is_open,
+                            "Native shade drag completed -> snapping"
+                        );
+                        server.shell_state.drawer_open = is_open;
+                        server.shell_state.drawer_dragging = false;
+                        server.shell_state.drawer_pull_dy = if is_open { target_offset + (PHONE_H as f64) } else { 0.0 };
+                        server.shell_state.drawer_progress = if is_open {
+                            (server.shell_state.drawer_pull_dy / (PHONE_H as f64)).clamp(0.0, 1.0)
+                        } else {
+                            0.0
+                        };
+                        let _ = server.shell_state.save();
+                    } else {
+                        // Short tap on the status bar: expand compact shade (350px)
+                        tracing::info!("Status bar tapped: expanding compact QuickSettings shade");
+                        server.shell_state.drawer_open = true;
+                        server.shell_state.drawer_dragging = false;
+                        server.shell_state.drawer_pull_dy = 350.0;
+                        server.shell_state.drawer_progress = 350.0 / (PHONE_H as f64);
+                        let _ = server.shell_state.save();
+                    }
+                    return;
+                }
+            }
             end_touch(server, input, slot);
         }
         InputEvent::TouchCancel { event } => {
@@ -795,6 +914,16 @@ pub(crate) fn handle(
                 return;
             }
             let slot: i32 = event.slot().into();
+            if let Some(shade) = input.shade_tracker.take() {
+                if shade.slot == slot {
+                    server.shell_state.drawer_dragging = false;
+                    server.shell_state.drawer_open = false;
+                    server.shell_state.drawer_pull_dy = 0.0;
+                    server.shell_state.drawer_progress = 0.0;
+                    let _ = server.shell_state.save();
+                    return;
+                }
+            }
             if let Some(nav) = input.nav_tracker.take() {
                 if nav.slot == slot {
                     server.nav_gesture_active = false;
@@ -808,6 +937,7 @@ pub(crate) fn handle(
                     return;
                 }
             }
+            input.shade_tracker = None;
             input.edge_gesture = None;
             end_touch(server, input, slot);
         }

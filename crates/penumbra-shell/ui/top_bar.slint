@@ -35,6 +35,9 @@ export component TopBarWindow inherits Window {
                 }
                 if (self.has-dragged) {
                     root.top-bar-released();
+                } else if (event.kind == PointerEventKind.up && Math.abs(dy) <= 6px) {
+                    root.top-bar-pulled-down(350.0);
+                    root.top-bar-released();
                 }
                 self.has-dragged = false;
             }

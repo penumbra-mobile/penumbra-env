@@ -439,6 +439,7 @@ export component QuickSettingsSlider inherits Rectangle {
 
     // Tap or swipe up on the scrim below the shade to dismiss.
     scrim-touch := TouchArea {
+        enabled: root.disp > 20px;
         y: root.disp;
         width: parent.width;
         height: Math.max(0px, parent.height - self.y);

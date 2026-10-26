@@ -229,8 +229,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                             tb.set_shade_progress(final_progress);
                         }
                         state.drawer_open = target > -900.0;
-                        state.drawer_pull_dy = if state.drawer_open { 915.0 } else { 0.0 };
-                        state.drawer_progress = if state.drawer_open { 1.0 } else { 0.0 };
+                        state.drawer_pull_dy = if state.drawer_open { (target + 915.0).max(350.0) } else { 0.0 };
+                        state.drawer_progress = if state.drawer_open { final_progress as f64 } else { 0.0 };
                         state.drawer_dragging = false;
                     } else {
                         state.drawer_open = true;
@@ -844,7 +844,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         let animate_to = Rc::clone(&animate_to);
         let spring_state = Rc::clone(&spring_state);
+        let spring_timer_ipc = Rc::clone(&spring_timer);
+        let tb = top_bar_weak.clone();
         let last_known_open = Rc::new(RefCell::new(false));
+        let last_known_dragging = Rc::new(RefCell::new(false));
         let last_known_power_dialog = Rc::new(RefCell::new(false));
         let last_known_volume_modal = Rc::new(RefCell::new(false));
         let last_known_volume = Rc::new(RefCell::new(-1.0f32));
@@ -864,16 +867,43 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let mut last_open = last_known_open.borrow_mut();
+            let mut was_dragging = last_known_dragging.borrow_mut();
 
-            // External open/close triggers (when not dragging)
-            if state.drawer_open != *last_open {
-                *last_open = state.drawer_open;
-                if !state.drawer_dragging {
+            if state.drawer_dragging {
+                *was_dragging = true;
+                spring_timer_ipc.borrow().stop();
+                let disp = state.drawer_pull_dy;
+                let new_y = disp - 915.0;
+                let progress = (disp / 915.0).clamp(0.0, 1.0) as f32;
+                if let Some(shade) = q.upgrade() {
+                    shade.set_slide_offset_y(new_y as f32);
+                    shade.set_expansion_progress(progress);
+                }
+                if let Some(bar) = tb.upgrade() {
+                    bar.set_shade_progress(progress);
+                }
+                let mut sp = spring_state.borrow_mut();
+                sp.position = new_y;
+                sp.velocity = 0.0;
+            } else {
+                if *was_dragging {
+                    *was_dragging = false;
+                    // Native drag just completed -> settle spring to target
+                    let target_y = if state.drawer_open {
+                        if state.drawer_pull_dy > 600.0 { 0.0 } else { -565.0 }
+                    } else {
+                        -915.0
+                    };
+                    info!("Native drag completed -> spring settling to {:.1}", target_y);
+                    animate_to(target_y, 0.0);
+                } else if state.drawer_open != *last_open {
+                    *last_open = state.drawer_open;
                     let cur_target = spring_state.borrow().target;
                     if state.drawer_open {
                         if cur_target < -570.0 {
-                            info!("External trigger: opening QuickSettings shade (compact)");
-                            animate_to(-565.0, 400.0);
+                            let target_y = if state.drawer_pull_dy > 600.0 { 0.0 } else { -565.0 };
+                            info!("External trigger: opening QuickSettings shade (target={:.1})", target_y);
+                            animate_to(target_y, 400.0);
                         }
                     } else if cur_target > -900.0 {
                         info!("External trigger: closing QuickSettings shade");

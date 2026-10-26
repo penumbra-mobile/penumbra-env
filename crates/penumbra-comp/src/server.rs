@@ -245,11 +245,12 @@ impl PenumbraServerState {
     ) -> Option<(WlSurface, Point<f64, smithay::utils::Logical>)> {
         let map_a = layer_map_for_output(&self.output_a);
 
-        // 1. Overlay layer (highest priority - active when drawer, power dialog, or volume modal is open)
-        if self.shell_state.drawer_open
+        // 1. Overlay layer (highest priority - active when drawer is actually expanded/pulled down, or dialogs open)
+        let overlay_active = (self.shell_state.drawer_open
+            && (self.shell_state.drawer_pull_dy > 42.0 || self.shell_state.drawer_progress > 0.05))
             || self.shell_state.power_dialog_open
-            || self.shell_state.volume_modal_open
-        {
+            || self.shell_state.volume_modal_open;
+        if overlay_active {
             if let Some(l) = map_a.layer_under(Layer::Overlay, pos) {
                 let geo = map_a.layer_geometry(l).unwrap_or_default();
                 return Some((
