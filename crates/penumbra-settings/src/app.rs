@@ -16,10 +16,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use tokio::runtime::Handle;
-use tracing::info;
+use tracing::{info, warn};
 
 use penumbra_services::{
     apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
+    FingerprintManager, LockType, SecurityConfig,
 };
 
 use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend};
@@ -111,6 +112,15 @@ pub fn setup_app(
 
         // Populate virtual and physical keyboard telemetry
         reload_keyboards(window);
+
+        // Populate Security & Lockscreen configuration
+        let sec_cfg = SecurityConfig::load();
+        window.set_active_lock_type(sec_cfg.lock_type.as_str().into());
+        let has_fp = FingerprintManager::has_sensor();
+        window.set_has_fingerprint(has_fp);
+        window.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && has_fp);
+        window.set_auto_lock_timeout(sec_cfg.auto_lock_timeout_secs as i32);
+        window.set_hide_sensitive_notifications(sec_cfg.hide_sensitive_notifications);
     }
 
     // Search Query & Virtual Keyboard IPC Callbacks
@@ -393,6 +403,91 @@ pub fn setup_app(
             rt.spawn(async move {
                 bt.stop_discovery().await;
             });
+        });
+    }
+
+    // Security & Privacy Callbacks
+    {
+        let weak = ui_weak.clone();
+        window.on_set_lock_none(move || {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.set_secret("", LockType::None);
+            if let Err(e) = sec_cfg.save() {
+                warn!("Failed to save security.json: {e}");
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.set_active_lock_type("none".into());
+            }
+            info!("Settings: Screen lock set to None (Swipe)");
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_set_lock_pin(move |new_pin| {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.set_secret(new_pin.as_str(), LockType::Pin);
+            if let Err(e) = sec_cfg.save() {
+                warn!("Failed to save security.json: {e}");
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.set_active_lock_type("pin".into());
+            }
+            info!("Settings: Screen lock PIN updated successfully");
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_set_lock_password(move |new_pw| {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.set_secret(new_pw.as_str(), LockType::Password);
+            if let Err(e) = sec_cfg.save() {
+                warn!("Failed to save security.json: {e}");
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.set_active_lock_type("password".into());
+            }
+            info!("Settings: Screen lock Password updated successfully");
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_toggle_fingerprint(move |enabled| {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.fingerprint_enabled = enabled;
+            if let Err(e) = sec_cfg.save() {
+                warn!("Failed to save security.json: {e}");
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.set_fingerprint_enabled(enabled);
+            }
+            info!("Settings: Biometric fingerprint toggled to {enabled}");
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_set_auto_lock_timeout(move |timeout| {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.auto_lock_timeout_secs = timeout.max(0) as u32;
+            let _ = sec_cfg.save();
+            if let Some(ui) = weak.upgrade() {
+                ui.set_auto_lock_timeout(timeout);
+            }
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_toggle_sensitive_notifications(move |hide| {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.hide_sensitive_notifications = hide;
+            let _ = sec_cfg.save();
+            if let Some(ui) = weak.upgrade() {
+                ui.set_hide_sensitive_notifications(hide);
+            }
         });
     }
 }

@@ -349,7 +349,7 @@ pub(crate) fn handle(
             let is_right_edge = pos.x >= (PHONE_W as f64 - EDGE_ZONE);
             let in_vertical_zone = pos.y >= 35.0 && pos.y <= (NAV_BAR_Y as f64 - 10.0);
 
-            if (is_left_edge || is_right_edge) && in_vertical_zone && input.edge_gesture.is_none() {
+            if !server.shell_state.is_locked && (is_left_edge || is_right_edge) && in_vertical_zone && input.edge_gesture.is_none() {
                 input.edge_gesture = Some(EdgeBackGesture {
                     slot,
                     start_pos: pos,
@@ -366,7 +366,7 @@ pub(crate) fn handle(
                     let is_overview = server.shell_state.mode == PhoneMode::Overview;
                     let in_overview_zone = is_overview && pos.y >= STATUS_BAR_H as f64;
 
-                    if (is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone {
+                    if !server.shell_state.is_locked && ((is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone) {
                         if input.nav_tracker.is_none() {
                             let mut grabbed_card = None;
                             if is_overview {
@@ -428,7 +428,7 @@ pub(crate) fn handle(
             // Left half (x < PHONE_W / 2 = 206px) -> Notifications screen (is_full_qs = false)
             // Right half (x >= PHONE_W / 2 = 206px) -> Quick Settings screen (is_full_qs = true)
             let is_top_zone = pos.y <= (STATUS_BAR_H as f64 + 18.0);
-            if is_top_zone && !server.shell_state.drawer_open && input.shade_tracker.is_none() {
+            if !server.shell_state.is_locked && is_top_zone && !server.shell_state.drawer_open && input.shade_tracker.is_none() {
                 let is_qs = pos.x >= (PHONE_W as f64) / 2.0;
                 tracing::info!(x = pos.x, y = pos.y, is_qs, "Top edge shade drag started -> partition split");
                 let mut tracker = penumbra_gestures::VelocityTracker::new(0.8);

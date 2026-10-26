@@ -156,7 +156,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 5. Initial Physical Keyboard Detection Check
     let initial_physical = detect_active_physical_keyboard();
-    let initial_is_open = initial_physical.is_none();
     if let Some(ref name) = initial_physical {
         info!(
             "Physical keyboard detected on startup ('{}'); hiding on-screen keyboard",
@@ -164,13 +163,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         keyboard_window.set_physical_keyboard_connected(true);
         keyboard_window.set_physical_keyboard_name(name.clone().into());
-        keyboard_window.set_is_open(false);
     } else {
         keyboard_window.set_physical_keyboard_connected(false);
         keyboard_window.set_physical_keyboard_name("".into());
-        keyboard_window.set_is_open(true);
     }
-    ipc::write_keyboard_state(initial_is_open);
+    // Always start with virtual keyboard hidden until explicitly invoked
+    keyboard_window.set_is_open(false);
+    ipc::write_keyboard_state(false);
 
     // 6. Background Telemetry and Command Polling Timer (every 200ms)
     let poll_timer = Timer::default();

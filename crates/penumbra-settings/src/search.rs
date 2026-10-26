@@ -365,6 +365,45 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         target_page: "keyboard",
         keywords: "auto-hide retract keyboard physical connected external",
     },
+
+    // =========================================================================
+    // Security & privacy
+    // =========================================================================
+    SearchEntry {
+        category: "Security & privacy",
+        title: "Screen lock",
+        breadcrumb: "Security & privacy > Device lock",
+        target_page: "security",
+        keywords: "lockscreen screen lock pin password none swipe biometric security",
+    },
+    SearchEntry {
+        category: "Security & privacy",
+        title: "PIN",
+        breadcrumb: "Security & privacy > Device lock > PIN",
+        target_page: "security",
+        keywords: "pin numeric passcode numbers code lock secret security",
+    },
+    SearchEntry {
+        category: "Security & privacy",
+        title: "Password",
+        breadcrumb: "Security & privacy > Device lock > Password",
+        target_page: "security",
+        keywords: "password alphanumeric keyboard passwort credential secret security",
+    },
+    SearchEntry {
+        category: "Security & privacy",
+        title: "Fingerprint unlock",
+        breadcrumb: "Security & privacy > Biometrics > Fingerprint unlock",
+        target_page: "security",
+        keywords: "fingerprint biometrics sensor print touch id sensor fprint",
+    },
+    SearchEntry {
+        category: "Security & privacy",
+        title: "Sensitive notifications",
+        breadcrumb: "Security & privacy > Privacy > Sensitive notifications",
+        target_page: "security",
+        keywords: "sensitive notifications hide privacy lockscreen content alert",
+    },
 ];
 
 /// Curated suggestions across all categories shown before the user types.

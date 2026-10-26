@@ -38,6 +38,8 @@ pub enum Page {
     About,
     /// Virtual and physical keyboard management and input methods.
     Keyboard,
+    /// Mobile lockscreen, credential management, and biometrics.
+    Security,
 }
 
 impl Page {
@@ -55,6 +57,7 @@ impl Page {
             Page::Sound => "sound",
             Page::About => "about",
             Page::Keyboard => "keyboard",
+            Page::Security => "security",
         }
     }
 
@@ -73,6 +76,7 @@ impl Page {
             Page::Sound => "Sound & vibration",
             Page::About => "About phone",
             Page::Keyboard => "Keyboard",
+            Page::Security => "Security & privacy",
         }
     }
 }
@@ -98,6 +102,7 @@ impl FromStr for Page {
     /// * `"sound"`, `"audio"`, `"volume"` $\to$ [`Page::Sound`]
     /// * `"about"`, `"system"`, `"device"`, `"info"` $\to$ [`Page::About`]
     /// * `"keyboard"`, `"osk"`, `"input"`, `"virtualkeyboard"` $\to$ [`Page::Keyboard`]
+    /// * `"security"`, `"lock"`, `"lockscreen"`, `"pin"`, `"password"`, `"fingerprint"` $\to$ [`Page::Security`]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let normalized = s.trim().to_lowercase();
         let page = match normalized.as_str() {
@@ -108,6 +113,9 @@ impl FromStr for Page {
             "sound" | "audio" | "volume" => Page::Sound,
             "about" | "system" | "device" | "info" => Page::About,
             "keyboard" | "osk" | "input" | "virtualkeyboard" => Page::Keyboard,
+            "security" | "lock" | "lockscreen" | "pin" | "password" | "fingerprint" | "privacy" => {
+                Page::Security
+            }
             _ => Page::Main,
         };
         Ok(page)
@@ -125,6 +133,12 @@ mod tests {
         assert_eq!(Page::from_str("bluetooth").unwrap(), Page::Bluetooth);
         assert_eq!(Page::from_str("brightness").unwrap(), Page::Display);
         assert_eq!(Page::from_str("battery_saver").unwrap(), Page::Battery);
+        assert_eq!(Page::from_str("keyboard").unwrap(), Page::Keyboard);
+        assert_eq!(Page::from_str("security").unwrap(), Page::Security);
+        assert_eq!(Page::from_str("pin").unwrap(), Page::Security);
+        assert_eq!(Page::from_str("password").unwrap(), Page::Security);
+        assert_eq!(Page::from_str("fingerprint").unwrap(), Page::Security);
+        assert_eq!(Page::Security.as_str(), "security");
         assert_eq!(Page::from_str("main").unwrap(), Page::Main);
         assert_eq!(Page::from_str("unknown_foo").unwrap(), Page::Main);
     }

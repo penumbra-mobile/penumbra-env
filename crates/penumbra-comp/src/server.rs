@@ -245,6 +245,17 @@ impl PenumbraServerState {
     ) -> Option<(WlSurface, Point<f64, smithay::utils::Logical>)> {
         let map_a = layer_map_for_output(&self.output_a);
 
+        // 0. If device is locked, lockscreen overlay gets exclusive touch input
+        if self.shell_state.is_locked {
+            if let Some(l) = map_a.layers().find(|l| l.layer() == Layer::Overlay && l.namespace() == "penumbra-lockscreen") {
+                let geo = map_a.layer_geometry(l).unwrap_or_default();
+                return Some((
+                    l.wl_surface().clone(),
+                    (geo.loc.x as f64, geo.loc.y as f64).into(),
+                ));
+            }
+        }
+
         // 1. Overlay layer (highest priority - active when drawer is actually expanded/pulled down, or dialogs open)
         let overlay_active = (self.shell_state.drawer_open
             && (self.shell_state.drawer_pull_dy > 42.0 || self.shell_state.drawer_progress > 0.05))
@@ -252,11 +263,13 @@ impl PenumbraServerState {
             || self.shell_state.volume_modal_open;
         if overlay_active {
             if let Some(l) = map_a.layer_under(Layer::Overlay, pos) {
-                let geo = map_a.layer_geometry(l).unwrap_or_default();
-                return Some((
-                    l.wl_surface().clone(),
-                    (geo.loc.x as f64, geo.loc.y as f64).into(),
-                ));
+                if l.namespace() != "penumbra-lockscreen" {
+                    let geo = map_a.layer_geometry(l).unwrap_or_default();
+                    return Some((
+                        l.wl_surface().clone(),
+                        (geo.loc.x as f64, geo.loc.y as f64).into(),
+                    ));
+                }
             }
         }
 
@@ -796,6 +809,9 @@ impl PenumbraServerState {
             info!("Unblanking screen, restoring brightness to {}", self.saved_brightness);
             let _ = std::fs::write(backlight_file, self.saved_brightness.to_string());
             self.screen_blanked = false;
+            if self.shell_state.is_locked {
+                let _ = std::fs::write("/tmp/penumbra-lock.cmd", "lock\n");
+            }
         } else {
             if let Ok(cur_str) = std::fs::read_to_string(backlight_file) {
                 if let Ok(cur) = cur_str.trim().parse::<u32>() {
@@ -807,6 +823,22 @@ impl PenumbraServerState {
             info!("Blanking screen (turning off backlight)");
             let _ = std::fs::write(backlight_file, "0");
             self.screen_blanked = true;
+
+            // Only lock if user has explicitly enabled PIN or Password in security settings
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
+            let sec_file = std::path::PathBuf::from(home).join(".config/penumbra/security.json");
+            let has_lock = if let Ok(s) = std::fs::read_to_string(&sec_file) {
+                let compact: String = s.chars().filter(|c| !c.is_whitespace()).collect();
+                compact.contains("\"lock_type\":\"pin\"") || compact.contains("\"lock_type\":\"password\"")
+            } else {
+                false
+            };
+            if has_lock {
+                info!("Screen blanked and security lock configured -> locking device");
+                self.shell_state.is_locked = true;
+                let _ = self.shell_state.save();
+                let _ = std::fs::write("/tmp/penumbra-lock.cmd", "lock\n");
+            }
         }
     }
 }
@@ -1029,7 +1061,7 @@ impl WlrLayerShellHandler for PenumbraServerState {
             Some((output_size.w.max(1), NAV_BAR_H))
         } else if ns.contains("top") || ns.contains("status") {
             Some((output_size.w.max(1), STATUS_BAR_H))
-        } else if ns.contains("quick") {
+        } else if ns.contains("quick") || ns.contains("lock") {
             Some((output_size.w.max(1), output_size.h.max(1)))
         } else if ns.contains("keyboard") {
             Some((output_size.w.max(1), 280))
@@ -1829,6 +1861,15 @@ impl PenumbraCompositor {
                         map.layers()
                             .filter(|l| l.layer() == layer_kind)
                             .filter(|l| l.namespace() != "penumbra-keyboard" || keyboard_open)
+                            .filter(|l| {
+                                if l.namespace() == "penumbra-lockscreen" {
+                                    state.shell_state.is_locked
+                                } else if l.namespace() == "penumbra-quick-settings" {
+                                    !state.shell_state.is_locked
+                                } else {
+                                    true
+                                }
+                            })
                             .flat_map(|l| {
                                 if let Some(geo) = map.layer_geometry(l) {
                                     let (loc_x, loc_y, scale) = (geo.loc.x, geo.loc.y, 1.0);
@@ -2113,7 +2154,11 @@ impl PenumbraCompositor {
                     top_elements.extend(render_layer_elements(renderer, out_b, 412, Layer::Top));
                 }
 
-                let mut overlay_elements = if state.shell_state.drawer_open || state.shell_state.drawer_dragging || qs_progress > 0.001 {
+                let mut overlay_elements = if state.shell_state.drawer_open
+                    || state.shell_state.drawer_dragging
+                    || qs_progress > 0.001
+                    || state.shell_state.is_locked
+                {
                     render_layer_elements(renderer, &state.output_a, 0, Layer::Overlay)
                 } else {
                     Vec::new()

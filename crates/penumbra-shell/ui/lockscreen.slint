@@ -1,0 +1,733 @@
+import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
+
+// ==============================================================================
+// Component: KeypadButton
+// ==============================================================================
+// 72px circular keypad button with large number and localized letter sub-labels.
+component KeypadButton inherits Rectangle {
+    in property <string> number: "1";
+    in property <string> letters: "";
+    in property <bool> is-action: false;
+    in property <string> action-icon: "";
+    in property <color> action-color: Theme.primary;
+    callback clicked();
+
+    width: 72px;
+    height: 72px;
+    border-radius: 36px;
+    background: touch.pressed ? #3b3a42 : (root.is-action && root.action-icon == "check" ? #a8c7fa : #201f26);
+
+    animate background { duration: 100ms; easing: ease-out; }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    if root.action-icon != "": Icon {
+        name: root.action-icon;
+        icon-size: 26px;
+        icon-color: root.is-action && root.action-icon == "check" ? #042b59 : Theme.on-surface;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+
+    if root.action-icon == "": VerticalLayout {
+        alignment: center;
+        spacing: 1px;
+
+        Text {
+            text: root.number;
+            font-size: 28px;
+            font-weight: 500;
+            color: Theme.on-surface;
+            horizontal-alignment: center;
+        }
+
+        if root.letters != "": Text {
+            text: root.letters;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            color: #938f99;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// ==============================================================================
+// Component: PinDot
+// ==============================================================================
+component PinDot inherits Rectangle {
+    in property <bool> filled: false;
+    in property <bool> is-error: false;
+
+    width: root.filled ? 16px : 12px;
+    height: root.filled ? 16px : 12px;
+    border-radius: 8px;
+    background: root.is-error ? #ffb4ab : (root.filled ? #a8c7fa : #49454f);
+
+    animate width, height { duration: 140ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+    animate background { duration: 140ms; easing: ease-out; }
+}
+
+// ==============================================================================
+// Component: Lockscreen
+// ==============================================================================
+export component Lockscreen inherits Rectangle {
+    width: 412px;
+    height: 915px;
+    background: #0d0e15;
+
+    // Telemetry and status
+    in property <string> time-str: "12:00";
+    in property <string> date-str: "Wednesday, Oct 21";
+    in property <string> carrier-str: "Penumbra Mobile";
+    in property <int> battery-pct: 100;
+    in property <bool> is-charging: false;
+    in property <bool> wifi-connected: true;
+    in property <int> wifi-signal: 3;
+
+    // Security properties
+    in-out property <string> lock-type: "none"; // "none", "pin", "password"
+    in-out property <bool> has-fingerprint: false;
+    in-out property <bool> fingerprint-enabled: false;
+    in-out property <bool> is-locked: false;
+    in-out property <bool> in-challenge: false;
+    in-out property <int> pin-length: 0;
+    in-out property <string> status-message: "";
+    in-out property <bool> is-error: false;
+    in-out property <bool> fp-verifying: false;
+
+    // Internal gesture tracking
+    property <length> drag-offset-y: 0px;
+    property <bool> is-dragging: false;
+    property <length> touch-start-y: 0px;
+
+    // Password mode internal state
+    property <bool> password-obscured: true;
+    property <string> entered-password: "";
+
+    // Callbacks
+    callback unlock-succeeded();
+    callback append-pin(string);
+    callback backspace-pin();
+    callback submit-pin();
+    callback submit-password(string);
+    callback fingerprint-auth-requested() -> bool;
+    callback emergency-clicked();
+    callback keyboard-show-requested();
+    callback keyboard-hide-requested();
+
+    // -------------------------------------------------------------------------
+    // Challenge Layer (Behind/Revealed on swipe up)
+    // -------------------------------------------------------------------------
+    challenge-container := Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #0f1017;
+        opacity: root.in-challenge ? 1.0 : 0.0;
+        animate opacity { duration: 250ms; easing: ease-out; }
+
+        VerticalLayout {
+            padding-top: 54px;
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-bottom: 24px;
+            spacing: 12px;
+            alignment: start;
+
+            // Header: Lock icon & status message
+            VerticalLayout {
+                alignment: center;
+                spacing: 8px;
+
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 24px;
+                    background: root.is-error ? #601410 : #1e2638;
+
+                    Icon {
+                        name: root.is-error ? "lock" : "lock-open";
+                        icon-size: 24px;
+                        icon-color: root.is-error ? #ffb4ab : #a8c7fa;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+
+                Text {
+                    text: root.status-message != "" ? root.status-message : (root.lock-type == "password" ? "Enter password" : "Enter PIN");
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: root.is-error ? #ffb4ab : #e2e2e9;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // PINdots preview
+            if root.lock-type == "pin": Rectangle {
+                height: 36px;
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 14px;
+                    PinDot { filled: root.pin-length >= 1; is-error: root.is-error; }
+                    PinDot { filled: root.pin-length >= 2; is-error: root.is-error; }
+                    PinDot { filled: root.pin-length >= 3; is-error: root.is-error; }
+                    PinDot { filled: root.pin-length >= 4; is-error: root.is-error; }
+                    if root.pin-length > 4: PinDot { filled: root.pin-length >= 5; is-error: root.is-error; }
+                    if root.pin-length > 5: PinDot { filled: root.pin-length >= 6; is-error: root.is-error; }
+                }
+            }
+
+            // PIN Keypad View
+            if root.lock-type == "pin": VerticalLayout {
+                spacing: 12px;
+                alignment: center;
+
+                // Row 1: 1, 2, 3
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 24px;
+                    KeypadButton { number: "1"; letters: ""; clicked => { root.append-pin("1"); } }
+                    KeypadButton { number: "2"; letters: "ABC"; clicked => { root.append-pin("2"); } }
+                    KeypadButton { number: "3"; letters: "DEF"; clicked => { root.append-pin("3"); } }
+                }
+
+                // Row 2: 4, 5, 6
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 24px;
+                    KeypadButton { number: "4"; letters: "GHI"; clicked => { root.append-pin("4"); } }
+                    KeypadButton { number: "5"; letters: "JKL"; clicked => { root.append-pin("5"); } }
+                    KeypadButton { number: "6"; letters: "MNO"; clicked => { root.append-pin("6"); } }
+                }
+
+                // Row 3: 7, 8, 9
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 24px;
+                    KeypadButton { number: "7"; letters: "PQRS"; clicked => { root.append-pin("7"); } }
+                    KeypadButton { number: "8"; letters: "TUV"; clicked => { root.append-pin("8"); } }
+                    KeypadButton { number: "9"; letters: "WXYZ"; clicked => { root.append-pin("9"); } }
+                }
+
+                // Row 4: Backspace, 0, Submit
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 24px;
+                    KeypadButton {
+                        is-action: true;
+                        action-icon: "backspace";
+                        clicked => { root.backspace-pin(); }
+                    }
+                    KeypadButton {
+                        number: "0";
+                        letters: "+";
+                        clicked => { root.append-pin("0"); }
+                    }
+                    KeypadButton {
+                        is-action: true;
+                        action-icon: "check";
+                        clicked => { root.submit-pin(); }
+                    }
+                }
+            }
+
+            // Password Input View
+            if root.lock-type == "password": VerticalLayout {
+                spacing: 16px;
+                alignment: center;
+
+                Rectangle {
+                    height: 56px;
+                    border-radius: 12px;
+                    background: #1d1b20;
+                    border-width: 1px;
+                    border-color: root.is-error ? #ffb4ab : #49454f;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 12px;
+                        spacing: 8px;
+                        alignment: center;
+
+                        pw-input := TextInput {
+                            font-size: 16px;
+                            color: #e2e2e9;
+                            vertical-alignment: center;
+                            text <=> root.entered-password;
+                            accepted => {
+                                root.submit-password(self.text);
+                            }
+                        }
+
+                        Rectangle {
+                            width: 40px;
+                            height: 40px;
+                            border-radius: 20px;
+                            background: pw-touch.pressed ? #3b3a42 : transparent;
+
+                            Icon {
+                                name: root.password-obscured ? "eye" : "eye-off";
+                                icon-size: 20px;
+                                icon-color: #c4c6d0;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            pw-touch := TouchArea {
+                                clicked => {
+                                    root.password-obscured = !root.password-obscured;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Keyboard trigger button
+                Rectangle {
+                    height: 48px;
+                    border-radius: 24px;
+                    background: kb-touch.pressed ? #384358 : #1f2a3c;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+
+                        Text {
+                            text: "Show keyboard";
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: #a8c7fa;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    kb-touch := TouchArea {
+                        clicked => {
+                            root.keyboard-show-requested();
+                        }
+                    }
+                }
+
+                // Unlock Submit Button
+                Rectangle {
+                    height: 52px;
+                    border-radius: 26px;
+                    background: submit-touch.pressed ? #79a6eb : #a8c7fa;
+
+                    Text {
+                        text: "Unlock";
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: #042b59;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    submit-touch := TouchArea {
+                        clicked => {
+                            root.submit-password(root.entered-password);
+                        }
+                    }
+                }
+            }
+
+            // Biometric Fingerprint Section
+            if root.has-fingerprint && root.fingerprint-enabled: VerticalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                Rectangle {
+                    width: 64px;
+                    height: 64px;
+                    border-radius: 32px;
+                    background: fp-touch.pressed ? #384358 : #1a2233;
+                    border-width: 1px;
+                    border-color: #2b3952;
+
+                    Icon {
+                        name: "fingerprint";
+                        icon-size: 32px;
+                        icon-color: root.fp-verifying ? #79a6eb : #a8c7fa;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    fp-touch := TouchArea {
+                        clicked => {
+                            root.fp-verifying = true;
+                            if root.fingerprint-auth-requested() {
+                                root.is-locked = false;
+                                root.unlock-succeeded();
+                            }
+                            root.fp-verifying = false;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Touch fingerprint sensor";
+                    font-size: 12px;
+                    color: #8c909c;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // Bottom Actions: Emergency & Cancel back to Cover
+            HorizontalLayout {
+                padding-top: 12px;
+                alignment: space-between;
+
+                // Emergency Call
+                Rectangle {
+                    height: 40px;
+                    width: 120px;
+                    border-radius: 20px;
+                    background: em-touch.pressed ? #321616 : transparent;
+
+                    Text {
+                        text: "Emergency";
+                        font-size: 13px;
+                        font-weight: 500;
+                        color: #ffb4ab;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    em-touch := TouchArea {
+                        clicked => {
+                            root.emergency-clicked();
+                        }
+                    }
+                }
+
+                // Cancel back to cover
+                Rectangle {
+                    height: 40px;
+                    width: 100px;
+                    border-radius: 20px;
+                    background: cancel-touch.pressed ? #2d3038 : transparent;
+
+                    Text {
+                        text: "Cancel";
+                        font-size: 13px;
+                        font-weight: 500;
+                        color: #c4c6d0;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    cancel-touch := TouchArea {
+                        clicked => {
+                            root.in-challenge = false;
+                            root.keyboard-hide-requested();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Cover Page (Glance Mode - Slides Up on Swipe)
+    // -------------------------------------------------------------------------
+    cover-container := Rectangle {
+        width: 100%;
+        height: 100%;
+        y: root.in-challenge ? -915px : root.drag-offset-y;
+        background: #0d0e15;
+
+        animate y { duration: 250ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+
+        VerticalLayout {
+            padding-top: 50px;
+            padding-left: 24px;
+            padding-right: 24px;
+            padding-bottom: 24px;
+            spacing: 0px;
+
+            // Top Status Indicators
+            HorizontalLayout {
+                height: 32px;
+                alignment: space-between;
+
+                Text {
+                    text: root.carrier-str;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #c4c6d0;
+                    vertical-alignment: center;
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+
+                    if root.wifi-connected: Icon {
+                        name: "wifi";
+                        icon-size: 16px;
+                        icon-color: #c4c6d0;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        alignment: center;
+
+                        Icon {
+                            name: "battery";
+                            icon-size: 16px;
+                            icon-color: #c4c6d0;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        Text {
+                            text: "\{root.battery-pct}%";
+                            font-size: 13px;
+                            font-weight: 500;
+                            color: #c4c6d0;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Big Hero Clock & Date
+            VerticalLayout {
+                padding-top: 56px;
+                alignment: center;
+                spacing: 6px;
+
+                Text {
+                    text: root.time-str;
+                    font-size: 76px;
+                    font-weight: 700;
+                    color: #ffffff;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: root.date-str;
+                    font-size: 18px;
+                    font-weight: 400;
+                    color: #e2e2e9;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // Spacer
+            Rectangle {
+                vertical-stretch: 1;
+            }
+
+            // Biometric sensor prompt on cover if enrolled
+            if root.has-fingerprint && root.fingerprint-enabled: VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+                padding-bottom: 24px;
+
+                Rectangle {
+                    width: 54px;
+                    height: 54px;
+                    border-radius: 27px;
+                    background: cover-fp-touch.pressed ? #384358 : #151d2c;
+                    border-width: 1px;
+                    border-color: #2b3952;
+
+                    Icon {
+                        name: "fingerprint";
+                        icon-size: 28px;
+                        icon-color: #a8c7fa;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    cover-fp-touch := TouchArea {
+                        clicked => {
+                            if root.fingerprint-auth-requested() {
+                                root.is-locked = false;
+                                root.unlock-succeeded();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Swipe Up Prompt / Pill
+            VerticalLayout {
+                alignment: center;
+                spacing: 6px;
+                padding-bottom: 12px;
+
+                Icon {
+                    name: "chevron-up";
+                    icon-size: 20px;
+                    icon-color: #a8c7fa;
+                    x: (parent.width - self.width) / 2;
+                }
+
+                Text {
+                    text: "Swipe up to unlock";
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #c4c6d0;
+                    horizontal-alignment: center;
+                }
+            }
+
+            // Bottom Bar: Emergency Call
+            HorizontalLayout {
+                height: 48px;
+                alignment: start;
+
+                Rectangle {
+                    height: 38px;
+                    width: 110px;
+                    border-radius: 19px;
+                    background: cover-em-touch.pressed ? #321616 : #1e1f26;
+
+                    Text {
+                        text: "Emergency";
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: #ffb4ab;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    cover-em-touch := TouchArea {
+                        clicked => {
+                            root.emergency-clicked();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Gesture handling for Cover Page
+        cover-touch := TouchArea {
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    root.touch-start-y = self.mouse-y;
+                    root.is-dragging = true;
+                } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                    root.is-dragging = false;
+                    let dy = root.touch-start-y - self.mouse-y;
+                    if dy > 60px {
+                        // Swipe up gesture triggered!
+                        if root.lock-type == "none" {
+                            root.is-locked = false;
+                            root.unlock-succeeded();
+                        } else {
+                            root.in-challenge = true;
+                            if root.lock-type == "password" {
+                                root.keyboard-show-requested();
+                            }
+                        }
+                    }
+                    root.drag-offset-y = 0px;
+                }
+            }
+
+            moved => {
+                if root.is-dragging {
+                    let dy = self.mouse-y - root.touch-start-y;
+                    if dy < 0px {
+                        root.drag-offset-y = dy;
+                    }
+                }
+            }
+
+            clicked => {
+                // Tapping cover screen also moves to challenge or unlocks
+                if root.lock-type == "none" {
+                    root.is-locked = false;
+                    root.unlock-succeeded();
+                } else {
+                    root.in-challenge = true;
+                    if root.lock-type == "password" {
+                        root.keyboard-show-requested();
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Dedicated Layer-Shell Lockscreen Window for SystemUI
+export component LockscreenWindow inherits Window {
+    title: "Penumbra Lockscreen";
+    width: 412px;
+    height: 915px;
+    background: transparent;
+    default-font-family: "Droid Sans";
+
+    in property <string> time-str: "12:00";
+    in property <string> date-str: "Wednesday, Oct 21";
+    in property <string> carrier-str: "Penumbra Mobile";
+    in property <int> battery-pct: 100;
+    in property <bool> is-charging: false;
+    in property <bool> wifi-connected: true;
+    in property <int> wifi-signal: 3;
+
+    in-out property <string> lock-type: "none";
+    in-out property <bool> has-fingerprint: false;
+    in-out property <bool> fingerprint-enabled: false;
+    in-out property <bool> is-locked: false;
+    in-out property <bool> in-challenge: false;
+    in-out property <int> pin-length: 0;
+    in-out property <string> status-message: "";
+    in-out property <bool> is-error: false;
+    in-out property <bool> fp-verifying: false;
+
+    callback unlock-succeeded();
+    callback append-pin(string);
+    callback backspace-pin();
+    callback submit-pin();
+    callback submit-password(string);
+    callback fingerprint-auth-requested() -> bool;
+    callback emergency-clicked();
+    callback keyboard-show-requested();
+    callback keyboard-hide-requested();
+
+    lock := Lockscreen {
+        x: 0px;
+        y: root.is-locked ? 0px : -915px;
+        width: 100%;
+        height: 100%;
+        visible: root.is-locked;
+
+        time-str: root.time-str;
+        date-str: root.date-str;
+        carrier-str: root.carrier-str;
+        battery-pct: root.battery-pct;
+        is-charging: root.is-charging;
+        wifi-connected: root.wifi-connected;
+        wifi-signal: root.wifi-signal;
+
+        lock-type <=> root.lock-type;
+        has-fingerprint <=> root.has-fingerprint;
+        fingerprint-enabled <=> root.fingerprint-enabled;
+        is-locked <=> root.is-locked;
+        in-challenge <=> root.in-challenge;
+        pin-length <=> root.pin-length;
+        status-message <=> root.status-message;
+        is-error <=> root.is-error;
+        fp-verifying <=> root.fp-verifying;
+
+        unlock-succeeded => { root.unlock-succeeded(); }
+        append-pin(n) => { root.append-pin(n); }
+        backspace-pin => { root.backspace-pin(); }
+        submit-pin => { root.submit-pin(); }
+        submit-password(p) => { root.submit-password(p); }
+        fingerprint-auth-requested => { return root.fingerprint-auth-requested(); }
+        emergency-clicked => { root.emergency-clicked(); }
+        keyboard-show-requested => { root.keyboard-show-requested(); }
+        keyboard-hide-requested => { root.keyboard-hide-requested(); }
+    }
+}

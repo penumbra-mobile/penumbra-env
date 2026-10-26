@@ -1,0 +1,441 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "../icon.slint";
+import { SettingsTile } from "../components/settings_tile.slint";
+import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
+
+export component PageSecurity inherits Rectangle {
+    in property <string> active-lock-type: "none"; // "none", "pin", "password"
+    in property <bool> has-fingerprint: false;
+    in-out property <bool> fingerprint-enabled: false;
+    in property <int> auto-lock-timeout: 300;
+    in-out property <bool> hide-sensitive-notifications: false;
+    in property <string> error-message: "";
+
+    callback back();
+    callback set-lock-none();
+    callback set-lock-pin(string);
+    callback set-lock-password(string);
+    callback toggle-fingerprint(bool);
+    callback set-auto-lock-timeout(int);
+    callback toggle-sensitive-notifications(bool);
+
+    // Sub-view dialog state
+    property <bool> show-pin-setup: false;
+    property <bool> show-password-setup: false;
+    property <string> new-pin: "";
+    property <string> confirm-pin: "";
+    property <string> new-password: "";
+    property <string> confirm-password: "";
+    property <string> setup-error: "";
+
+    background: Theme.base-surface;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 16px;
+            padding-bottom: 48px;
+            spacing: 20px;
+
+            // Top Header with Back Button
+            HorizontalLayout {
+                height: 48px;
+                spacing: 12px;
+                alignment: start;
+
+                Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 22px;
+                    background: back-touch.pressed ? Theme.surface-high : transparent;
+                    y: (parent.height - self.height) / 2;
+
+                    Icon {
+                        name: "chevron-left";
+                        icon-size: 24px;
+                        icon-color: Theme.on-surface;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    back-touch := TouchArea {
+                        clicked => {
+                            if (root.show-pin-setup || root.show-password-setup) {
+                                root.show-pin-setup = false;
+                                root.show-password-setup = false;
+                            } else {
+                                root.back();
+                            }
+                        }
+                    }
+                }
+
+                Text {
+                    text: root.show-pin-setup ? "Set Screen PIN" : (root.show-password-setup ? "Set Screen Password" : "Security & privacy");
+                    font-size: 22px;
+                    font-weight: 500;
+                    color: Theme.on-surface;
+                    vertical-alignment: center;
+                }
+            }
+
+            // =================================================================
+            // VIEW 1: Main Security Settings Page
+            // =================================================================
+            if (!root.show-pin-setup && !root.show-password-setup): VerticalLayout {
+                spacing: 20px;
+
+                // Screen Lock Method Section
+                SettingsSectionHeader { title: "DEVICE LOCK"; }
+
+                SettingsSectionCard {
+                    VerticalLayout {
+                        SettingsTile {
+                            icon-name: "lock";
+                            icon-tint: #a8c7fa;
+                            title: "None";
+                            subtitle: "Swipe to unlock, no credential required";
+                            trailing-text: root.active-lock-type == "none" ? "Active" : "";
+                            is-first: true;
+                            show-divider: true;
+                            clicked => {
+                                root.set-lock-none();
+                            }
+                        }
+
+                        SettingsTile {
+                            icon-name: "lock";
+                            icon-tint: #ffcc80;
+                            title: "PIN";
+                            subtitle: "Quick 4-to-8 digit numeric passcode";
+                            trailing-text: root.active-lock-type == "pin" ? "Active" : "";
+                            show-divider: true;
+                            clicked => {
+                                root.new-pin = "";
+                                root.confirm-pin = "";
+                                root.setup-error = "";
+                                root.show-pin-setup = true;
+                            }
+                        }
+
+                        SettingsTile {
+                            icon-name: "lock";
+                            icon-tint: #c5a8ff;
+                            title: "Password";
+                            subtitle: "Alphanumeric password with on-screen keyboard";
+                            trailing-text: root.active-lock-type == "password" ? "Active" : "";
+                            is-last: true;
+                            show-divider: false;
+                            clicked => {
+                                root.new-password = "";
+                                root.confirm-password = "";
+                                root.setup-error = "";
+                                root.show-password-setup = true;
+                            }
+                        }
+                    }
+                }
+
+                // Biometrics Section
+                SettingsSectionHeader { title: "BIOMETRIC UNLOCK"; }
+
+                SettingsSectionCard {
+                    VerticalLayout {
+                        SettingsTile {
+                            icon-name: "fingerprint";
+                            icon-tint: root.has-fingerprint ? #80d8ff : #49454f;
+                            title: "Fingerprint unlock";
+                            subtitle: root.has-fingerprint ? (root.fingerprint-enabled ? "Enabled for fast unlock" : "Disabled") : "Fingerprint sensor unavailable";
+                            is-switch: root.has-fingerprint;
+                            switch-checked: root.fingerprint-enabled;
+                            is-first: true;
+                            is-last: true;
+                            show-divider: false;
+                            toggled(v) => {
+                                root.fingerprint-enabled = v;
+                                root.toggle-fingerprint(v);
+                            }
+                        }
+                    }
+                }
+
+                // Privacy Section
+                SettingsSectionHeader { title: "PRIVACY & NOTIFICATIONS"; }
+
+                SettingsSectionCard {
+                    VerticalLayout {
+                        SettingsTile {
+                            icon-name: "bell";
+                            icon-tint: #ffb4ab;
+                            title: "Sensitive notifications";
+                            subtitle: "Hide contents on lock screen";
+                            is-switch: true;
+                            switch-checked: root.hide-sensitive-notifications;
+                            is-first: true;
+                            is-last: true;
+                            show-divider: false;
+                            toggled(v) => {
+                                root.hide-sensitive-notifications = v;
+                                root.toggle-sensitive-notifications(v);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =================================================================
+            // VIEW 2: Set PIN Subview
+            // =================================================================
+            if root.show-pin-setup: VerticalLayout {
+                spacing: 16px;
+
+                Text {
+                    text: "Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your device.";
+                    font-size: 14px;
+                    color: Theme.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                if root.setup-error != "": Text {
+                    text: root.setup-error;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #ffb4ab;
+                }
+
+                Rectangle {
+                    height: 56px;
+                    border-radius: 12px;
+                    background: Theme.surface-low;
+                    border-width: 1px;
+                    border-color: Theme.outline-variant;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 8px;
+
+                        pin-entry := TextInput {
+                            font-size: 18px;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                            text <=> root.new-pin;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Confirm your PIN:";
+                    font-size: 14px;
+                    color: Theme.on-surface-variant;
+                }
+
+                Rectangle {
+                    height: 56px;
+                    border-radius: 12px;
+                    background: Theme.surface-low;
+                    border-width: 1px;
+                    border-color: Theme.outline-variant;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 8px;
+
+                        pin-confirm-entry := TextInput {
+                            font-size: 18px;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                            text <=> root.confirm-pin;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: end;
+                    padding-top: 16px;
+
+                    Rectangle {
+                        height: 48px;
+                        width: 110px;
+                        border-radius: 24px;
+                        background: cancel-pin.pressed ? Theme.surface-high : Theme.surface-low;
+
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: Theme.on-surface;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        cancel-pin := TouchArea {
+                            clicked => {
+                                root.show-pin-setup = false;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 48px;
+                        width: 120px;
+                        border-radius: 24px;
+                        background: save-pin.pressed ? #79a6eb : #a8c7fa;
+
+                        Text {
+                            text: "Save PIN";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: #042b59;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        save-pin := TouchArea {
+                            clicked => {
+                                if (root.new-pin == "") {
+                                    root.setup-error = "Please enter a PIN";
+                                } else if (root.new-pin != root.confirm-pin) {
+                                    root.setup-error = "PINs do not match";
+                                } else {
+                                    root.set-lock-pin(root.new-pin);
+                                    root.show-pin-setup = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =================================================================
+            // VIEW 3: Set Password Subview
+            // =================================================================
+            if root.show-password-setup: VerticalLayout {
+                spacing: 16px;
+
+                Text {
+                    text: "Enter an alphanumeric password. You can use the on-screen keyboard to unlock.";
+                    font-size: 14px;
+                    color: Theme.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                if root.setup-error != "": Text {
+                    text: root.setup-error;
+                    font-size: 14px;
+                    font-weight: 500;
+                    color: #ffb4ab;
+                }
+
+                Rectangle {
+                    height: 56px;
+                    border-radius: 12px;
+                    background: Theme.surface-low;
+                    border-width: 1px;
+                    border-color: Theme.outline-variant;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+
+                        pw-entry := TextInput {
+                            font-size: 16px;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                            text <=> root.new-password;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Confirm your password:";
+                    font-size: 14px;
+                    color: Theme.on-surface-variant;
+                }
+
+                Rectangle {
+                    height: 56px;
+                    border-radius: 12px;
+                    background: Theme.surface-low;
+                    border-width: 1px;
+                    border-color: Theme.outline-variant;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+
+                        pw-confirm-entry := TextInput {
+                            font-size: 16px;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                            text <=> root.confirm-password;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: end;
+                    padding-top: 16px;
+
+                    Rectangle {
+                        height: 48px;
+                        width: 110px;
+                        border-radius: 24px;
+                        background: cancel-pw.pressed ? Theme.surface-high : Theme.surface-low;
+
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: Theme.on-surface;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        cancel-pw := TouchArea {
+                            clicked => {
+                                root.show-password-setup = false;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 48px;
+                        width: 140px;
+                        border-radius: 24px;
+                        background: save-pw.pressed ? #79a6eb : #a8c7fa;
+
+                        Text {
+                            text: "Save Password";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: #042b59;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        save-pw := TouchArea {
+                            clicked => {
+                                if (root.new-password == "") {
+                                    root.setup-error = "Please enter a password";
+                                } else if (root.new-password != root.confirm-password) {
+                                    root.setup-error = "Passwords do not match";
+                                } else {
+                                    root.set-lock-password(root.new-password);
+                                    root.show-password-setup = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

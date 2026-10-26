@@ -50,6 +50,7 @@ pub struct ShellState {
     pub nav_gesture_vx: f64,
     pub nav_switch_active: bool,
     pub is_full_qs: bool,
+    pub is_locked: bool,
 }
 
 impl Default for ShellState {
@@ -75,6 +76,7 @@ impl Default for ShellState {
             nav_gesture_vx: 0.0,
             nav_switch_active: false,
             is_full_qs: false,
+            is_locked: false,
         }
     }
 }
@@ -113,6 +115,7 @@ impl ShellState {
                 ("is_dragging", v) => s.is_dragging = v == "1" || v == "true",
                 ("active_card_dy", v) => s.active_card_dy = v.parse().unwrap_or(0.0),
                 ("is_full_qs", v) => s.is_full_qs = v == "1" || v == "true",
+                ("is_locked", v) => s.is_locked = v == "1" || v == "true",
                 _ => {}
             }
         }
@@ -129,7 +132,7 @@ impl ShellState {
             PhoneMode::Overview => "overview",
         };
         format!(
-            "mode={}\ndrawer={}\ndrawer_pull_dy={:.1}\ndrawer_dragging={}\ndrawer_progress={:.3}\npower_dialog={}\nvolume_modal={}\nvolume_level={:.2}\nnav_gesture_active={}\nnav_gesture_dy={:.1}\nnav_gesture_progress={:.3}\nnav_gesture_vy={:.1}\nnav_gesture_dx={:.1}\nnav_gesture_vx={:.1}\nnav_switch_active={}\noverview_index={}\noverview_scroll={:.3}\nis_dragging={}\nactive_card_dy={:.1}\nis_full_qs={}\n",
+            "mode={}\ndrawer={}\ndrawer_pull_dy={:.1}\ndrawer_dragging={}\ndrawer_progress={:.3}\npower_dialog={}\nvolume_modal={}\nvolume_level={:.2}\nnav_gesture_active={}\nnav_gesture_dy={:.1}\nnav_gesture_progress={:.3}\nnav_gesture_vy={:.1}\nnav_gesture_dx={:.1}\nnav_gesture_vx={:.1}\nnav_switch_active={}\noverview_index={}\noverview_scroll={:.3}\nis_dragging={}\nactive_card_dy={:.1}\nis_full_qs={}\nis_locked={}\n",
             mode,
             if self.drawer_open { 1 } else { 0 },
             self.drawer_pull_dy,
@@ -140,7 +143,7 @@ impl ShellState {
             self.volume_level,
             if self.nav_gesture_active { 1 } else { 0 },
             self.nav_gesture_dy,
-            self.nav_gesture_progress,
+            if self.nav_gesture_progress.is_finite() { self.nav_gesture_progress } else { 0.0 },
             self.nav_gesture_vy,
             self.nav_gesture_dx,
             self.nav_gesture_vx,
@@ -149,7 +152,8 @@ impl ShellState {
             self.overview_scroll,
             if self.is_dragging { 1 } else { 0 },
             self.active_card_dy,
-            if self.is_full_qs { 1 } else { 0 }
+            if self.is_full_qs { 1 } else { 0 },
+            if self.is_locked { 1 } else { 0 }
         )
     }
 
@@ -175,7 +179,8 @@ impl ShellState {
         buf[15] = if self.is_dragging { 1 } else { 0 };
         buf[16..20].copy_from_slice(&self.volume_level.to_le_bytes());
         buf[20] = if self.is_full_qs { 1 } else { 0 };
-        // 21..24 unused alignment padding
+        buf[21] = if self.is_locked { 1 } else { 0 };
+        // 22..24 unused alignment padding
         buf[24..32].copy_from_slice(&self.drawer_pull_dy.to_le_bytes());
         buf[32..40].copy_from_slice(&self.drawer_progress.to_le_bytes());
         buf[40..48].copy_from_slice(&(self.overview_index as u64).to_le_bytes());
@@ -211,6 +216,7 @@ impl ShellState {
             is_dragging: buf[15] != 0,
             volume_level: f32::from_le_bytes(buf[16..20].try_into().ok()?),
             is_full_qs: buf[20] != 0,
+            is_locked: buf[21] != 0,
             drawer_pull_dy: f64::from_le_bytes(buf[24..32].try_into().ok()?),
             drawer_progress: f64::from_le_bytes(buf[32..40].try_into().ok()?),
             overview_index: u64::from_le_bytes(buf[40..48].try_into().ok()?) as usize,
@@ -377,6 +383,7 @@ mod tests {
             nav_gesture_vx: 210.0,
             nav_switch_active: true,
             is_full_qs: true,
+            is_locked: true,
         };
         let bytes = s.to_bytes(42);
         assert_eq!(bytes.len(), ShellState::BINARY_SIZE);

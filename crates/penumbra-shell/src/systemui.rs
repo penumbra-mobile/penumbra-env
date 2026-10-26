@@ -9,7 +9,7 @@
 //! - Unified hardware telemetry (battery, network, clock) pushed simultaneously.
 //! - Unified dynamic Monet theme synchronization.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -21,13 +21,16 @@ use layer_shell_slint::{Anchor, KeyboardInteractivity, Layer, LayerConfig};
 use penumbra_gestures::Spring;
 use penumbra_services::{
     apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
-    BatteryService, NetworkService,
+    BatteryService, FingerprintManager, LockType, NetworkService, SecurityConfig,
 };
 use penumbra_shell::apply_monet_palette;
 use penumbra_shell::ipc::{runtime_path, PhoneMode, ShellState, StateSocket, SHELL_STATE_SOCK};
 use penumbra_shell::quick_settings::{tile, QuickSettingsConfig, TileDefinition, TileState};
 
-use crate::{NavBarWindow, NotificationData, QuickSettingsWindow, Theme, TileData, TopBarWindow};
+use crate::{
+    LockscreenWindow, NavBarWindow, NotificationData, QuickSettingsWindow, Theme, TileData,
+    TopBarWindow,
+};
 
 /// Release/snap rule (offset coordinates): closed -915, compact -565 (350px), full 0.
 fn release_target(y_current: f64, v_y: f64) -> f64 {
@@ -78,6 +81,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .with_exclusive_zone(32)
         .with_keyboard_interactivity(KeyboardInteractivity::None);
 
+    let lock_config_layer = LayerConfig::default()
+        .with_namespace("penumbra-lockscreen")
+        .with_layer(Layer::Overlay)
+        .with_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right)
+        .with_size(logical_w, logical_h)
+        .with_exclusive_zone(-1)
+        .with_keyboard_interactivity(KeyboardInteractivity::None);
+
     // -----------------------------------------------------------------------
     // 2. Multi-Window Instantiation on Shared Platform
     // -----------------------------------------------------------------------
@@ -105,7 +116,26 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let nav_bar = NavBarWindow::new()?;
     let nav_bar_weak = nav_bar.as_weak();
 
-    info!("Instantiated TopBar, QuickSettings, and NavBar layer-shell surfaces");
+    // Enqueue Lockscreen config and instantiate
+    layer_shell_slint::set_next_window_config(lock_config_layer);
+    let lockscreen = LockscreenWindow::new()?;
+    let lockscreen_weak = lockscreen.as_weak();
+
+    // Default start: unlocked (input region = 0, touches pass through to apps/homescreen)
+    let sec_cfg = SecurityConfig::load();
+    lockscreen.set_lock_type(sec_cfg.lock_type.as_str().into());
+    lockscreen.set_has_fingerprint(FingerprintManager::has_sensor());
+    lockscreen.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && FingerprintManager::has_sensor());
+    lockscreen.set_is_locked(false);
+    layer_shell_slint::sync_input_region(
+        "penumbra-lockscreen",
+        logical_w as i32,
+        logical_h as i32,
+        0,
+        false,
+    );
+
+    info!("Instantiated TopBar, QuickSettings, NavBar, and Lockscreen layer-shell surfaces");
 
     // -----------------------------------------------------------------------
     // 3. Unified Monet Dynamic Theming
@@ -117,13 +147,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let t_qs = Theme::get(&qs);
         apply_monet_palette!(t_qs, initial_palette.clone());
         let t_nav = Theme::get(&nav_bar);
-        apply_monet_palette!(t_nav, initial_palette);
+        apply_monet_palette!(t_nav, initial_palette.clone());
+        let t_lock = Theme::get(&lockscreen);
+        apply_monet_palette!(t_lock, initial_palette);
     }
 
     let _theme_timer = {
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
         let nb = nav_bar_weak.clone();
+        let lk = lockscreen_weak.clone();
         penumbra_shell::theme::start_theme_watcher(move |palette| {
             if let Some(bar) = tb.upgrade() {
                 let theme = Theme::get(&bar);
@@ -135,6 +168,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
             if let Some(nav) = nb.upgrade() {
                 let theme = Theme::get(&nav);
+                apply_monet_palette!(theme, palette.clone());
+            }
+            if let Some(ls) = lk.upgrade() {
+                let theme = Theme::get(&ls);
                 apply_monet_palette!(theme, palette);
             }
         })
@@ -753,12 +790,216 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     nav_bar.on_nav_prev_app(|| {});
 
     // -----------------------------------------------------------------------
+    // 10. Mobile Lockscreen Controller (In-House Cross-Distro PAM/Hash Engine)
+    // -----------------------------------------------------------------------
+    let pin_buffer = Rc::new(RefCell::new(String::new()));
+    let last_known_locked = Rc::new(Cell::new(false));
+    let do_unlock = {
+        let lock_weak = lockscreen_weak.clone();
+        let pin_buf = Rc::clone(&pin_buffer);
+        let locked_ref = Rc::clone(&last_known_locked);
+        Rc::new(move || {
+            info!("Mobile lockscreen: unlocked successfully.");
+            locked_ref.set(false);
+            if let Some(ls) = lock_weak.upgrade() {
+                ls.set_is_locked(false);
+                ls.set_in_challenge(false);
+                ls.set_pin_length(0);
+                ls.set_is_error(false);
+                ls.set_status_message("".into());
+                ls.window().request_redraw();
+            }
+            if let Ok(mut b) = pin_buf.try_borrow_mut() {
+                b.clear();
+            }
+            layer_shell_slint::sync_input_region(
+                "penumbra-lockscreen",
+                logical_w as i32,
+                logical_h as i32,
+                0,
+                false,
+            );
+            let mut s = ShellState::load();
+            s.is_locked = false;
+            let _ = s.save();
+            let _ = std::fs::write("/tmp/penumbra-lock.state", "locked=0\n");
+            let _ = std::process::Command::new("penumbra-keyboard-cmd")
+                .arg("hide")
+                .spawn();
+        })
+    };
+
+    let do_lock = {
+        let lock_weak = lockscreen_weak.clone();
+        let pin_buf = Rc::clone(&pin_buffer);
+        let locked_ref = Rc::clone(&last_known_locked);
+        Rc::new(move || {
+            let sec_cfg = SecurityConfig::load();
+            if sec_cfg.lock_type == LockType::None {
+                return;
+            }
+            info!("Mobile lockscreen: activated (mode={:?}).", sec_cfg.lock_type);
+            locked_ref.set(true);
+            if let Ok(mut b) = pin_buf.try_borrow_mut() {
+                b.clear();
+            }
+            if let Some(ls) = lock_weak.upgrade() {
+                ls.set_lock_type(sec_cfg.lock_type.as_str().into());
+                ls.set_has_fingerprint(FingerprintManager::has_sensor());
+                ls.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && FingerprintManager::has_sensor());
+                ls.set_is_locked(true);
+                ls.set_in_challenge(false);
+                ls.set_pin_length(0);
+                ls.set_is_error(false);
+                ls.set_status_message("".into());
+                ls.window().request_redraw();
+            }
+            layer_shell_slint::sync_input_region(
+                "penumbra-lockscreen",
+                logical_w as i32,
+                logical_h as i32,
+                logical_h as i32,
+                true,
+            );
+            let mut s = ShellState::load();
+            s.is_locked = true;
+            let _ = s.save();
+            let _ = std::fs::write("/tmp/penumbra-lock.state", "locked=1\n");
+        })
+    };
+
+    {
+        let unlock = Rc::clone(&do_unlock);
+        lockscreen.on_unlock_succeeded(move || {
+            unlock();
+        });
+    }
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        let pin_buf = Rc::clone(&pin_buffer);
+        let unlock = Rc::clone(&do_unlock);
+        lockscreen.on_append_pin(move |digit| {
+            if let Some(ls) = lock_weak.upgrade() {
+                ls.set_is_error(false);
+                ls.set_status_message("".into());
+                let (current_pin, len) = {
+                    let mut buf = pin_buf.borrow_mut();
+                    if buf.len() < 12 {
+                        buf.push_str(digit.as_str());
+                    }
+                    (buf.clone(), buf.len())
+                };
+                ls.set_pin_length(len as i32);
+                let sec_cfg = SecurityConfig::load();
+                if sec_cfg.verify_secret(&current_pin) {
+                    unlock();
+                }
+            }
+        });
+    }
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        let pin_buf = Rc::clone(&pin_buffer);
+        lockscreen.on_backspace_pin(move || {
+            if let Some(ls) = lock_weak.upgrade() {
+                ls.set_is_error(false);
+                ls.set_status_message("".into());
+                let len = {
+                    let mut buf = pin_buf.borrow_mut();
+                    buf.pop();
+                    buf.len()
+                };
+                ls.set_pin_length(len as i32);
+            }
+        });
+    }
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        let pin_buf = Rc::clone(&pin_buffer);
+        let unlock = Rc::clone(&do_unlock);
+        lockscreen.on_submit_pin(move || {
+            if let Some(ls) = lock_weak.upgrade() {
+                let current_pin = pin_buf.borrow().clone();
+                let sec_cfg = SecurityConfig::load();
+                if sec_cfg.verify_secret(&current_pin) {
+                    unlock();
+                } else {
+                    ls.set_is_error(true);
+                    ls.set_status_message("Wrong PIN".into());
+                    if let Ok(mut b) = pin_buf.try_borrow_mut() {
+                        b.clear();
+                    }
+                    ls.set_pin_length(0);
+                }
+            }
+        });
+    }
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        let unlock = Rc::clone(&do_unlock);
+        lockscreen.on_submit_password(move |pw| {
+            if let Some(ls) = lock_weak.upgrade() {
+                let sec_cfg = SecurityConfig::load();
+                if sec_cfg.verify_secret(pw.as_str()) {
+                    unlock();
+                } else {
+                    ls.set_is_error(true);
+                    ls.set_status_message("Wrong password".into());
+                }
+            }
+        });
+    }
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        let unlock = Rc::clone(&do_unlock);
+        lockscreen.on_fingerprint_auth_requested(move || -> bool {
+            if let Ok(true) = FingerprintManager::verify_fingerprint() {
+                unlock();
+                true
+            } else {
+                if let Some(ls) = lock_weak.upgrade() {
+                    ls.set_is_error(true);
+                    ls.set_status_message("Fingerprint not recognized".into());
+                }
+                false
+            }
+        });
+    }
+
+    lockscreen.on_keyboard_show_requested(move || {
+        let _ = std::process::Command::new("penumbra-keyboard-cmd")
+            .arg("show")
+            .spawn();
+    });
+
+    lockscreen.on_keyboard_hide_requested(move || {
+        let _ = std::process::Command::new("penumbra-keyboard-cmd")
+            .arg("hide")
+            .spawn();
+    });
+
+    {
+        let lock_weak = lockscreen_weak.clone();
+        lockscreen.on_emergency_clicked(move || {
+            if let Some(ls) = lock_weak.upgrade() {
+                ls.set_status_message("Emergency dialer".into());
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // 11. Unified Telemetry: Single Clock Timer & Single Tokio Runtime
     // -----------------------------------------------------------------------
     let clock_timer = Timer::default();
     {
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
+        let lk = lockscreen_weak.clone();
         let update_time = move || {
             let now = Local::now();
             let time_str = now.format("%H:%M").to_string();
@@ -767,8 +1008,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 bar.set_time_text(time_str.clone().into());
             }
             if let Some(shade) = q.upgrade() {
-                shade.set_time_text(time_str.into());
-                shade.set_date_text(date_str.into());
+                shade.set_time_text(time_str.clone().into());
+                shade.set_date_text(date_str.clone().into());
+            }
+            if let Some(ls) = lk.upgrade() {
+                ls.set_time_str(time_str.into());
+                ls.set_date_str(date_str.into());
             }
         };
         update_time();
@@ -785,7 +1030,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         (bat, net)
     });
 
-    // Initial Telemetry push to both windows
+    // Initial Telemetry push to windows
     {
         let bat_info = battery_service.current();
         let net_info = network_service.current();
@@ -798,6 +1043,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         qs.set_battery_pct(bat_info.percentage as i32);
         qs.set_carrier_text(net_info.ssid.clone().into());
+
+        lockscreen.set_battery_pct(bat_info.percentage as i32);
+        lockscreen.set_is_charging(bat_info.is_charging);
+        lockscreen.set_wifi_connected(net_info.is_connected);
+        lockscreen.set_wifi_signal(net_info.signal_strength as i32);
+        lockscreen.set_carrier_str(net_info.ssid.clone().into());
 
         if let Some(t) = registry
             .borrow_mut()
@@ -823,6 +1074,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut bat_rx = battery_service.subscribe();
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
+        let lk = lockscreen_weak.clone();
         let _keep_bat = battery_service;
         rt.spawn(async move {
             let _bat = _keep_bat;
@@ -830,6 +1082,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let info = bat_rx.borrow().clone();
                 let tb = tb.clone();
                 let q = q.clone();
+                let lk = lk.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(bar) = tb.upgrade() {
                         bar.set_battery_pct(info.percentage as f32);
@@ -837,6 +1090,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     if let Some(shade) = q.upgrade() {
                         shade.set_battery_pct(info.percentage as i32);
+                    }
+                    if let Some(ls) = lk.upgrade() {
+                        ls.set_battery_pct(info.percentage as i32);
+                        ls.set_is_charging(info.is_charging);
                     }
                 });
             }
@@ -847,6 +1104,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let mut net_rx = network_service.subscribe();
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
+        let lk = lockscreen_weak.clone();
         let _keep_net = network_service;
         rt.spawn(async move {
             let _net = _keep_net;
@@ -854,6 +1112,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let info = net_rx.borrow().clone();
                 let tb = tb.clone();
                 let q = q.clone();
+                let lk = lk.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(bar) = tb.upgrade() {
                         bar.set_wifi_connected(info.is_connected);
@@ -861,7 +1120,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         bar.set_carrier_text(info.ssid.clone().into());
                     }
                     if let Some(shade) = q.upgrade() {
-                        shade.set_carrier_text(info.ssid.into());
+                        shade.set_carrier_text(info.ssid.clone().into());
+                    }
+                    if let Some(ls) = lk.upgrade() {
+                        ls.set_wifi_connected(info.is_connected);
+                        ls.set_wifi_signal(info.signal_strength as i32);
+                        ls.set_carrier_str(info.ssid.into());
                     }
                 });
             }
@@ -887,8 +1151,22 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let volume_dismiss_timer_clone = Rc::clone(&volume_dismiss_timer);
         let state_socket = StateSocket::bind(&runtime_path(SHELL_STATE_SOCK)).ok();
         let q = qs_weak.clone();
+        let do_lock_ipc = Rc::clone(&do_lock);
+        let do_unlock_ipc = Rc::clone(&do_unlock);
+        let last_known_locked_ipc = Rc::clone(&last_known_locked);
 
         ipc_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
+            // Check for lock / unlock external commands
+            if std::path::Path::new("/tmp/penumbra-lock.cmd").exists() {
+                if let Ok(cmd) = std::fs::read_to_string("/tmp/penumbra-lock.cmd") {
+                    let _ = std::fs::remove_file("/tmp/penumbra-lock.cmd");
+                    match cmd.trim() {
+                        "lock" => do_lock_ipc(),
+                        "unlock" => do_unlock_ipc(),
+                        _ => {}
+                    }
+                }
+            }
             if is_animating_ipc.get() {
                 // If SystemUI's spring is currently animating the shade, don't let stale loopback packets cancel it
                 return;
@@ -903,6 +1181,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 ShellState::load()
             };
+
+            // Direct sync of lockscreen state from compositor
+            if state.is_locked != last_known_locked_ipc.get() {
+                last_known_locked_ipc.set(state.is_locked);
+                if state.is_locked {
+                    do_lock_ipc();
+                } else {
+                    do_unlock_ipc();
+                }
+            }
 
             let mut last_open = last_known_open.borrow_mut();
             let mut was_dragging = last_known_dragging.borrow_mut();

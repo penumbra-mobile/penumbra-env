@@ -9,6 +9,7 @@ import { PageBattery } from "pages/page_battery.slint";
 import { PageSound } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
+import { PageSecurity } from "pages/page_security.slint";
 
 export { WifiApData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData }
 
@@ -189,6 +190,20 @@ export component SettingsWindow inherits Window {
     callback select-virtual-keyboard(string);
     callback refresh-keyboard-scan();
 
+    // Security & Privacy Properties & Callbacks
+    in-out property <string> active-lock-type: "none";
+    in-out property <bool> has-fingerprint: false;
+    in-out property <bool> fingerprint-enabled: false;
+    in-out property <int> auto-lock-timeout: 300;
+    in-out property <bool> hide-sensitive-notifications: false;
+
+    callback set-lock-none();
+    callback set-lock-pin(string);
+    callback set-lock-password(string);
+    callback toggle-fingerprint(bool);
+    callback set-auto-lock-timeout(int);
+    callback toggle-sensitive-notifications(bool);
+
     // Dynamic Title Computation based on active subpage ID.
     property <string> current-title: root.active-page == "wifi" ? "Network & internet"
         : root.active-page == "bluetooth" ? "Connected devices"
@@ -197,6 +212,7 @@ export component SettingsWindow inherits Window {
         : root.active-page == "sound" ? "Sound & vibration"
         : root.active-page == "about" ? "About phone"
         : root.active-page == "keyboard" ? "Keyboard"
+        : root.active-page == "security" ? "Security & privacy"
         : "Settings";
 
     // Animated sliding transition progress (0.0 = Main catalog, 1.0 = Subpage).
@@ -359,6 +375,26 @@ export component SettingsWindow inherits Window {
                     toggle-hide-on-physical(v) => { root.toggle-hide-on-physical(v); }
                     select-virtual-keyboard(id) => { root.select-virtual-keyboard(id); }
                     refresh-scan => { root.refresh-keyboard-scan(); }
+                }
+
+                if root.active-page == "security": PageSecurity {
+                    width: 100%;
+                    height: 100%;
+                    active-lock-type: root.active-lock-type;
+                    has-fingerprint: root.has-fingerprint;
+                    fingerprint-enabled <=> root.fingerprint-enabled;
+                    auto-lock-timeout: root.auto-lock-timeout;
+                    hide-sensitive-notifications <=> root.hide-sensitive-notifications;
+                    back => {
+                        root.active-page = "main";
+                        root.subpage-slide = 0.0;
+                    }
+                    set-lock-none => { root.set-lock-none(); }
+                    set-lock-pin(p) => { root.set-lock-pin(p); }
+                    set-lock-password(pw) => { root.set-lock-password(pw); }
+                    toggle-fingerprint(v) => { root.toggle-fingerprint(v); }
+                    set-auto-lock-timeout(t) => { root.set-auto-lock-timeout(t); }
+                    toggle-sensitive-notifications(v) => { root.toggle-sensitive-notifications(v); }
                 }
             }
         }

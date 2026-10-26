@@ -521,12 +521,13 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
 
     // Phone Layer 3: status bar and nav bar.
     let top = layer_elements(renderer, &server.output_a, canvas, Layer::Top);
-    // Quick settings, Power dialog, and Volume modal sit on the Overlay layer.
+    // Quick settings, Power dialog, Volume modal, and Lockscreen sit on the Overlay layer.
     let overlay = if server.shell_state.drawer_open
         || server.shell_state.drawer_dragging
         || server.shell_state.drawer_progress > 0.001
         || server.shell_state.power_dialog_open
         || server.shell_state.volume_modal_open
+        || server.shell_state.is_locked
     {
         layer_elements(renderer, &server.output_a, canvas, Layer::Overlay)
     } else {

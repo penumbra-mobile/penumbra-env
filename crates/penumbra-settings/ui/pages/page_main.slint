@@ -446,7 +446,29 @@ export component PageMain inherits Rectangle {
                 }
 
                 // --------------------------------------------------------------
-                // Card Group 5: Storage & Battery
+                // Card Group 5: Security & Privacy
+                // --------------------------------------------------------------
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+
+                        SettingsTile {
+                            icon-name: "shield";
+                            icon-bg: #80d8ff; // pastel light blue
+                            icon-tint: #00354e; // deep navy
+                            title: "Security & privacy";
+                            subtitle: "PIN, password, fingerprint";
+                            show-chevron: false;
+                            is-first: true;
+                            is-last: true;
+                            clicked => { root.navigate-to("security"); }
+                        }
+                    }
+                }
+
+                // --------------------------------------------------------------
+                // Card Group 6: Storage & Battery
                 // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
