@@ -108,8 +108,13 @@ penumbra-top-bar &
 shell_pids+=("$!")
 penumbra-homescreen &
 shell_pids+=("$!")
-penumbra-quicksettings &
-shell_pids+=("$!")
+if command -v penumbra-quick-settings >/dev/null 2>&1; then
+    penumbra-quick-settings &
+    shell_pids+=("$!")
+elif command -v penumbra-quicksettings >/dev/null 2>&1; then
+    penumbra-quicksettings &
+    shell_pids+=("$!")
+fi
 penumbra-nav-bar &
 shell_pids+=("$!")
 # Launch configured virtual keyboard (defaults to penumbra-keyboard, but dynamically

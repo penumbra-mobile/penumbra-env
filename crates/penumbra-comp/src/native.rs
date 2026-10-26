@@ -115,11 +115,14 @@ struct NativeState {
 }
 
 /// Layer-shell surfaces on `layer` of Output A, placed on the logical canvas.
-fn layer_elements(
+fn layer_elements_transformed(
     renderer: &mut GlesRenderer,
     output: &Output,
     canvas: Canvas,
     layer: Layer,
+    offset_x: i32,
+    offset_y: i32,
+    scale_factor: f64,
 ) -> Vec<SurfaceElement> {
     let layer_map = layer_map_for_output(output);
     let mut elements = Vec::new();
@@ -137,20 +140,29 @@ fn layer_elements(
         let Some(geometry) = layer_map.layer_geometry(surface) else {
             continue;
         };
-        // Background surfaces are always anchored to the canvas origin.
+        // Background surfaces are anchored with optional depth offset; others use layer geometry
         let (x, y) = if layer == Layer::Background {
-            (0, 0)
+            (offset_x, offset_y)
         } else {
-            (geometry.loc.x, geometry.loc.y)
+            (geometry.loc.x + offset_x, geometry.loc.y + offset_y)
         };
         elements.extend(surface_elements(
             renderer,
             surface.wl_surface(),
             canvas.loc(x, y),
-            canvas.scale,
+            canvas.scale * scale_factor,
         ));
     }
     elements
+}
+
+fn layer_elements(
+    renderer: &mut GlesRenderer,
+    output: &Output,
+    canvas: Canvas,
+    layer: Layer,
+) -> Vec<SurfaceElement> {
+    layer_elements_transformed(renderer, output, canvas, layer, 0, 0, 1.0)
 }
 
 /// Active phone application, cropped to the app work area and transformed interactively during gestures.
@@ -459,8 +471,29 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
     let size: Size<i32, Physical> = (width as i32, height as i32).into();
     let damage = Rectangle::from_size(size);
 
-    // Phone Layer 0: homescreen and wallpaper on the background layer.
-    let background = layer_elements(renderer, &server.output_a, canvas, Layer::Background);
+    let qs_progress = if server.shell_state.drawer_dragging || server.shell_state.drawer_progress > 0.001 {
+        server.shell_state.drawer_progress.clamp(0.0, 1.0)
+    } else if server.shell_state.drawer_open {
+        1.0
+    } else {
+        0.0
+    };
+
+    // Material 3 Expressive Android 17 wallpaper depth zoom (1.0 -> 0.92x centered on phone screen)
+    let bg_depth_scale = 1.0 - (0.08 * qs_progress as f64);
+    let bg_offset_x = ((PHONE_W as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
+    let bg_offset_y = ((PHONE_H as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
+
+    // Phone Layer 0: homescreen and wallpaper on the background layer with depth scaling.
+    let background = layer_elements_transformed(
+        renderer,
+        &server.output_a,
+        canvas,
+        Layer::Background,
+        bg_offset_x,
+        bg_offset_y,
+        bg_depth_scale,
+    );
     let bottom = layer_elements(renderer, &server.output_a, canvas, Layer::Bottom);
 
     // Phone Layer 0.5: Dual-Kawase Blurred Wallpaper & Dimming Scrim modulated by gesture progress
@@ -511,14 +544,6 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         layer_elements(renderer, &server.output_a, canvas, Layer::Overlay)
     } else {
         Vec::new()
-    };
-
-    let qs_progress = if server.shell_state.drawer_dragging || server.shell_state.drawer_progress > 0.001 {
-        server.shell_state.drawer_progress
-    } else if server.shell_state.drawer_open {
-        1.0
-    } else {
-        0.0
     };
 
     // Canvas-space elements are drawn at the canvas scale so they fill the panel mapping.

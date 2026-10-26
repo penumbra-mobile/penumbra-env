@@ -1841,6 +1841,19 @@ impl PenumbraCompositor {
             {
                 let (renderer, mut framebuffer) = backend.bind()?;
 
+                let qs_progress = if state.shell_state.drawer_dragging || state.shell_state.drawer_progress > 0.001 {
+                    state.shell_state.drawer_progress.clamp(0.0, 1.0)
+                } else if state.shell_state.drawer_open {
+                    1.0
+                } else {
+                    0.0
+                };
+
+                // Material 3 Expressive Android 17 wallpaper depth zoom (1.0 -> 0.92x centered on phone screen)
+                let bg_depth_scale = 1.0 - (0.08 * qs_progress as f64);
+                let bg_offset_x = ((PHONE_W as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
+                let bg_offset_y = ((PHONE_H as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
+
                 // Helper to collect render elements for a specific layer on an output
                 let render_layer_elements =
                     |renderer: &mut GlesRenderer,
@@ -1860,16 +1873,16 @@ impl PenumbraCompositor {
                             .filter(|l| l.namespace() != "penumbra-keyboard" || keyboard_open)
                             .flat_map(|l| {
                                 if let Some(geo) = map.layer_geometry(l) {
-                                    let (loc_x, loc_y) = if layer_kind == Layer::Background {
-                                        (0, 0)
+                                    let (loc_x, loc_y, scale) = if layer_kind == Layer::Background && origin_x == 0 {
+                                        (bg_offset_x, bg_offset_y, bg_depth_scale)
                                     } else {
-                                        (geo.loc.x, geo.loc.y)
+                                        (geo.loc.x, geo.loc.y, 1.0)
                                     };
                                     render_elements_from_surface_tree(
                                         renderer,
                                         l.wl_surface(),
                                         (origin_x + loc_x, loc_y),
-                                        1.0,
+                                        scale,
                                         1.0,
                                         Kind::Unspecified,
                                     )
@@ -1906,10 +1919,10 @@ impl PenumbraCompositor {
                 let phone_rect = phys_rect(0, 0, PHONE_W, PHONE_H);
                 let drawer_open = state.shell_state.drawer_open;
 
-                // Phone Layer 0: shell base (home screen + Output B desktop UI)
+                // Phone Layer 0: shell base (home screen + Output B desktop UI) with depth scaling
                 let shell_base = root_surface
                     .as_ref()
-                    .map(|s| surface_elements(renderer, s, (0, 0), 1.0))
+                    .map(|s| surface_elements(renderer, s, (bg_offset_x, bg_offset_y), bg_depth_scale))
                     .unwrap_or_default();
 
                 // Output B floating windows, front-to-back (reverse of space order)
@@ -2145,14 +2158,6 @@ impl PenumbraCompositor {
                 if let Some(ref out_b) = state.output_b {
                     top_elements.extend(render_layer_elements(renderer, out_b, 412, Layer::Top));
                 }
-
-                let qs_progress = if state.shell_state.drawer_dragging || state.shell_state.drawer_progress > 0.001 {
-                    state.shell_state.drawer_progress.clamp(0.0, 1.0)
-                } else if state.shell_state.drawer_open {
-                    1.0
-                } else {
-                    0.0
-                };
 
                 let mut overlay_elements = if state.shell_state.drawer_open || state.shell_state.drawer_dragging || qs_progress > 0.001 {
                     render_layer_elements(renderer, &state.output_a, 0, Layer::Overlay)

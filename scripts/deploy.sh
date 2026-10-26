@@ -187,12 +187,11 @@ if [[ "$BUILD_FIRST" == true ]]; then
     log_success "ARM64 compilation completed"
 fi
 
-# Comprehensive list of binaries
+# Comprehensive list of canonical binaries
 required_bins=(
     penumbra-comp
     penumbra-top-bar
     penumbra-homescreen
-    penumbra-quicksettings
     penumbra-quick-settings
     penumbra-nav-bar
     penumbra-settings
@@ -249,6 +248,7 @@ set -euo pipefail
 # 1. Install binaries to /usr/local/bin
 install -d /usr/local/bin /usr/share/wayland-sessions /usr/share/penumbra/assets /usr/share/applications
 install -m 0755 "$STAGING_DIR"/bin/* /usr/local/bin/
+ln -sf penumbra-quick-settings /usr/local/bin/penumbra-quicksettings
 
 # 2. Install session wrappers
 install -m 0755 "$STAGING_DIR"/penumbra-session /usr/local/bin/penumbra-session

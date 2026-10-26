@@ -23,6 +23,7 @@ wayland-penumbra-*
 # AI agent instructions and tooling (kept local, not pushed if someone uses the repository)
 AGENT_RULES.md
 AGENTS.md
+GEMINI.md
 CLAUDE.md
 .cursorrules
 .cursor/
