@@ -146,9 +146,11 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - **Uniform $24\text{px}$ App Squircle Mask Alignment**:
     - Added canonical `radius-squircle: 24px;` token to [`crates/penumbra-shell/ui/theme.slint`](crates/penumbra-shell/ui/theme.slint).
     - Unified icon containers across [`shortcut_tile.slint`](crates/penumbra-shell/ui/shortcut_tile.slint), [`app_drawer.slint`](crates/penumbra-shell/ui/app_drawer.slint), [`dock.slint`](crates/penumbra-shell/ui/dock.slint), [`app_surface.slint`](crates/penumbra-shell/ui/app_surface.slint), and [`recents_slider.slint`](crates/penumbra-shell/ui/recents_slider.slint) to strictly follow the $24\text{px}$ squircle curvature and Monet surface container tokens.
-  - **Floating System Insets Polish**:
+  - **Floating System Insets & Modals Polish**:
     - [`top_bar.slint`](crates/penumbra-shell/ui/top_bar.slint): Applied `Theme.specular-rim` to subtle bottom edge separator.
     - [`nav_bar.slint`](crates/penumbra-shell/ui/nav_bar.slint): Updated gesture pill indicator and keyboard toggle to consume `Theme.outline`, `Theme.primary`, and `Theme.surface-container` dynamic tokens.
+    - [`wallpaper_picker.slint`](crates/penumbra-shell/ui/wallpaper_picker.slint): Styled `HomescreenContextMenu` with `Theme.radius-card` ($32\text{px}$), `Theme.surface-container-high`, and `Theme.radius-item`; upgraded `WallpaperPicker` bottom sheet with `Theme.radius-card` top corners, `Theme.surface-container-high`, and `Theme.outline-variant` drag pill handle.
+    - [`app_surface.slint`](crates/penumbra-shell/ui/app_surface.slint): Updated page indicator track dots to `Theme.surface-variant` with smooth gliding `Theme.radius-pill` active indicator.
 - **Verification**:
   - `cargo check --workspace`: Passed (0 errors, 0 warnings).
   - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
