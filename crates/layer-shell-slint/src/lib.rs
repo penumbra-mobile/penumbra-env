@@ -219,7 +219,24 @@ impl LayerConfig {
     }
 }
 
-/// Initializes the Slint layer-shell platform backend with the specified configuration.
+thread_local! {
+    static NEXT_WINDOW_CONFIG: std::cell::RefCell<Option<LayerConfig>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Sets the declarative layer-shell configuration to be used for the next Slint component window
+/// created via `MyComponent::new()?`. This allows a single process to host multiple layer surfaces
+/// targeting distinct compositor layers and geometries.
+pub fn set_next_window_config(config: LayerConfig) {
+    NEXT_WINDOW_CONFIG.with(|c| {
+        *c.borrow_mut() = Some(config);
+    });
+}
+
+pub(crate) fn take_next_window_config() -> Option<LayerConfig> {
+    NEXT_WINDOW_CONFIG.with(|c| c.borrow_mut().take())
+}
+
+/// Initializes the Slint layer-shell platform backend with the specified default configuration.
 ///
 /// Registers the platform driver globally via [`slint::platform::set_platform`].
 /// Must be called before instantiating any Slint UI components.
@@ -232,3 +249,4 @@ pub fn init(config: LayerConfig) -> Result<(), LayerShellError> {
     slint::platform::set_platform(Box::new(platform))?;
     Ok(())
 }
+

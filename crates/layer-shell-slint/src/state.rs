@@ -1,6 +1,7 @@
 //! SCTK AppState handling seat, shm, layer-shell, and compositor delegates.
 
-use std::rc::Weak;
+use std::collections::HashMap;
+use std::rc::{Rc, Weak};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -18,6 +19,7 @@ use smithay_client_toolkit::{
         Capability, SeatHandler, SeatState,
     },
     shell::wlr_layer::{LayerShell, LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
+    shell::WaylandSurface,
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use wayland_client::protocol::{
@@ -29,7 +31,6 @@ use wayland_client::protocol::{
 };
 use wayland_client::{Connection, QueueHandle};
 
-use crate::input::InputProcessor;
 use crate::window::LayerWindow;
 
 /// Application state carrying SCTK protocol delegates and managing the Wayland connection.
@@ -53,24 +54,27 @@ pub struct AppState {
     pub pointer: Option<WlPointer>,
     /// Currently bound touchscreen device, if available on seat.
     pub touch: Option<WlTouch>,
-    /// Input event normalizer translating Wayland events to Slint window events.
-    pub input_processor: InputProcessor,
 
-    /// Weak reference to the active Slint layer window adapter.
-    pub window: Option<Weak<LayerWindow>>,
+    /// Weak references to all active Slint layer window adapters.
+    pub windows: Vec<Weak<LayerWindow>>,
+    /// Active touch contact mappings (slot ID -> target window).
+    pub touch_targets: HashMap<i32, Weak<LayerWindow>>,
 
-    /// Flag set to true when the window surface is closed or the event loop should terminate.
+    /// Flag set to true when all window surfaces are closed or the event loop should terminate.
     pub exit_flag: Arc<AtomicBool>,
 }
 
 impl AppState {
-    /// Dispatches an event closure across the active layer window, if alive.
-    fn with_window<F: FnOnce(&LayerWindow)>(&self, f: F) {
-        if let Some(ref weak) = self.window {
-            if let Some(window) = weak.upgrade() {
-                f(&window);
+    /// Finds the active layer window whose underlying `wl_surface` matches `surface`.
+    pub fn find_window_by_surface(&self, surface: &WlSurface) -> Option<Rc<LayerWindow>> {
+        for weak in &self.windows {
+            if let Some(w) = weak.upgrade() {
+                if w.layer_surface().wl_surface() == surface {
+                    return Some(w);
+                }
             }
         }
+        None
     }
 }
 
@@ -82,13 +86,13 @@ impl CompositorHandler for AppState {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _surface: &WlSurface,
+        surface: &WlSurface,
         new_factor: i32,
     ) {
         debug!("Wayland surface scale factor changed: {}", new_factor);
-        self.with_window(|w| {
+        if let Some(w) = self.find_window_by_surface(surface) {
             w.set_scale_factor(new_factor as f32);
-        });
+        }
     }
 
     fn transform_changed(
@@ -105,13 +109,13 @@ impl CompositorHandler for AppState {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _surface: &WlSurface,
+        surface: &WlSurface,
         _time: u32,
     ) {
         trace!("Wayland frame callback received; ready for next frame presentation");
-        self.with_window(|w| {
+        if let Some(w) = self.find_window_by_surface(surface) {
             w.on_frame_rendered();
-        });
+        }
     }
 
     fn surface_enter(
@@ -232,14 +236,9 @@ impl PointerHandler for AppState {
         _pointer: &WlPointer,
         events: &[PointerEvent],
     ) {
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
-            let scale = w.scale_factor();
-            for event in events {
-                let slint_events = self.input_processor.process_pointer_event(event, scale);
-                for slint_event in slint_events {
-                    w.dispatch_event(slint_event);
-                }
+        for event in events {
+            if let Some(w) = self.find_window_by_surface(&event.surface) {
+                w.process_pointer_event(event);
             }
         }
     }
@@ -256,17 +255,13 @@ impl TouchHandler for AppState {
         _touch: &WlTouch,
         _serial: u32,
         _time: u32,
-        _surface: WlSurface,
+        surface: WlSurface,
         id: i32,
         position: (f64, f64),
     ) {
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
-            let scale = w.scale_factor();
-            let events = self.input_processor.touch_down(id, position, scale);
-            for event in events {
-                w.dispatch_event(event);
-            }
+        if let Some(w) = self.find_window_by_surface(&surface) {
+            self.touch_targets.insert(id, Rc::downgrade(&w));
+            w.process_touch_down(id, position);
         }
     }
 
@@ -279,12 +274,9 @@ impl TouchHandler for AppState {
         _time: u32,
         id: i32,
     ) {
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
-            let scale = w.scale_factor();
-            let events = self.input_processor.touch_up(id, scale);
-            for event in events {
-                w.dispatch_event(event);
+        if let Some(weak) = self.touch_targets.remove(&id) {
+            if let Some(w) = weak.upgrade() {
+                w.process_touch_up(id);
             }
         }
     }
@@ -298,25 +290,20 @@ impl TouchHandler for AppState {
         id: i32,
         position: (f64, f64),
     ) {
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
-            let scale = w.scale_factor();
-            let events = self.input_processor.touch_motion(id, position, scale);
-            for event in events {
-                w.dispatch_event(event);
+        if let Some(weak) = self.touch_targets.get(&id) {
+            if let Some(w) = weak.upgrade() {
+                w.process_touch_motion(id, position);
             }
         }
     }
 
     fn cancel(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _touch: &WlTouch) {
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
-            let scale = w.scale_factor();
-            let events = self.input_processor.touch_cancel(scale);
-            for event in events {
-                w.dispatch_event(event);
+        for weak in self.touch_targets.values() {
+            if let Some(w) = weak.upgrade() {
+                w.process_touch_cancel();
             }
         }
+        self.touch_targets.clear();
     }
 
     fn shape(
@@ -345,16 +332,26 @@ impl TouchHandler for AppState {
 // Layer Shell Handler
 // ---------------------------------------------------------------------------
 impl LayerShellHandler for AppState {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        info!("Wayland layer surface closed by compositor; terminating event loop");
-        self.exit_flag.store(true, Ordering::SeqCst);
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
+        info!("Wayland layer surface closed by compositor");
+        self.windows.retain(|w| {
+            if let Some(window) = w.upgrade() {
+                window.layer_surface().wl_surface() != layer.wl_surface()
+            } else {
+                false
+            }
+        });
+        if self.windows.is_empty() {
+            info!("All layer surfaces closed; terminating event loop");
+            self.exit_flag.store(true, Ordering::SeqCst);
+        }
     }
 
     fn configure(
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _layer: &LayerSurface,
+        layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         serial: u32,
     ) {
@@ -363,8 +360,7 @@ impl LayerShellHandler for AppState {
             configure.new_size, serial
         );
 
-        let window = self.window.as_ref().and_then(|w| w.upgrade());
-        if let Some(w) = window {
+        if let Some(w) = self.find_window_by_surface(layer.wl_surface()) {
             let (w_width, w_height) = configure.new_size;
             w.on_configure(w_width, w_height);
         }

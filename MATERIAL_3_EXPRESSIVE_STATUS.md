@@ -219,14 +219,31 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 
 ---
 
+### 10. Phase 6C: Consolidated SystemUI Process (`penumbra-shell`)
+- **Commit**: `pending` (*feat(systemui): implement Phase 6C consolidated SystemUI runtime and multi-surface layer-shell platform*)
+- **Implementation**:
+  - **Multi-Surface Layer-Shell Platform Backend**:
+    - [`crates/layer-shell-slint/src/lib.rs`](crates/layer-shell-slint/src/lib.rs): Added thread-local `set_next_window_config` and `take_next_window_config` to configure distinct layer properties per Slint window instance.
+    - [`crates/layer-shell-slint/src/window.rs`](crates/layer-shell-slint/src/window.rs): Encapsulated per-window `InputProcessor` to prevent coordinate bleeding between the top bar ($412 \times 42$), quick settings overlay ($412 \times 915$), and nav bar ($412 \times 32$).
+    - [`crates/layer-shell-slint/src/state.rs`](crates/layer-shell-slint/src/state.rs) & [`platform.rs`](crates/layer-shell-slint/src/platform.rs): Added surface-to-window lookup table (`windows` + `touch_targets`), routing pointer, touch, configure, and frame rendering passes across all active surfaces.
+  - **Consolidated SystemUI Runtime (`systemui.rs`)**:
+    - [`crates/penumbra-shell/src/systemui.rs`](crates/penumbra-shell/src/systemui.rs): Unified `TopBarWindow`, `QuickSettingsWindow`, and `NavBarWindow` into a single process memory space.
+    - Direct, in-memory drag handoff between TopBar pull-down and QuickSettings expansion with zero IPC latency.
+    - Single Tokio runtime for `BatteryService` and `NetworkService`, simultaneously dispatching telemetry to both TopBar and QuickSettings.
+    - Single 1-second clock timer and unified dynamic Monet palette watcher updating all three windows concurrently.
+    - Full QuickSettings capabilities preserved: customizable tile engine, notification dismissal, power menu dialog, settings page launcher, and brightness/volume controls.
+  - **Unified Launch Configuration**:
+    - [`crates/penumbra-shell/src/main.rs`](crates/penumbra-shell/src/main.rs): Added `--systemui` flag and automatic Penumbra session detection routing to `systemui::run()`, preserving `--emulator` for desktop convergence.
+    - [`scripts/penumbra-session`](scripts/penumbra-session): Updated to launch `penumbra-shell --systemui &` with fallback to individual standalone binaries.
+- **Verification**:
+  - `cargo check --workspace`: Passed (0 errors, 0 warnings).
+  - `cargo test --workspace`: **All 68 tests passed across all workspace crates**.
+
+---
+
 ## Upcoming Architectural Engine Phases (Section 4 Roadmap)
 
-The visual, kinetic, and IPC foundations are complete and validated. The remaining roadmap items:
-
-### Phase 6C: Consolidated SystemUI Process (Section 4.A)
-- **Unify System Chrome**:
-  - Consolidate `penumbra-top-bar`, `penumbra-quicksettings`, and `penumbra-nav-bar` into a single `penumbra-shell` (SystemUI) process.
-  - Share Slint memory state between status bar elements, quick settings drawer, and navigation gestures to enable seamless shared-element animations.
+The visual, kinetic, IPC, and SystemUI consolidation foundations are complete and validated. The remaining roadmap items:
 
 ### Phase 6D: GPU Hardware Acceleration Path (Section 4.E)
 - **Transition from Software SHM to GPU Scanout**:
@@ -240,7 +257,8 @@ The visual, kinetic, and IPC foundations are complete and validated. The remaini
 - **Visual & Theming Phases (1–5)**:  **Completed & Deployed on Fairphone 4**
 - **Architectural Cleanup & Depth Zoom (Phase 6A)**:  **Completed, Built & Deployed on Fairphone 4**
 - **Microsecond Socket IPC (Phase 6B)**:  **Completed, Built & Deployed on Fairphone 4**
-- **Unified SystemUI & GPU Path (Phases 6C–6D)**: ⏳ **Next in Queue**
+- **Unified SystemUI Process (Phase 6C)**:  **Completed & Verified**
+- **GPU Hardware Acceleration Path (Phase 6D)**: ⏳ **Next in Queue**
 
 
 

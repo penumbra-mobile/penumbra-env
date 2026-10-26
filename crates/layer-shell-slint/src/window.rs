@@ -37,6 +37,8 @@ pub struct LayerWindow {
     qh: QueueHandle<AppState>,
     /// Ping signal to wake up the Calloop event loop when redraws are requested asynchronously.
     ping: calloop::ping::Ping,
+    /// Per-window input normalizer translating Wayland events to Slint window events.
+    input_processor: std::cell::RefCell<crate::input::InputProcessor>,
 }
 
 impl LayerWindow {
@@ -73,6 +75,7 @@ impl LayerWindow {
                 frame_callback_pending: Cell::new(false),
                 qh,
                 ping,
+                input_processor: std::cell::RefCell::new(crate::input::InputProcessor::new()),
             }
         })
     }
@@ -205,6 +208,51 @@ impl LayerWindow {
     /// Dispatches a window event to the Slint internal component tree.
     pub fn dispatch_event(&self, event: WindowEvent) {
         self.window.dispatch_event(event);
+    }
+
+    /// Normalizes and dispatches a pointer event to this window.
+    pub fn process_pointer_event(&self, event: &smithay_client_toolkit::seat::pointer::PointerEvent) {
+        let scale = self.scale_factor();
+        let slint_events = self.input_processor.borrow_mut().process_pointer_event(event, scale);
+        for slint_event in slint_events {
+            self.dispatch_event(slint_event);
+        }
+    }
+
+    /// Handles touch down on this window.
+    pub fn process_touch_down(&self, id: i32, pos: (f64, f64)) {
+        let scale = self.scale_factor();
+        let slint_events = self.input_processor.borrow_mut().touch_down(id, pos, scale);
+        for slint_event in slint_events {
+            self.dispatch_event(slint_event);
+        }
+    }
+
+    /// Handles touch motion on this window.
+    pub fn process_touch_motion(&self, id: i32, pos: (f64, f64)) {
+        let scale = self.scale_factor();
+        let slint_events = self.input_processor.borrow_mut().touch_motion(id, pos, scale);
+        for slint_event in slint_events {
+            self.dispatch_event(slint_event);
+        }
+    }
+
+    /// Handles touch up on this window.
+    pub fn process_touch_up(&self, id: i32) {
+        let scale = self.scale_factor();
+        let slint_events = self.input_processor.borrow_mut().touch_up(id, scale);
+        for slint_event in slint_events {
+            self.dispatch_event(slint_event);
+        }
+    }
+
+    /// Handles touch cancel on this window.
+    pub fn process_touch_cancel(&self) {
+        let scale = self.scale_factor();
+        let slint_events = self.input_processor.borrow_mut().touch_cancel(scale);
+        for slint_event in slint_events {
+            self.dispatch_event(slint_event);
+        }
     }
 }
 

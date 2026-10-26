@@ -230,15 +230,25 @@ fn read_file_browser_entries(dir_path: &std::path::Path) -> Vec<FileEntry> {
     result
 }
 
-#[derive(Parser, Debug, Clone)]
+mod systemui;
+
+#[derive(Parser, Debug)]
 #[command(
     name = "penumbra-shell",
     about = "Material 3 Mobile Desktop Environment & Convergence Emulator",
     version = "0.1.0"
 )]
 pub struct ShellArgs {
+    /// Launch the consolidated SystemUI daemon (TopBar, QuickSettings, NavBar on Wayland layer-shell)
+    #[arg(long, default_value_t = false)]
+    pub systemui: bool,
+
+    /// Force launch in desktop convergence emulation mode
+    #[arg(long, default_value_t = false)]
+    pub emulator: bool,
+
     /// Launch in dual-screen convergence emulation mode (Phone DSI + External HDMI).
-    #[arg(short, long, default_value_t = true)]
+    #[arg(short, long, default_value_t = false)]
     pub dual_screen: bool,
 
     /// Launch only the phone screen (412x915).
@@ -346,7 +356,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .finish();
     let _ = tracing::subscriber::set_global_default(subscriber);
 
-    info!("Initializing Penumbra Mobile Shell (Material 3 Expressive)...");
+    let is_systemui = args.systemui
+        || std::env::var("PENUMBRA_SYSTEMUI").is_ok()
+        || (!args.emulator
+            && !args.dual_screen
+            && !args.phone_only
+            && std::env::var("WAYLAND_DISPLAY")
+                .map(|w| w.contains("penumbra"))
+                .unwrap_or(false));
+
+    if is_systemui {
+        return systemui::run();
+    }
+
+    info!("Initializing Penumbra Mobile Shell Convergence Emulator (Material 3 Expressive)...");
     info!(
         "Dual-screen convergence emulator: {}",
         args.dual_screen && !args.phone_only

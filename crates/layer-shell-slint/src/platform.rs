@@ -60,7 +60,6 @@ fn to_sctk_keyboard(
 }
 
 use crate::error::LayerShellError;
-use crate::input::InputProcessor;
 use crate::shm::calculate_buffer_size;
 use crate::state::AppState;
 use crate::window::LayerWindow;
@@ -73,8 +72,8 @@ struct PlatformRuntime {
     event_loop: calloop::EventLoop<'static, AppState>,
     qh: QueueHandle<AppState>,
     ping: calloop::ping::Ping,
-    config: LayerConfig,
-    active_window: Option<Rc<LayerWindow>>,
+    default_config: LayerConfig,
+    active_windows: Vec<Rc<LayerWindow>>,
 }
 
 /// Custom Slint platform backend driver implementing zero-winit layer-shell integration.
@@ -138,8 +137,8 @@ impl LayerShellPlatform {
             layer_shell,
             pointer: None,
             touch: None,
-            input_processor: InputProcessor::new(),
-            window: None,
+            windows: Vec::new(),
+            touch_targets: std::collections::HashMap::new(),
             exit_flag: exit_flag.clone(),
         };
 
@@ -178,8 +177,8 @@ impl LayerShellPlatform {
             event_loop,
             qh,
             ping,
-            config,
-            active_window: None,
+            default_config: config,
+            active_windows: Vec::new(),
         };
 
         Ok(Self {
@@ -195,27 +194,29 @@ impl Platform for LayerShellPlatform {
     fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         let mut rt = self.runtime.borrow_mut();
 
+        let config = crate::take_next_window_config().unwrap_or_else(|| rt.default_config.clone());
+
         // 1. Create a base wl_surface from the compositor
         let wl_surface = rt.app_state.compositor_state.create_surface(&rt.qh);
 
         // 2. Instantiate zwlr_layer_surface_v1 via SCTK
-        let sctk_layer = to_sctk_layer(rt.config.layer);
+        let sctk_layer = to_sctk_layer(config.layer);
         let layer_surface = rt.app_state.layer_shell.create_layer_surface(
             &rt.qh,
             wl_surface,
             sctk_layer,
-            Some(rt.config.namespace.clone()),
+            Some(config.namespace.clone()),
             None, // Use default focused compositor output
         );
 
         // 3. Configure anchors, geometry, margins, and exclusive zone
-        let sctk_anchor = to_sctk_anchor(rt.config.anchor);
-        let sctk_keyboard = to_sctk_keyboard(rt.config.keyboard_interactivity);
+        let sctk_anchor = to_sctk_anchor(config.anchor);
+        let sctk_keyboard = to_sctk_keyboard(config.keyboard_interactivity);
         layer_surface.set_anchor(sctk_anchor);
-        layer_surface.set_size(rt.config.width, rt.config.height);
-        let (m_top, m_right, m_bottom, m_left) = rt.config.margin;
+        layer_surface.set_size(config.width, config.height);
+        let (m_top, m_right, m_bottom, m_left) = config.margin;
         layer_surface.set_margin(m_top, m_right, m_bottom, m_left);
-        layer_surface.set_exclusive_zone(rt.config.exclusive_zone);
+        layer_surface.set_exclusive_zone(config.exclusive_zone);
         layer_surface.set_keyboard_interactivity(sctk_keyboard);
 
         // 4. Initial commit to instruct compositor to compute layer layout and emit configure
@@ -224,19 +225,19 @@ impl Platform for LayerShellPlatform {
         // 5. Instantiate the Slint window adapter
         let window = LayerWindow::new(
             layer_surface,
-            rt.config.width,
-            rt.config.height,
+            config.width,
+            config.height,
             rt.qh.clone(),
             rt.ping.clone(),
         );
 
         // 6. Connect window reference to SCTK state handlers
-        rt.app_state.window = Some(Rc::downgrade(&window));
-        rt.active_window = Some(window.clone());
+        rt.app_state.windows.push(Rc::downgrade(&window));
+        rt.active_windows.push(window.clone());
 
         debug!(
             "Created native LayerWindow adapter for namespace '{}'",
-            rt.config.namespace
+            config.namespace
         );
 
         Ok(window as Rc<dyn WindowAdapter>)
@@ -254,9 +255,12 @@ impl Platform for LayerShellPlatform {
                 break;
             }
 
-            // Perform render pass if the window surface is ready and dirty
-            let active_window = rt.active_window.clone();
-            if let Some(ref window) = active_window {
+            // Prune dead windows from active_windows
+            rt.active_windows.retain(|w| Rc::strong_count(w) > 1);
+
+            // Perform render pass for each active window if ready and dirty
+            let active_windows = rt.active_windows.clone();
+            for window in &active_windows {
                 if window.can_render() {
                     window.render(&mut rt.app_state.pool);
                 }
