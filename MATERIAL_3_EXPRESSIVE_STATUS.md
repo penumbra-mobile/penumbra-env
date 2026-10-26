@@ -262,26 +262,25 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 ---
 
 ### 12. Phase 7: Android 17 Material 3 Expressive Quick Settings & Notification Center (Pixel Experience Architecture)
+- **Commit**: `e5228b0` (*feat(ui): implement 1:1 Pixel Experience M3E layout with live spring translation, blurred glass backdrop, and Spotify card*)
 - **Status**:  **Completed & Deployed on Fairphone 4**
-- **Objective**: Re-architect the Quick Settings & Notification shade according to Android 17 Material 3 Expressive (Pixel Experience) principles, eliminating fragile cross-process gesture conflicts, RefCell double-borrow crashes, and surface-boundary clipping.
+- **Objective**: Match authentic Android (Pixel Experience) screenshots 1:1 with true underdamped spring translation, real-time Dual-Kawase wallpaper blur, and pixel-accurate component pastilles.
 - **Architectural Deliverables**:
-  1. **Solid OLED Dark Canvas (`#0e0d14fa`)**:
-     - Completely eliminated wallpaper and homescreen app bleed-through by establishing an opaque deep obsidian canvas with $32\text{px}$ bottom corners and $1\text{px}$ specular rim highlight.
-  2. **1:1 Android 17 Material 3 Expressive Pastille Grid**:
-     - Replaced broken diagonal morphing math with stable 2-column pastilles ($60\text{px}$ height, 26px radius with 0.96x tactile squash).
-     - Row 0 (Tiles 0, 1) and Row 1 (Tiles 2, 3) are always visible in fixed positions across both QQS and full QS.
-     - Rows 2 & 3 unfold smoothly below as QS expands.
-  3. **Linear Vertical Content Progression**:
-     - Brightness Slider sits directly below active tiles at $y = 252\text{px} + 136\text{px} \cdot \text{morph}$.
-     - Media volume slider and MPRIS player card sit cleanly below brightness.
-     - Notification stack sits below controls at $y = 316\text{px} + 264\text{px} \cdot \text{morph}$.
-  4. **TopBar Clock Shared-Element Fade**:
-     - Fades out status bar clock at $5\times$ expansion rate to completely eliminate double-clock overlap.
-  5. **Single-Authority 120Hz Gesture Tracking**:
-     - Native libinput top-edge tracking in `penumbra-comp` with dual-stage progressive resistance and zero boundary cutoff.
-  6. **Process Watchdog & Memory Safety**:
-     - RefCell double-borrow bug resolved in `systemui.rs`.
-     - Automatic respawn supervisor loop in `scripts/penumbra-session`.
+  1. **Direct Spring Translation (No Stationary Roller-Blind Clipping)**:
+     - The shade assembly translates dynamically with spring motion:
+       $$\text{slide\_y} = -290\text{px} + \min(\text{disp}, 290\text{px})$$
+       Tiles, media card, and notification sheet slide into view from off-screen and physically bounce/settle with underdamped spring oscillations.
+  2. **Preserved Drag Displacement & Velocity Handoff**:
+     - In `crates/penumbra-comp/src/native_input.rs`, eliminated the premature coordinate snap on release (`drawer_pull_dy = shade_disp` preserved).
+     - In `crates/penumbra-shell/src/systemui.rs`, calculated finger drag velocity $\Delta y / \Delta t$ across IPC frames and passed `initial_vel` directly into `animate_to(target_y, initial_vel)`.
+  3. **Compositor Dual-Kawase Glass Backdrop**:
+     - Removed the opaque black canvas block; set Slint chassis to transparent so `penumbra-comp`'s GPU Dual-Kawase blur (`quicksettings_backdrop.frag`) dynamically diffuses the wallpaper and homescreen icons behind floating shade components.
+  4. **1:1 Pixel Experience Component Layout**:
+     - **Status Bar Line**: Time (`10:10`), Date (`Lun., 26 oct.`), alarm/wifi icons, and green battery percentage pill (`#48E885`, `100%`).
+     - **Row 1 Pastilles**: 1 wide pastille (`[ Home ]`, $176\text{px}$) + 2 compact pastille squircles (`[ Wi-Fi ]`, `[ Mobile Data ]`, $86\text{px}$ each).
+     - **Row 2 Pastilles**: 2 wide pastilles (`[ Bluetooth ]`, `[ Flashlight ]`, $185\text{px}$ each).
+     - **Spotify Media Card**: Wine/charcoal container (`#2b2024`, radius $26\text{px}$), device chip `[ (TV) Televizorul din dormitor ]`, track info, and large circular play button ($46\text{px}$, light pink accent `#f7d8dc`).
+     - **Unified Notification Sheet**: Single large floating rounded card (`border-radius: 28px; background: #23211be6;`) with WhatsApp cards, action chips (`[ Răspunde ]`, `[ Marchează ca citit ]`), and weather footer pill (`10°`).
 
 ---
 
