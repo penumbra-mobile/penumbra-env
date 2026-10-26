@@ -24,7 +24,7 @@ export component NotificationCard inherits Rectangle {
     property <bool> is-swiping: false;
     property <bool> is-pressed: false;
 
-    height: 88px;
+    height: 112px;
     background: transparent;
 
     card := Rectangle {
@@ -32,7 +32,7 @@ export component NotificationCard inherits Rectangle {
         width: parent.width;
         height: parent.height;
         border-radius: 22px;
-        background: root.is-pressed ? #2f2d26f0 : #24221de0;
+        background: root.is-pressed ? #2d3238 : #23282e;
         border-width: 1px;
         border-color: Theme.specular-rim;
         clip: true;
@@ -80,7 +80,7 @@ export component NotificationCard inherits Rectangle {
             padding-bottom: 10px;
             padding-left: 14px;
             padding-right: 14px;
-            spacing: 3px;
+            spacing: 4px;
 
             // Header line: App icon, App name, Dot, Timestamp
             HorizontalLayout {
@@ -96,12 +96,12 @@ export component NotificationCard inherits Rectangle {
                         width: 20px;
                         height: 20px;
                         border-radius: 10px;
-                        background: #d0bcff;
+                        background: #a8c7fa;
 
                         Icon {
                             name: "bell";
                             icon-size: 12px;
-                            icon-color: #381e72;
+                            icon-color: #04324a;
                             x: (parent.width - self.width) / 2;
                             y: (parent.height - self.height) / 2;
                         }
@@ -111,7 +111,7 @@ export component NotificationCard inherits Rectangle {
                         text: root.data.app;
                         font-size: 12px;
                         font-weight: 700;
-                        color: #d0bcff;
+                        color: #a8c7fa;
                         vertical-alignment: center;
                     }
 
@@ -156,6 +156,31 @@ export component NotificationCard inherits Rectangle {
                 color: Theme.on-surface-variant;
                 overflow: elide;
             }
+
+            // Reply Action Pill Button
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: start;
+                Rectangle {
+                    height: 24px;
+                    border-radius: 12px;
+                    background: #2a3441;
+                    border-width: 1px;
+                    border-color: #38bdf840;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        alignment: center;
+                        Text {
+                            text: "Reply";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #a8c7fa;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -171,7 +196,7 @@ export component NotificationEmptyState inherits VerticalLayout {
         width: 56px;
         height: 56px;
         border-radius: 28px;
-        background: #2b2930;
+        background: #23282e;
         border-width: 1px;
         border-color: Theme.specular-rim;
         x: (parent.width - self.width) / 2;
@@ -212,7 +237,7 @@ export component NotificationStack inherits Rectangle {
     callback open-settings();
 
     border-radius: 28px;
-    background: #1c1a16e6;
+    background: #181c20bb;
     border-width: 1px;
     border-color: Theme.specular-rim;
     clip: true;
@@ -236,7 +261,7 @@ export component NotificationStack inherits Rectangle {
                     text: "NOTIFICATIONS";
                     font-size: 11px;
                     font-weight: 800;
-                    color: #d0bcff;
+                    color: #a8c7fa;
                     letter-spacing: 0.5px;
                     vertical-alignment: center;
                 }
@@ -252,7 +277,7 @@ export component NotificationStack inherits Rectangle {
                             text: "\{root.notifications.length}";
                             font-size: 11px;
                             font-weight: 700;
-                            color: #d0bcff;
+                            color: #a8c7fa;
                             vertical-alignment: center;
                         }
                     }
@@ -261,7 +286,7 @@ export component NotificationStack inherits Rectangle {
 
             // Empty state
             if root.notifications.length == 0: NotificationEmptyState {
-                height: 220px;
+                height: 200px;
             }
 
             // Notification cards list
@@ -269,57 +294,6 @@ export component NotificationStack inherits Rectangle {
                 data: notif;
                 index: idx;
                 dismiss(i) => { root.dismiss-notification(i); }
-            }
-
-            // Footer row: Clear all & Settings
-            if root.notifications.length > 0: HorizontalLayout {
-                alignment: space-between;
-                padding-top: 8px;
-                padding-left: 4px;
-                padding-right: 4px;
-
-                Rectangle {
-                    height: 38px;
-                    width: 130px;
-                    border-radius: 19px;
-                    background: clear-touch.pressed ? #3d3b34 : #2f2d26;
-                    border-width: 1px;
-                    border-color: Theme.specular-rim;
-
-                    clear-touch := TouchArea {
-                        clicked => { root.clear-all(); }
-                    }
-
-                    Text {
-                        text: "Clear all";
-                        font-size: 12px;
-                        font-weight: 700;
-                        color: #d0bcff;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-                }
-
-                Rectangle {
-                    height: 38px;
-                    width: 44px;
-                    border-radius: 19px;
-                    background: settings-touch.pressed ? #3d3b34 : #2f2d26;
-                    border-width: 1px;
-                    border-color: Theme.specular-rim;
-
-                    settings-touch := TouchArea {
-                        clicked => { root.open-settings(); }
-                    }
-
-                    Icon {
-                        name: "settings";
-                        icon-size: 18px;
-                        icon-color: Theme.on-surface-variant;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                    }
-                }
             }
         }
     }

@@ -14,6 +14,50 @@ export struct TileData {
 }
 
 // =========================================================================
+// Android 17 Marquee / Horizontal Scrolling Text Component
+// =========================================================================
+export component MarqueeText inherits Rectangle {
+    in property <string> text;
+    in property <length> font-size: 14px;
+    in property <int> font-weight: 500;
+    in property <color> text-color: #ffffff;
+
+    width: 100%;
+    horizontal-stretch: 1;
+    clip: true;
+    background: transparent;
+
+    property <length> scroll-offset: 0px;
+    property <bool> is-overflowing: txt.preferred-width > root.width && root.width > 10px;
+
+    marquee-timer := Timer {
+        interval: 35ms;
+        running: root.is-overflowing;
+        triggered => {
+            if (root.is-overflowing) {
+                root.scroll-offset = root.scroll-offset - 1.2px;
+                if (root.scroll-offset < -(txt.preferred-width + 24px)) {
+                    root.scroll-offset = 12px;
+                }
+            } else {
+                root.scroll-offset = 0px;
+            }
+        }
+    }
+
+    txt := Text {
+        x: root.is-overflowing ? root.scroll-offset : 0px;
+        y: 0px;
+        height: parent.height;
+        text: root.text;
+        font-size: root.font-size;
+        font-weight: root.font-weight;
+        color: root.text-color;
+        vertical-alignment: center;
+    }
+}
+
+// =========================================================================
 // Material 3 Expressive QSTile Component
 // =========================================================================
 export component QSTile inherits Rectangle {
@@ -43,7 +87,7 @@ export component QSTile inherits Rectangle {
         width: parent.width - (root.is-down ? 5px : 0px);
         height: parent.height - (root.is-down ? 3px : 0px);
         border-radius: root.is-down ? 22px : (root.is-active ? 28px : 20px);
-        background: root.is-active ? #d0bcff : (root.is-down ? #38353d : #2b2930);
+        background: root.is-active ? #a8c7fa : (root.is-down ? #38353d : #23282e);
         border-width: 1px;
         border-color: root.is-active ? #ffffff44 : Theme.specular-rim;
         clip: true;
@@ -56,27 +100,29 @@ export component QSTile inherits Rectangle {
             padding-left: 16px;
             padding-right: 12px;
             spacing: 12px;
-            alignment: center;
 
-            Rectangle {
-                width: 24px;
-                height: 24px;
-                background: transparent;
-
-                if root.icon-name != "": Icon {
-                    name: root.icon-name;
-                    icon-size: 24px;
-                    icon-color: root.is-active ? #381e72 : #e6e0e9;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    animate icon-color { duration: 180ms; easing: ease-out; }
-                }
-                if root.icon-name == "": Image {
-                    source: root.icon;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
                     width: 24px;
                     height: 24px;
-                    colorize: root.is-active ? #381e72 : #e6e0e9;
-                    animate colorize { duration: 180ms; easing: ease-out; }
+                    background: transparent;
+
+                    if root.icon-name != "": Icon {
+                        name: root.icon-name;
+                        icon-size: 24px;
+                        icon-color: root.is-active ? #04324a : #e6e0e9;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        animate icon-color { duration: 180ms; easing: ease-out; }
+                    }
+                    if root.icon-name == "": Image {
+                        source: root.icon;
+                        width: 24px;
+                        height: 24px;
+                        colorize: root.is-active ? #04324a : #e6e0e9;
+                        animate colorize { duration: 180ms; easing: ease-out; }
+                    }
                 }
             }
 
@@ -85,34 +131,37 @@ export component QSTile inherits Rectangle {
                 spacing: 2px;
                 horizontal-stretch: 1;
 
-                Text {
+                MarqueeText {
+                    height: 18px;
                     text: root.title;
                     font-size: 14px;
                     font-weight: 700;
-                    color: root.is-active ? #381e72 : #e6e0e9;
-                    overflow: elide;
+                    text-color: root.is-active ? #04324a : #e6e0e9;
                 }
 
-                if root.subtitle != "": Text {
+                if root.subtitle != "": MarqueeText {
+                    height: 16px;
                     text: root.subtitle;
                     font-size: 12px;
                     font-weight: 500;
-                    color: root.is-active ? #381e72 : #cac4d0;
-                    overflow: elide;
+                    text-color: root.is-active ? #04324a : #cac4d0;
                 }
             }
 
-            if root.has-chevron: TouchArea {
-                width: 28px;
-                height: 28px;
-                clicked => { root.chevron-clicked(); }
-                Icon {
-                    name: "chevron-right";
-                    icon-size: 16px;
-                    icon-color: root.is-active ? #381e72 : #cac4d0;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                    animate icon-color { duration: 180ms; }
+            if root.has-chevron: VerticalLayout {
+                alignment: center;
+                TouchArea {
+                    width: 28px;
+                    height: 28px;
+                    clicked => { root.chevron-clicked(); }
+                    Icon {
+                        name: "chevron-right";
+                        icon-size: 16px;
+                        icon-color: root.is-active ? #04324a : #cac4d0;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        animate icon-color { duration: 180ms; }
+                    }
                 }
             }
         }
@@ -268,6 +317,255 @@ component EditTileItem inherits Rectangle {
 
 
 // =========================================================================
+// Android 17 / Pixel Expressive Media Player Card
+// =========================================================================
+export component MediaCard inherits Rectangle {
+    in property <string> title: "Qi2 (Not) Ready - Android Faithful #82";
+    in property <string> artist: "Android Faithful • VIDEO";
+    in property <string> device: "This phone";
+    in property <float> progress: 0.38;
+    in property <bool> is-playing: false;
+    callback play-pause();
+    callback prev();
+    callback next();
+
+    height: 136px;
+    border-radius: 26px;
+    background: #0d3b52;
+    border-width: 1px;
+    border-color: #38bdf833;
+    clip: true;
+
+    // Deep cyan gradient background
+    Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: @linear-gradient(135deg, #093144 0%, #154c64 50%, #0d384c 100%);
+    }
+
+    VerticalLayout {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 6px;
+
+        // Top Row: Podcast / Audio Icon & Device Chip
+        HorizontalLayout {
+            alignment: space-between;
+            height: 24px;
+
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 12px;
+                background: #ffffff22;
+                Icon {
+                    name: "music";
+                    icon-size: 14px;
+                    icon-color: #e0f2fe;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            Rectangle {
+                height: 22px;
+                border-radius: 11px;
+                background: #ffffff26;
+                border-width: 1px;
+                border-color: #ffffff33;
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 4px;
+                    alignment: center;
+                    Icon { name: "phone"; icon-size: 11px; icon-color: #ffffff; }
+                    Text {
+                        text: root.device;
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: #ffffff;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        // Middle Row: Title + Artist and Large Play Button
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: space-between;
+
+            VerticalLayout {
+                spacing: 2px;
+                alignment: center;
+                horizontal-stretch: 1;
+
+                MarqueeText {
+                    height: 18px;
+                    text: root.title;
+                    font-size: 13px;
+                    font-weight: 700;
+                    text-color: #ffffff;
+                }
+                MarqueeText {
+                    height: 15px;
+                    text: root.artist;
+                    font-size: 11px;
+                    font-weight: 500;
+                    text-color: #7dd3fc;
+                }
+            }
+
+            // Play / Pause Circle Button
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: play-touch.pressed ? #e2e8f0 : #ffffff;
+
+                play-touch := TouchArea {
+                    clicked => { root.play-pause(); }
+                }
+
+                Icon {
+                    name: root.is-playing ? "pause" : "play";
+                    icon-size: 20px;
+                    icon-color: #0f172a;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+
+        // Bottom Controls: Replay 10s, Seekbar, Forward 10s, Speed 1x, Next
+        HorizontalLayout {
+            spacing: 8px;
+            alignment: center;
+            height: 28px;
+
+            // Replay 10
+            TouchArea {
+                width: 24px;
+                height: 24px;
+                Icon {
+                    name: "replay-10";
+                    icon-size: 16px;
+                    icon-color: #bae6fd;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Seekbar
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 4px;
+                border-radius: 2px;
+                background: #ffffff33;
+
+                Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width * root.progress;
+                    height: parent.height;
+                    border-radius: 2px;
+                    background: #38bdf8;
+                }
+            }
+
+            // Forward 10
+            TouchArea {
+                width: 24px;
+                height: 24px;
+                Icon {
+                    name: "forward-10";
+                    icon-size: 16px;
+                    icon-color: #bae6fd;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            // Speed
+            Rectangle {
+                width: 24px;
+                height: 20px;
+                Text {
+                    text: "1x";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #bae6fd;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            // Skip next
+            TouchArea {
+                width: 24px;
+                height: 24px;
+                clicked => { root.next(); }
+                Icon {
+                    name: "skip-next";
+                    icon-size: 16px;
+                    icon-color: #bae6fd;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Android 17 Material 3 Expressive Squircle Tile (Row 3 4-button row)
+// =========================================================================
+export component QSSquircleTile inherits Rectangle {
+    in property <string> icon-name;
+    in property <bool> is-active: false;
+    callback clicked();
+
+    property <bool> is-down: false;
+
+    height: 52px;
+    background: transparent;
+
+    inner-box := Rectangle {
+        x: root.is-down ? 2px : 0px;
+        y: root.is-down ? 1px : 0px;
+        width: parent.width - (root.is-down ? 4px : 0px);
+        height: parent.height - (root.is-down ? 2px : 0px);
+        border-radius: root.is-down ? 18px : 22px;
+        background: root.is-active ? #a8c7fa : (root.is-down ? #38353d : #23282e);
+        border-width: 1px;
+        border-color: root.is-active ? #ffffff44 : Theme.specular-rim;
+
+        animate x, y, width, height { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate background { duration: 180ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+
+        Icon {
+            name: root.icon-name;
+            icon-size: 22px;
+            icon-color: root.is-active ? #04324a : #e6e0e9;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            animate icon-color { duration: 180ms; }
+        }
+    }
+
+    TouchArea {
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) { root.is-down = true; }
+            else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) { root.is-down = false; }
+        }
+        clicked => { root.clicked(); }
+    }
+}
+
+// =========================================================================
 // Capsule-Shaped Brightness Slider
 // =========================================================================
 component SliderPill inherits Rectangle {
@@ -292,7 +590,7 @@ component SliderPill inherits Rectangle {
         height: parent.height - 2 * self.squash-y;
 
         border-radius: 22px;
-        background: #2b2930;
+        background: #23282e;
         border-width: 1px;
         border-color: root.is-dragging ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
@@ -308,13 +606,23 @@ component SliderPill inherits Rectangle {
             y: 0px;
             width: Math.clamp(parent.width * Math.clamp(root.value, 0.0, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), 0px, parent.width);
             height: parent.height;
-            background: #d0bcff;
+            background: #a8c7fa;
             border-radius: 22px;
 
             animate width {
                 duration: root.is-dragging ? 0ms : Theme.duration-short;
                 easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
             }
+        }
+
+        // Vertical thumb separator
+        Rectangle {
+            x: Math.clamp(fill-bar.width - 2px, 0px, parent.width - 4px);
+            y: 8px;
+            width: 4px;
+            height: parent.height - 16px;
+            border-radius: 2px;
+            background: #04324a88;
         }
 
         HorizontalLayout {
@@ -331,7 +639,7 @@ component SliderPill inherits Rectangle {
                     Icon {
                         name: "brightness";
                         icon-size: 18px;
-                        icon-color: root.value > 0.08 ? #381e72 : #e6e0e9;
+                        icon-color: root.value > 0.08 ? #04324a : #e6e0e9;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -340,7 +648,7 @@ component SliderPill inherits Rectangle {
                     text: root.label;
                     font-size: 13px;
                     font-weight: 700;
-                    color: root.value > 0.38 ? #381e72 : #e6e0e9;
+                    color: root.value > 0.38 ? #04324a : #e6e0e9;
                     vertical-alignment: center;
                 }
             }
@@ -352,7 +660,7 @@ component SliderPill inherits Rectangle {
                 Icon {
                     name: "brightness-low";
                     icon-size: 18px;
-                    icon-color: root.value > 0.90 ? #381e72 : #cac4d0;
+                    icon-color: root.value > 0.90 ? #04324a : #cac4d0;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -621,12 +929,12 @@ export component QuickSettingsSlider inherits Rectangle {
                         } else {
                             root.drag-released(dy * 1px, 0.0);
                         }
-                    } else if (Math.abs(dx) > 35.0 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-                        // Horizontal swipe between tabs
-                        if (dx < -35.0) {
+                    } else if (Math.abs(dx) > 25.0 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+                        // Horizontal swipe between Notifications and Quick Settings
+                        if (dx < -25.0) {
                             root.is-full-qs = true; // swipe left -> Quick Settings
                             root.mode-changed(true);
-                        } else if (dx > 35.0) {
+                        } else if (dx > 25.0) {
                             root.is-full-qs = false; // swipe right -> Notifications
                             root.mode-changed(false);
                         }
@@ -646,316 +954,489 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // =====================================================================
-        // VIEW A: NORMAL SYSTEMUI SHADE (Split Notifications vs Quick Settings)
-        // =====================================================================
         normal-view := Rectangle {
             x: 0px;
             y: root.edit-mode ? -30px : 0px;
             width: parent.width;
             height: parent.height - 36px;
+            background: #101418e6;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
             opacity: root.edit-mode ? 0.0 : 1.0;
             visible: !root.edit-mode || self.opacity > 0.01;
+            clip: true;
 
             animate opacity, y {
                 duration: 260ms;
                 easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
             }
 
-            // -----------------------------------------------------------------
-            // Header: Large Clock, Date, Status, Edit & Power Buttons
-            // -----------------------------------------------------------------
-            HorizontalLayout {
+            // =====================================================================
+            // FLOATING STATUS PILLS (At the top of the shade card, starting from y: 8px)
+            // =====================================================================
+            floating-status-bar := HorizontalLayout {
                 x: root.pad;
-                y: 12px;
+                y: 8px;
                 width: parent.width - 2 * root.pad;
-                height: 48px;
+                height: 28px;
                 alignment: space-between;
 
-                VerticalLayout {
-                    spacing: 2px;
-                    alignment: center;
-                    Text {
-                        text: root.time-text;
-                        font-size: 30px;
-                        font-weight: 800;
-                        color: Theme.on-surface;
-                        letter-spacing: -0.5px;
-                    }
-                    Text {
-                        text: root.date-text;
-                        font-size: 12px;
-                        font-weight: 500;
-                        color: Theme.on-surface-variant;
-                    }
-                }
+                // Date Pill (Left: Monday, Oct 26)
+                date-pill := Rectangle {
+                    height: 28px;
+                    border-radius: 14px;
+                    background: #23282e;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+                    clip: true;
 
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-
-                    VerticalLayout {
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
                         alignment: center;
-                        spacing: 3px;
-                        HorizontalLayout {
-                            spacing: 6px;
-                            alignment: end;
+
+                        VerticalLayout {
+                            alignment: center;
                             Text {
-                                text: root.carrier-text;
+                                text: root.date-text;
                                 font-size: 11px;
-                                font-weight: 600;
+                                font-weight: 700;
                                 color: Theme.on-surface;
-                            }
-                            Icon { name: "wifi"; icon-size: 13px; icon-color: Theme.on-surface; }
-                        }
-                        Rectangle {
-                            height: 20px;
-                            width: 54px;
-                            border-radius: 10px;
-                            background: #48E885;
-                            HorizontalLayout {
-                                padding-left: 6px;
-                                padding-right: 6px;
-                                spacing: 4px;
-                                alignment: center;
-                                Icon { name: "battery"; icon-size: 11px; icon-color: #003915; }
-                                Text { text: "\{root.battery-pct}%"; font-size: 10px; font-weight: 800; color: #003915; }
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
                             }
                         }
                     }
-
-                    // Edit Mode Trigger Button
-                    HeaderIconButton {
-                        icon-name: "edit";
-                        clicked => { root.enter-edit-mode(); }
-                    }
-
-                    // Power Menu Trigger Button
-                    HeaderIconButton {
-                        icon-name: "power";
-                        clicked => { root.power-action(); }
-                    }
                 }
-            }
 
-            // -----------------------------------------------------------------
-            // Mode Selector Tabs: [ Notifications ] | [ Quick Settings ]
-            // -----------------------------------------------------------------
-            HorizontalLayout {
-                x: root.pad;
-                y: 66px;
-                width: parent.width - 2 * root.pad;
-                height: 38px;
-                spacing: 10px;
-
-                // Notifications Tab (Left Half)
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 38px;
-                    border-radius: 19px;
-                    background: !root.is-full-qs ? #d0bcff : #2b2930;
+                // Status Pill (Right: Wifi, Bell, Battery 100%)
+                status-pill := Rectangle {
+                    height: 28px;
+                    border-radius: 14px;
+                    background: #23282e;
                     border-width: 1px;
-                    border-color: !root.is-full-qs ? #ffffff44 : Theme.specular-rim;
+                    border-color: Theme.specular-rim;
                     clip: true;
-
-                    TouchArea {
-                        clicked => {
-                            root.is-full-qs = false;
-                            root.mode-changed(false);
-                        }
-                    }
 
                     HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 7px;
                         alignment: center;
-                        spacing: 8px;
-                        Icon {
-                            name: "bell";
-                            icon-size: 14px;
-                            icon-color: !root.is-full-qs ? #381e72 : #e6e0e9;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                name: "wifi";
+                                icon-size: 13px;
+                                icon-color: Theme.on-surface;
+                            }
                         }
-                        Text {
-                            text: "Notifications";
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: !root.is-full-qs ? #381e72 : #e6e0e9;
-                            vertical-alignment: center;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                name: "bell";
+                                icon-size: 12px;
+                                icon-color: Theme.on-surface;
+                            }
                         }
-                    }
-                }
 
-                // Quick Settings Tab (Right Half)
-                Rectangle {
-                    horizontal-stretch: 1;
-                    height: 38px;
-                    border-radius: 19px;
-                    background: root.is-full-qs ? #d0bcff : #2b2930;
-                    border-width: 1px;
-                    border-color: root.is-full-qs ? #ffffff44 : Theme.specular-rim;
-                    clip: true;
-
-                    TouchArea {
-                        clicked => {
-                            root.is-full-qs = true;
-                            root.mode-changed(true);
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                name: "battery";
+                                icon-size: 13px;
+                                icon-color: #a8c7fa;
+                            }
                         }
-                    }
 
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 8px;
-                        Icon {
-                            name: "settings";
-                            icon-size: 14px;
-                            icon-color: root.is-full-qs ? #381e72 : #e6e0e9;
-                        }
-                        Text {
-                            text: "Quick Settings";
-                            font-size: 12px;
-                            font-weight: 700;
-                            color: root.is-full-qs ? #381e72 : #e6e0e9;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
-
-            // =================================================================
-            // MODE 1: NOTIFICATIONS SCREEN (!root.is-full-qs)
-            // =================================================================
-            if !root.is-full-qs: HorizontalLayout {
-                x: root.pad;
-                y: 114px;
-                width: parent.width - 2 * root.pad;
-                height: 44px;
-                spacing: 8px;
-
-                for tile[idx] in root.active-tiles: Rectangle {
-                    visible: idx < 4;
-                    horizontal-stretch: 1;
-                    height: 44px;
-                    border-radius: 22px;
-                    background: tile.active ? #d0bcff : #2b2930;
-                    border-width: 1px;
-                    border-color: tile.active ? #ffffff44 : Theme.specular-rim;
-                    clip: true;
-
-                    TouchArea {
-                        clicked => { root.tile-clicked(tile.id); }
-                        pointer-event(event) => {
-                            if (event.kind == PointerEventKind.down) {
-                                // tactile
+                        VerticalLayout {
+                            alignment: center;
+                            Text {
+                                text: "\{root.battery-pct}%";
+                                font-size: 10px;
+                                font-weight: 800;
+                                color: #a8c7fa;
+                                vertical-alignment: center;
                             }
                         }
                     }
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 6px;
-                        padding-left: 8px;
-                        padding-right: 8px;
-
-                        Icon {
-                            name: tile.icon-name;
-                            icon-size: 15px;
-                            icon-color: tile.active ? #381e72 : #e6e0e9;
-                        }
-
-                        Text {
-                            text: tile.title;
-                            font-size: 11px;
-                            font-weight: 700;
-                            color: tile.active ? #381e72 : #e6e0e9;
-                            overflow: elide;
-                            vertical-alignment: center;
-                        }
-                    }
                 }
             }
 
-            if !root.is-full-qs: NotificationStack {
-                x: root.pad;
-                y: 168px;
-                width: parent.width - 2 * root.pad;
-                height: parent.height - 216px;
-                notifications: root.notifications;
-                dismiss-notification(i) => { root.notification-dismissed(i); }
-                clear-all => { root.clear-notifications(); }
-                open-settings => { root.settings-action(); }
-            }
-
             // =================================================================
-            // MODE 2: QUICK SETTINGS SCREEN (root.is-full-qs)
+            // SCREEN 1: NOTIFICATIONS SCREEN
             // =================================================================
-            if root.is-full-qs: SliderPill {
-                x: root.pad;
-                y: 114px;
-                width: parent.width - 2 * root.pad;
-                value <=> root.brightness;
-                label: "Brightness";
-                changed(v) => { root.brightness-changed(v); }
-            }
+            notifications-screen := Rectangle {
+                x: root.is-full-qs ? -parent.width : 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                opacity: root.is-full-qs ? 0.0 : 1.0;
+                visible: self.opacity > 0.01;
 
-            for tile[idx] in root.active-tiles: QSTile {
-                x: Math.mod(idx, 2) == 0 ? root.pad : (root.pad + root.col-w + 12px);
-                y: 174px + Math.floor(idx / 2) * 74px;
-                width: root.col-w;
-                visible: root.is-full-qs && idx < 8;
-                title: tile.title;
-                subtitle: tile.subtitle;
-                icon-name: tile.icon-name;
-                is-active: tile.active;
-                clicked => { root.tile-clicked(tile.id); }
-                chevron-clicked => { root.tile-clicked(tile.id); }
-                long-pressed => { root.tile-long-pressed(tile.id); }
-            }
+                animate x, opacity {
+                    duration: 250ms;
+                    easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                }
 
-            // Quick Settings Footer when in full QS mode
-            if root.is-full-qs: Rectangle {
-                x: root.pad;
-                y: 478px;
-                width: parent.width - 2 * root.pad;
-                height: 50px;
-                border-radius: 25px;
-                background: #24221de0;
-                border-width: 1px;
-                border-color: Theme.specular-rim;
+                // Giant Android 17 Clock (16:19)
+                Text {
+                    x: root.pad + 4px;
+                    y: 44px;
+                    text: root.time-text;
+                    font-size: 56px;
+                    font-weight: 300;
+                    color: #ffffff;
+                    letter-spacing: -1.0px;
+                }
 
+                // Media Card
+                MediaCard {
+                    x: root.pad;
+                    y: 114px;
+                    width: parent.width - 2 * root.pad;
+                }
+
+                // Notifications Container Stack
+                NotificationStack {
+                    x: root.pad;
+                    y: 256px;
+                    width: parent.width - 2 * root.pad;
+                    height: parent.height - 256px - 54px;
+                    notifications: root.notifications;
+                    dismiss-notification(i) => { root.notification-dismissed(i); }
+                    clear-all => { root.clear-notifications(); }
+                    open-settings => { root.settings-action(); }
+                }
+
+                // Bottom Footer: History (left), Clear all (center), Settings (right)
                 HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
+                    x: root.pad;
+                    y: parent.height - 48px;
+                    width: parent.width - 2 * root.pad;
+                    height: 40px;
+                    alignment: space-between;
+
+                    // History Button
+                    HeaderIconButton {
+                        icon-name: "restart";
+                        clicked => { root.notification-dismissed(-1); }
+                    }
+
+                    // Clear All Rounded Pill Button
+                    Rectangle {
+                        height: 38px;
+                        width: 124px;
+                        border-radius: 19px;
+                        background: clear-btn-touch.pressed ? #333942 : #23282e;
+                        border-width: 1px;
+                        border-color: Theme.specular-rim;
+
+                        clear-btn-touch := TouchArea {
+                            clicked => { root.clear-notifications(); }
+                        }
+
+                        Text {
+                            text: "Clear all";
+                            font-size: 12px;
+                            font-weight: 700;
+                            color: #a8c7fa;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Notification Settings Button
+                    HeaderIconButton {
+                        icon-name: "settings";
+                        clicked => { root.settings-action(); }
+                    }
+                }
+            }
+
+            // =================================================================
+            // SCREEN 2: QUICK SETTINGS SCREEN
+            // =================================================================
+            qs-screen := Rectangle {
+                x: root.is-full-qs ? 0px : parent.width;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                opacity: root.is-full-qs ? 1.0 : 0.0;
+                visible: self.opacity > 0.01;
+
+                animate x, opacity {
+                    duration: 250ms;
+                    easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                }
+
+                // Battery Until Sub-indicator (1:1 Android 17 / Pixel SystemUI)
+                Text {
+                    x: parent.width - root.pad - 120px;
+                    y: 38px;
+                    text: "Until 02:00";
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: #94a3b8;
+                    horizontal-alignment: right;
+                }
+
+                // Subheader Action Bar: Avatar, Edit Pencil, Settings Gear, Power Button
+                HorizontalLayout {
+                    x: root.pad;
+                    y: 50px;
+                    width: parent.width - 2 * root.pad;
+                    height: 38px;
                     alignment: space-between;
 
                     HorizontalLayout {
                         spacing: 8px;
                         alignment: center;
-                        Icon { name: "volume-high"; icon-size: 16px; icon-color: #d0bcff; }
-                        Text {
-                            text: "Media Volume: \{Math.round(root.volume * 100)}%";
-                            font-size: 12px;
-                            font-weight: 600;
-                            color: Theme.on-surface;
-                            vertical-alignment: center;
+
+                        // Avatar Circle
+                        Rectangle {
+                            width: 34px;
+                            height: 34px;
+                            border-radius: 17px;
+                            background: #333942;
+                            border-width: 1px;
+                            border-color: #ffffff33;
+                            Icon {
+                                name: "account";
+                                icon-size: 18px;
+                                icon-color: #a8c7fa;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
                         }
-                    }
 
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: center;
-
+                        // Edit Button
                         HeaderIconButton {
                             icon-name: "edit";
                             clicked => { root.enter-edit-mode(); }
                         }
 
+                        // Settings Gear Button
                         HeaderIconButton {
                             icon-name: "settings";
                             clicked => { root.settings-action(); }
                         }
+                    }
 
-                        HeaderIconButton {
-                            icon-name: "power";
-                            clicked => { root.power-action(); }
+                    // Power Button
+                    HeaderIconButton {
+                        icon-name: "power";
+                        clicked => { root.power-action(); }
+                    }
+                }
+
+                // Media Card
+                MediaCard {
+                    x: root.pad;
+                    y: 94px;
+                    width: parent.width - 2 * root.pad;
+                }
+
+                // Brightness Slider
+                SliderPill {
+                    x: root.pad;
+                    y: 232px;
+                    width: parent.width - 2 * root.pad;
+                    value <=> root.brightness;
+                    label: "Brightness";
+                    changed(v) => { root.brightness-changed(v); }
+                }
+
+                // Quick Settings Tiles Flickable Grid
+                Flickable {
+                    x: root.pad;
+                    y: 288px;
+                    width: parent.width - 2 * root.pad;
+                    height: parent.height - 288px - 8px;
+                    content-height: 520px;
+
+                    // Row 1: Internet & Bluetooth (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 0px;
+                        width: root.col-w;
+                        title: root.tile-at(0, "internet", "Internet", "wifi").title;
+                        subtitle: root.tile-at(0, "internet", "Internet", "wifi").subtitle != "" ? root.tile-at(0, "internet", "Internet", "wifi").subtitle : "Demo SSID";
+                        icon-name: "wifi";
+                        is-active: root.tile-at(0, "internet", "Internet", "wifi").active;
+                        clicked => { root.tile-clicked(root.tile-at(0, "internet", "Internet", "wifi").id); }
+                        chevron-clicked => { root.tile-clicked(root.tile-at(0, "internet", "Internet", "wifi").id); }
+                        long-pressed => { root.tile-long-pressed(root.tile-at(0, "internet", "Internet", "wifi").id); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 0px;
+                        width: root.col-w;
+                        title: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").title;
+                        subtitle: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").subtitle;
+                        icon-name: "bluetooth";
+                        is-active: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").active;
+                        clicked => { root.tile-clicked(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
+                        chevron-clicked => { root.tile-clicked(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
+                        long-pressed => { root.tile-long-pressed(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
+                    }
+
+                    // Row 2: Flashlight & Modes (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 68px;
+                        width: root.col-w;
+                        title: root.tile-at(2, "flashlight", "Flashlight", "flashlight").title;
+                        subtitle: root.tile-at(2, "flashlight", "Flashlight", "flashlight").subtitle;
+                        icon-name: "flashlight";
+                        is-active: root.tile-at(2, "flashlight", "Flashlight", "flashlight").active;
+                        clicked => { root.tile-clicked(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
+                        chevron-clicked => { root.tile-clicked(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
+                        long-pressed => { root.tile-long-pressed(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 68px;
+                        width: root.col-w;
+                        title: root.tile-at(3, "dnd", "Modes", "dnd").title;
+                        subtitle: root.tile-at(3, "dnd", "Modes", "dnd").subtitle != "" ? root.tile-at(3, "dnd", "Modes", "dnd").subtitle : "No active modes";
+                        icon-name: "dnd";
+                        is-active: root.tile-at(3, "dnd", "Modes", "dnd").active;
+                        clicked => { root.tile-clicked(root.tile-at(3, "dnd", "Modes", "dnd").id); }
+                        chevron-clicked => { root.tile-clicked(root.tile-at(3, "dnd", "Modes", "dnd").id); }
+                        long-pressed => { root.tile-long-pressed(root.tile-at(3, "dnd", "Modes", "dnd").id); }
+                    }
+
+                    // Row 3: 4 Squircle icons (Alarm, Airplane, Wallet, Auto-rotate)
+                    HorizontalLayout {
+                        x: 0px;
+                        y: 136px;
+                        width: parent.width;
+                        height: 52px;
+                        spacing: 8px;
+
+                        QSSquircleTile {
+                            horizontal-stretch: 1;
+                            icon-name: "alarm";
+                            is-active: false;
+                            clicked => { root.tile-clicked("alarm"); }
                         }
+                        QSSquircleTile {
+                            horizontal-stretch: 1;
+                            icon-name: "airplane";
+                            is-active: root.tile-at(6, "airplane", "Airplane mode", "airplane").active;
+                            clicked => { root.tile-clicked(root.tile-at(6, "airplane", "Airplane mode", "airplane").id); }
+                        }
+                        QSSquircleTile {
+                            horizontal-stretch: 1;
+                            icon-name: "wallet";
+                            is-active: true;
+                            clicked => { root.tile-clicked("wallet"); }
+                        }
+                        QSSquircleTile {
+                            horizontal-stretch: 1;
+                            icon-name: "rotation";
+                            is-active: root.tile-at(4, "rotation", "Auto-rotate", "rotation").active;
+                            clicked => { root.tile-clicked(root.tile-at(4, "rotation", "Auto-rotate", "rotation").id); }
+                        }
+                    }
+
+                    // Row 4: Home & QR code scanner (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 196px;
+                        width: root.col-w;
+                        title: "Home";
+                        subtitle: "";
+                        icon-name: "home";
+                        is-active: true;
+                        clicked => { root.tile-clicked("home"); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 196px;
+                        width: root.col-w;
+                        title: "QR code scanner";
+                        subtitle: "Off";
+                        icon-name: "qr";
+                        is-active: false;
+                        clicked => { root.tile-clicked("qr"); }
+                    }
+
+                    // Row 5: Battery Saver & Cast (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 264px;
+                        width: root.col-w;
+                        title: root.tile-at(5, "battery_saver", "Battery Saver", "battery").title;
+                        subtitle: root.tile-at(5, "battery_saver", "Battery Saver", "battery").subtitle;
+                        icon-name: "battery";
+                        is-active: root.tile-at(5, "battery_saver", "Battery Saver", "battery").active;
+                        clicked => { root.tile-clicked(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
+                        chevron-clicked => { root.tile-clicked(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
+                        long-pressed => { root.tile-long-pressed(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 264px;
+                        width: root.col-w;
+                        title: "Cast";
+                        subtitle: "";
+                        icon-name: "cast";
+                        is-active: false;
+                        clicked => { root.tile-clicked("cast"); }
+                    }
+
+                    // Row 6: Screen record & Quick Share (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 332px;
+                        width: root.col-w;
+                        title: "Screen record";
+                        subtitle: "Start";
+                        icon-name: "recorder";
+                        is-active: false;
+                        clicked => { root.tile-clicked("recorder"); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 332px;
+                        width: root.col-w;
+                        title: "Quick Share";
+                        subtitle: "Contacts";
+                        icon-name: "share";
+                        is-active: true;
+                        clicked => { root.tile-clicked("share"); }
+                    }
+
+                    // Row 7: Security & privacy & Data Saver (2 large tiles)
+                    QSTile {
+                        x: 0px;
+                        y: 400px;
+                        width: root.col-w;
+                        title: "Security & privacy";
+                        subtitle: "Check status";
+                        icon-name: "shield";
+                        is-active: false;
+                        clicked => { root.tile-clicked("security"); }
+                    }
+
+                    QSTile {
+                        x: root.col-w + 12px;
+                        y: 400px;
+                        width: root.col-w;
+                        title: "Data Saver";
+                        subtitle: "Off";
+                        icon-name: "dnd";
+                        is-active: false;
+                        clicked => { root.tile-clicked("datasaver"); }
                     }
                 }
             }

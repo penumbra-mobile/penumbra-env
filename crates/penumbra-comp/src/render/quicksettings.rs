@@ -26,8 +26,8 @@ const KAWASE_DOWN_SRC: &str = include_str!("kawase_down.frag");
 const KAWASE_BLUR_SRC: &str = include_str!("kawase_blur.frag");
 const BACKDROP_SRC: &str = include_str!("quicksettings_backdrop.frag");
 
-/// Downscale factor for the Kawase blur pass (1/4 resolution).
-const DOWNSCALE_FACTOR: i32 = 4;
+/// Downscale factor for the Kawase blur pass (1/2 resolution for crystal-clear velvety diffusion).
+const DOWNSCALE_FACTOR: i32 = 2;
 
 /// Pipeline for offscreen scene capture, Dual-Kawase blur, and progressive cross-fade rendering.
 pub struct QuickSettingsBackdropPipeline {
@@ -306,22 +306,9 @@ impl QuickSettingsBackdropPipeline {
         gl.DrawArrays(ffi::TRIANGLE_STRIP, 0, 4);
 
         // =========================================================================
-        // Pass 2: Dual-Kawase Dispersion Blur from ping_tex (103x228) into blurred_fbo (103x228)
+        // Pass 2: Multi-Pass Dual-Kawase Dispersion Blur (5 ping-pong passes)
         // =========================================================================
-        gl.BindFramebuffer(ffi::FRAMEBUFFER, self.blurred_fbo);
-        gl.Viewport(0, 0, self.down_w, self.down_h);
-
         gl.UseProgram(self.kawase_blur_program);
-        gl.ActiveTexture(ffi::TEXTURE0);
-        gl.BindTexture(ffi::TEXTURE_2D, self.ping_tex);
-        gl.Uniform1i(self.kawase_blur_u_tex, 0);
-        gl.Uniform2f(
-            self.kawase_blur_u_half_pixel,
-            0.5 / (self.down_w as f32),
-            0.5 / (self.down_h as f32),
-        );
-        gl.Uniform1f(self.kawase_blur_u_offset, 2.0);
-
         gl.EnableVertexAttribArray(self.kawase_blur_a_position as u32);
         gl.VertexAttribPointer(
             self.kawase_blur_a_position as u32,
@@ -331,7 +318,49 @@ impl QuickSettingsBackdropPipeline {
             0,
             std::ptr::null(),
         );
-        gl.DrawArrays(ffi::TRIANGLE_STRIP, 0, 4);
+
+        gl.Uniform1i(self.kawase_blur_u_tex, 0);
+        gl.Uniform2f(
+            self.kawase_blur_u_half_pixel,
+            0.5 / (self.down_w as f32),
+            0.5 / (self.down_h as f32),
+        );
+
+        // Modulate blur dispersion with gesture progress t
+        let t = (progress as f32).clamp(0.0, 1.0);
+        let blur_scale = (0.3 + 0.7 * t).clamp(0.3, 1.0);
+        let offsets = [
+            2.0 * blur_scale,
+            4.0 * blur_scale,
+            7.0 * blur_scale,
+            11.0 * blur_scale,
+            16.0 * blur_scale,
+        ];
+
+        let mut read_tex = self.ping_tex;
+        let mut write_fbo = self.blurred_fbo;
+
+        for &offset in &offsets {
+            gl.BindFramebuffer(ffi::FRAMEBUFFER, write_fbo);
+            gl.Viewport(0, 0, self.down_w, self.down_h);
+
+            gl.ActiveTexture(ffi::TEXTURE0);
+            gl.BindTexture(ffi::TEXTURE_2D, read_tex);
+            gl.Uniform1f(self.kawase_blur_u_offset, offset);
+
+            gl.DrawArrays(ffi::TRIANGLE_STRIP, 0, 4);
+
+            // Swap ping-pong FBO and texture targets
+            if write_fbo == self.blurred_fbo {
+                read_tex = self.blurred_tex;
+                write_fbo = self.ping_fbo;
+            } else {
+                read_tex = self.ping_tex;
+                write_fbo = self.blurred_fbo;
+            }
+        }
+
+        gl.DisableVertexAttribArray(self.kawase_blur_a_position as u32);
 
         // =========================================================================
         // Pass 3: Progressive Cross-Fade Pass onto Destination Framebuffer

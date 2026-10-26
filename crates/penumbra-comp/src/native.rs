@@ -607,6 +607,33 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
     draw_render_elements(&mut frame, scale, &top, &[damage])?;
     draw_render_elements(&mut frame, scale, &overlay, &[damage])?;
 
+    if std::path::Path::new("/tmp/open_shade").exists() {
+        let _ = std::fs::remove_file("/tmp/open_shade");
+        server.shell_state.drawer_open = true;
+        server.shell_state.drawer_dragging = false;
+        server.shell_state.drawer_pull_dy = 915.0;
+        server.shell_state.drawer_progress = 1.0;
+        server.shell_state.is_full_qs = false;
+        let _ = server.shell_state.save();
+    }
+    if std::path::Path::new("/tmp/open_full_qs").exists() {
+        let _ = std::fs::remove_file("/tmp/open_full_qs");
+        server.shell_state.drawer_open = true;
+        server.shell_state.drawer_dragging = false;
+        server.shell_state.drawer_pull_dy = 915.0;
+        server.shell_state.drawer_progress = 1.0;
+        server.shell_state.is_full_qs = true;
+        let _ = server.shell_state.save();
+    }
+    if std::path::Path::new("/tmp/close_shade").exists() {
+        let _ = std::fs::remove_file("/tmp/close_shade");
+        server.shell_state.drawer_open = false;
+        server.shell_state.drawer_dragging = false;
+        server.shell_state.drawer_pull_dy = 0.0;
+        server.shell_state.drawer_progress = 0.0;
+        let _ = server.shell_state.save();
+    }
+
     if std::path::Path::new("/tmp/take_screenshot").exists() {
         let _ = std::fs::remove_file("/tmp/take_screenshot");
         let w = width as i32;
@@ -624,14 +651,7 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
                 pixels.as_mut_ptr() as *mut _,
             );
         });
-        let mut flipped = vec![0u8; pixels.len()];
-        let stride = (w * 4) as usize;
-        for row in 0..h as usize {
-            let src_offset = (h as usize - 1 - row) * stride;
-            let dst_offset = row * stride;
-            flipped[dst_offset..dst_offset + stride].copy_from_slice(&pixels[src_offset..src_offset + stride]);
-        }
-        if let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, flipped) {
+        if let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, pixels) {
             let _ = img.save("/tmp/penumbra_screenshot.png");
             tracing::info!("Saved screenshot to /tmp/penumbra_screenshot.png");
         }

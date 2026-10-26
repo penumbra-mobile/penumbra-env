@@ -36,10 +36,27 @@ export component Icon inherits Rectangle {
         : root.name == "folder" ? "M2 6 A 2 2 0 0 1 4 4 L9 4 L11 7 L20 7 A 2 2 0 0 1 22 9 L22 18 A 2 2 0 0 1 20 20 L4 20 A 2 2 0 0 1 2 18 Z"
         : root.name == "app" ? "M7 2 L17 2 A 2 2 0 0 1 19 4 L19 20 A 2 2 0 0 1 17 22 L7 22 A 2 2 0 0 1 5 20 L5 4 A 2 2 0 0 1 7 2 Z M12 18 L12.01 18"
         : root.name == "recorder" ? "M12 3 A 9 9 0 1 0 12 21 A 9 9 0 1 0 12 3 Z M8 12 A 4 4 0 1 0 16 12 A 4 4 0 1 0 8 12 Z"
+        : root.name == "play" ? "M8 5 L19 12 L8 19 Z"
+        : root.name == "pause" ? "M6 5 L10 5 L10 19 L6 19 Z M14 5 L18 5 L18 19 L14 19 Z"
+        : root.name == "account" || root.name == "person" ? "M12 4 A 4 4 0 1 0 12 12 A 4 4 0 1 0 12 4 Z M6 20 A 6 6 0 0 1 18 20"
+        : root.name == "phone" ? "M7 2 L17 2 A 2 2 0 0 1 19 4 L19 20 A 2 2 0 0 1 17 22 L7 22 A 2 2 0 0 1 5 20 L5 4 A 2 2 0 0 1 7 2 Z M12 18 L12.01 18"
+        : root.name == "volume-high" ? "M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z M16 9 Q18.5 12 16 15 M18.5 6.5 Q22 12 18.5 17.5"
+        : root.name == "alarm" ? "M12 4 A 8 8 0 1 0 12 20 A 8 8 0 1 0 12 4 Z M12 8 L12 12 L15 14 M5 3 L2 6 M19 3 L22 6"
+        : root.name == "wallet" ? "M3 6 A 2 2 0 0 1 5 4 L19 4 A 2 2 0 0 1 21 6 L21 18 A 2 2 0 0 1 19 20 L5 20 A 2 2 0 0 1 3 18 Z M16 12 A 1 1 0 1 0 16 12.01"
+        : root.name == "home" ? "M3 10 L12 3 L21 10 L21 20 A 1 1 0 0 1 20 21 L15 21 L15 14 L9 14 L9 21 L4 21 A 1 1 0 0 1 3 20 Z"
+        : root.name == "qr" ? "M3 3 L9 3 L9 9 L3 9 Z M15 3 L21 3 L21 9 L15 9 Z M3 15 L9 15 L9 21 L3 21 Z M15 15 L17 15 L17 17 L15 17 Z M19 15 L21 15 L21 17 L19 17 Z M15 19 L19 19 L19 21 L15 21 Z"
+        : root.name == "cast" ? "M2 17 A 4 4 0 0 1 6 21 M2 12 A 9 9 0 0 1 11 21 M2 20 L2.01 20 M21 5 L21 19 L14 19 M9 3 L21 3"
+        : root.name == "share" ? "M16 6 A 3 3 0 1 0 16 6.01 M8 12 A 3 3 0 1 0 8 12.01 M16 18 A 3 3 0 1 0 16 18.01 M10.5 10.5 L13.5 7.5 M10.5 13.5 L13.5 16.5"
+        : root.name == "shield" ? "M12 3 L20 7 V12 C20 17 12 21 12 21 C12 21 4 17 4 12 V7 Z"
+        : root.name == "skip-next" ? "M6 5 L16 12 L6 19 Z M17 5 L17 19"
+        : root.name == "forward-10" ? "M12 4 A 8 8 0 1 1 4 12 M4 6 L4 12 L10 12"
+        : root.name == "replay-10" ? "M12 4 A 8 8 0 1 0 20 12 M20 6 L20 12 L14 12"
         : "M4 4 L10 4 L10 10 L4 10 Z M14 4 L20 4 L20 10 L14 10 Z M4 14 L10 14 L10 20 L4 20 Z M14 14 L20 14 L20 20 L14 20 Z";
 
     width: root.icon-size;
     height: root.icon-size;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
     background: transparent;
 
     Path {

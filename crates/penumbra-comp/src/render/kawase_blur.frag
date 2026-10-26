@@ -7,20 +7,30 @@ uniform vec2 u_half_pixel;
 uniform float u_offset;
 
 // # Mathematical Formulation
-// Dual-Kawase blur dispersion pass evaluates 4 diagonal samples at increased offset d:
-// C(u, v) = 1/4 * sum_{dx in {-d, d}, dy in {-d, d}} I(u + dx * half_pixel.x, v + dy * half_pixel.y)
-// Dispersion offset d = 2.0 disperses sharp color transitions into Gaussian-like soft gradients.
-//
-// # Performance Considerations
-// Executing at 1/4 resolution (103x228) requires only 23k fragment evaluations.
-// Achieves heavy blur look with zero GPU pipeline stalling (sub-0.1ms execution).
+// 9-tap isotropic Dual-Kawase blur kernel:
+// Center tap: weight 4.0
+// 4 Diagonal taps at (±dx, ±dy): weight 2.0 each
+// 4 Orthogonal taps at (±dx*1.414, 0) and (0, ±dy*1.414): weight 1.0 each
+// Total weight = 4.0 + 4*2.0 + 4*1.0 = 16.0
+// Normalization: 1.0 / 16.0 = 0.0625
 
 void main() {
-    vec2 offset = u_half_pixel * u_offset;
-    vec4 sum = vec4(0.0);
-    sum += texture2D(u_tex, v_coords + vec2(-offset.x, -offset.y));
-    sum += texture2D(u_tex, v_coords + vec2( offset.x, -offset.y));
-    sum += texture2D(u_tex, v_coords + vec2(-offset.x,  offset.y));
-    sum += texture2D(u_tex, v_coords + vec2( offset.x,  offset.y));
-    gl_FragColor = sum * 0.25;
+    vec2 d = u_half_pixel * u_offset;
+    vec2 d_ortho = d * 1.41421356;
+
+    vec4 col = texture2D(u_tex, v_coords) * 4.0;
+
+    // 4 Diagonal samples (weight 2.0 each)
+    col += texture2D(u_tex, v_coords + vec2(-d.x, -d.y)) * 2.0;
+    col += texture2D(u_tex, v_coords + vec2( d.x, -d.y)) * 2.0;
+    col += texture2D(u_tex, v_coords + vec2(-d.x,  d.y)) * 2.0;
+    col += texture2D(u_tex, v_coords + vec2( d.x,  d.y)) * 2.0;
+
+    // 4 Orthogonal samples (weight 1.0 each)
+    col += texture2D(u_tex, v_coords + vec2(-d_ortho.x, 0.0));
+    col += texture2D(u_tex, v_coords + vec2( d_ortho.x, 0.0));
+    col += texture2D(u_tex, v_coords + vec2(0.0, -d_ortho.y));
+    col += texture2D(u_tex, v_coords + vec2(0.0,  d_ortho.y));
+
+    gl_FragColor = col * 0.0625;
 }

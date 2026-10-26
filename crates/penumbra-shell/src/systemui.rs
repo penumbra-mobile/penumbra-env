@@ -65,9 +65,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let qs_config_layer = LayerConfig::default()
         .with_namespace("penumbra-quick-settings")
         .with_layer(Layer::Overlay)
-        .with_anchor(Anchor::Top | Anchor::Left | Anchor::Right)
-        .with_size(logical_w, logical_h)
-        .with_exclusive_zone(0)
+        .with_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right)
+        .with_size(0, 0)
+        .with_exclusive_zone(-1)
         .with_keyboard_interactivity(KeyboardInteractivity::None);
 
     let nav_bar_config = LayerConfig::default()
