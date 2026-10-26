@@ -136,6 +136,7 @@ pub struct PenumbraServerState {
     pub next_task_id: u32,
     /// Latest UI state published by penumbra-shell.
     pub shell_state: ShellState,
+    pub state_socket: Option<phone::StateSocket>,
     /// Animated overview carousel position (lerps towards `shell_state.overview_index`).
     pub overview_scroll: f64,
     /// Last task list written to the shell, to avoid redundant writes.
@@ -345,10 +346,7 @@ impl PenumbraServerState {
                 self.overview_scroll_spring = None;
                 self.shell_state.overview_scroll = target;
                 self.shell_state.overview_index = target.round().max(0.0) as usize;
-                let _ = write_atomic(
-                    &runtime_path(phone::SHELL_STATE_FILE),
-                    &self.shell_state.serialize(),
-                );
+                let _ = self.shell_state.save();
             }
         } else {
             let target = self.shell_state.overview_scroll;
@@ -388,10 +386,7 @@ impl PenumbraServerState {
                     Some(NavigationTarget::Overview) => {
                         self.nav_gesture_progress = 0.0;
                         self.shell_state.mode = PhoneMode::Overview;
-                        let _ = write_atomic(
-                            &runtime_path(phone::SHELL_STATE_FILE),
-                            &self.shell_state.serialize(),
-                        );
+                        let _ = self.shell_state.save();
                     }
                     Some(NavigationTarget::Home) => {
                         self.nav_gesture_progress = 0.0;
@@ -399,10 +394,7 @@ impl PenumbraServerState {
                         self.shell_state.overview_index = 0;
                         self.shell_state.overview_scroll = 0.0;
                         self.overview_scroll = 0.0;
-                        let _ = write_atomic(
-                            &runtime_path(phone::SHELL_STATE_FILE),
-                            &self.shell_state.serialize(),
-                        );
+                        let _ = self.shell_state.save();
                     }
                     Some(NavigationTarget::Fullscreen) | _ => {
                         let target_id = self.phone_tasks.get(self.shell_state.overview_index).map(|t| t.id);
@@ -415,10 +407,7 @@ impl PenumbraServerState {
                         if let Some(id) = target_id {
                             self.focus_task_by_id(id);
                         }
-                        let _ = write_atomic(
-                            &runtime_path(phone::SHELL_STATE_FILE),
-                            &self.shell_state.serialize(),
-                        );
+                        let _ = self.shell_state.save();
                     }
                 }
             }
@@ -452,10 +441,7 @@ impl PenumbraServerState {
                 self.shell_state.overview_index = 0;
                 self.shell_state.overview_scroll = 0.0;
                 self.overview_scroll = 0.0;
-                let _ = write_atomic(
-                    &runtime_path(phone::SHELL_STATE_FILE),
-                    &self.shell_state.serialize(),
-                );
+                let _ = self.shell_state.save();
                 self.publish_phone_tasks();
                 if let Some(first) = self.phone_tasks.first() {
                     let serial = smithay::utils::SERIAL_COUNTER.next_serial();
@@ -476,8 +462,19 @@ impl PenumbraServerState {
 
     /// Reads shell state + commands and publishes the phone task list.
     pub(crate) fn poll_shell_ipc(&mut self) {
-        if let Ok(text) = std::fs::read_to_string(runtime_path(phone::SHELL_STATE_FILE)) {
-            let new_state = ShellState::parse(&text);
+        let incoming_state = if let Some(sock) = &self.state_socket {
+            let mut latest = None;
+            while let Some((st, _seq)) = sock.try_recv() {
+                latest = Some(st);
+            }
+            latest
+        } else {
+            None
+        };
+
+        let has_state_file = runtime_path(phone::SHELL_STATE_BIN).exists() || runtime_path(phone::SHELL_STATE_FILE).exists();
+        if incoming_state.is_some() || has_state_file {
+            let new_state = incoming_state.unwrap_or_else(ShellState::load);
 
             if !self.is_native {
                 if new_state.nav_switch_active && new_state.nav_gesture_active {
@@ -570,10 +567,7 @@ impl PenumbraServerState {
             self.shell_state.overview_index = 0;
             self.shell_state.overview_scroll = 0.0;
             self.overview_scroll = 0.0;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
         }
 
         self.publish_phone_tasks();
@@ -613,10 +607,7 @@ impl PenumbraServerState {
         self.shell_state.overview_index = 0;
         self.shell_state.overview_scroll = 0.0;
         self.overview_scroll = 0.0;
-        let _ = write_atomic(
-            &runtime_path(phone::SHELL_STATE_FILE),
-            &self.shell_state.serialize(),
-        );
+        let _ = self.shell_state.save();
         let serial = smithay::utils::SERIAL_COUNTER.next_serial();
         if let Some(keyboard) = self.seat.get_keyboard() {
             keyboard.set_focus(self, None, serial);
@@ -652,10 +643,7 @@ impl PenumbraServerState {
             self.shell_state.overview_scroll = 0.0;
             self.shell_state.overview_index = 0;
             self.shell_state.mode = PhoneMode::App;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             self.publish_phone_tasks();
 
             let serial = smithay::utils::SERIAL_COUNTER.next_serial();
@@ -692,10 +680,7 @@ impl PenumbraServerState {
                 self.shell_state.overview_scroll = self.shell_state.overview_index as f64;
                 self.overview_scroll = self.shell_state.overview_scroll;
             }
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             self.publish_phone_tasks();
         }
     }
@@ -719,10 +704,7 @@ impl PenumbraServerState {
                 self.shell_state.overview_index = 0;
                 self.shell_state.overview_scroll = 0.0;
                 self.overview_scroll = 0.0;
-                let _ = write_atomic(
-                    &runtime_path(phone::SHELL_STATE_FILE),
-                    &self.shell_state.serialize(),
-                );
+                let _ = self.shell_state.save();
                 self.publish_phone_tasks();
             }
             ShellCommand::Back => {
@@ -741,28 +723,19 @@ impl PenumbraServerState {
         info!("Executing system-wide back action");
         if self.shell_state.power_dialog_open {
             self.shell_state.power_dialog_open = false;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             return;
         }
 
         if self.shell_state.drawer_open {
             self.shell_state.drawer_open = false;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             return;
         }
 
         if self.shell_state.mode == PhoneMode::Overview {
             self.shell_state.mode = PhoneMode::Home;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             return;
         }
 
@@ -800,10 +773,7 @@ impl PenumbraServerState {
     pub fn show_power_dialog(&mut self) {
         info!("Showing system Power Dialog");
         self.shell_state.power_dialog_open = true;
-        let _ = write_atomic(
-            &runtime_path(phone::SHELL_STATE_FILE),
-            &self.shell_state.serialize(),
-        );
+        let _ = self.shell_state.save();
     }
 
     pub fn adjust_volume(&mut self, delta: f32) {
@@ -816,10 +786,7 @@ impl PenumbraServerState {
             .spawn();
         self.shell_state.volume_level = new_vol;
         self.shell_state.volume_modal_open = true;
-        let _ = write_atomic(
-            &runtime_path(phone::SHELL_STATE_FILE),
-            &self.shell_state.serialize(),
-        );
+        let _ = self.shell_state.save();
     }
 
     pub fn toggle_screen_blanking(&mut self) {
@@ -942,10 +909,7 @@ impl XdgShellHandler for PenumbraServerState {
             self.shell_state.overview_scroll = 0.0;
             self.overview_scroll = 0.0;
             self.shell_state.drawer_open = false;
-            let _ = write_atomic(
-                &runtime_path(phone::SHELL_STATE_FILE),
-                &self.shell_state.serialize(),
-            );
+            let _ = self.shell_state.save();
             self.publish_phone_tasks();
 
             let serial = smithay::utils::SERIAL_COUNTER.next_serial();
@@ -1424,6 +1388,7 @@ impl PenumbraCompositor {
             phone_tasks: Vec::new(),
             next_task_id: 1,
             shell_state: ShellState::default(),
+            state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
             overview_scroll: 0.0,
             last_tasks_published: String::from("\u{0}"),
             phone_logical_size: (mode_a.size.w, mode_a.size.h),
@@ -1763,10 +1728,7 @@ impl PenumbraCompositor {
                             state.overview_scroll = new_scroll;
                             state.shell_state.overview_scroll = new_scroll;
                             state.shell_state.overview_index = new_scroll.round() as usize;
-                            let _ = write_atomic(
-                                &runtime_path(phone::SHELL_STATE_FILE),
-                                &state.shell_state.serialize(),
-                            );
+                            let _ = state.shell_state.save();
                             return;
                         }
 

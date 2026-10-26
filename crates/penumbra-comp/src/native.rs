@@ -789,6 +789,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         phone_tasks: Vec::new(),
         next_task_id: 1,
         shell_state: ShellState::default(),
+        state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
         overview_scroll: 0.0,
         last_tasks_published: String::from("\u{0}"),
         phone_logical_size: (phone::PHONE_W, phone::PHONE_H),

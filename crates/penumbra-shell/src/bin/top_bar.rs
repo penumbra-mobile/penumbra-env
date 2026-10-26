@@ -57,15 +57,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     };
 
+    let mut pull_seq = 0u32;
     bar.on_top_bar_pulled_down({
         move |dy| {
+            pull_seq = pull_seq.wrapping_add(1);
             let progress = (dy as f64 / 915.0).clamp(0.0, 1.0);
             let mut state = penumbra_shell::ipc::ShellState::load();
             state.drawer_open = true;
             state.drawer_dragging = true;
             state.drawer_pull_dy = dy as f64;
             state.drawer_progress = progress;
-            let _ = state.save();
+            let _ = state.save_with_seq(pull_seq);
             info!(
                 "Top Bar pulled down (dy={:.1}, progress={:.3}) -> signaling Quick Settings overlay transfer",
                 dy, progress

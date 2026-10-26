@@ -629,10 +629,18 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error>> {
         let last_dragging = Rc::new(RefCell::new(false));
         let pull_vel = Rc::new(RefCell::new(0.0f64));
         let last_pull_at = Rc::new(RefCell::new(Instant::now()));
-        let ui_weak = ui_weak.clone();
+        let state_socket = penumbra_shell::ipc::StateSocket::bind(&penumbra_shell::ipc::runtime_path(penumbra_shell::ipc::SHELL_STATE_SOCK)).ok();
 
         ipc_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
-            let state = ShellState::load();
+            let state = if let Some(ref sock) = state_socket {
+                let mut latest = None;
+                while let Some((st, _seq)) = sock.try_recv() {
+                    latest = Some(st);
+                }
+                latest.unwrap_or_else(ShellState::load)
+            } else {
+                ShellState::load()
+            };
             let mut last_open = last_known_open.borrow_mut();
             let mut last_pull = last_known_pull_dy.borrow_mut();
             let mut was_dragging = last_dragging.borrow_mut();

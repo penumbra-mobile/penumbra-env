@@ -640,10 +640,7 @@ pub(crate) fn handle(
                                 server.last_nav_spring_tick = Some(std::time::Instant::now());
                             }
                             server.shell_state.active_card_dy = 0.0;
-                            let _ = write_atomic(
-                                &runtime_path(phone::SHELL_STATE_FILE),
-                                &server.shell_state.serialize(),
-                            );
+                            let _ = server.shell_state.save();
                             return;
                         }
 
@@ -655,10 +652,7 @@ pub(crate) fn handle(
                             server.nav_gesture_progress = 0.0;
                             server.shell_state.is_dragging = false;
                             server.shell_state.active_card_dy = 0.0;
-                            let _ = write_atomic(
-                                &runtime_path(phone::SHELL_STATE_FILE),
-                                &server.shell_state.serialize(),
-                            );
+                            let _ = server.shell_state.save();
                             return;
                         }
 
@@ -707,10 +701,7 @@ pub(crate) fn handle(
                         server.shell_state.active_card_dy = 0.0;
                         server.shell_state.overview_scroll = server.shell_state.overview_index as f64;
                         server.overview_scroll = server.shell_state.overview_scroll;
-                        let _ = write_atomic(
-                            &runtime_path(phone::SHELL_STATE_FILE),
-                            &server.shell_state.serialize(),
-                        );
+                        let _ = server.shell_state.save();
                         return;
                     }
 
@@ -779,10 +770,7 @@ pub(crate) fn handle(
                         server.shell_state.overview_index = target_idx as usize;
                         server.shell_state.overview_scroll = target_idx;
                         server.shell_state.mode = PhoneMode::Overview;
-                        let _ = write_atomic(
-                            &runtime_path(phone::SHELL_STATE_FILE),
-                            &server.shell_state.serialize(),
-                        );
+                        let _ = server.shell_state.save();
                     }
                     return;
                 }
