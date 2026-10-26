@@ -1173,9 +1173,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let ui_weak = ui_weak.clone();
         let apps_list = Arc::clone(&apps_list);
+        let layout_config = Rc::clone(&layout_config);
+        let animate_drawer_to = Rc::clone(&animate_drawer_to);
         task_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
             let state = ShellState::load();
             if let Some(ui) = ui_weak.upgrade() {
+                if std::path::Path::new("/tmp/open_drawer").exists() {
+                    let _ = std::fs::remove_file("/tmp/open_drawer");
+                    animate_drawer_to(1.0, 1.5);
+                }
+                if std::path::Path::new("/tmp/close_drawer").exists() {
+                    let _ = std::fs::remove_file("/tmp/close_drawer");
+                    animate_drawer_to(0.0, -1.5);
+                }
+                if std::path::Path::new("/tmp/open_folder").exists() {
+                    let _ = std::fs::remove_file("/tmp/open_folder");
+                    let cfg = layout_config.borrow();
+                    if let Some(folder) = cfg.folders.first() {
+                        let folder_apps = Rc::new(VecModel::default());
+                        let apps = apps_list.read().unwrap();
+                        for id in &folder.app_ids {
+                            folder_apps.push(resolve_app_item(id, &apps));
+                        }
+                        ui.set_open_folder_id(folder.id.clone().into());
+                        ui.set_open_folder_name(folder.name.clone().into());
+                        ui.set_open_folder_apps(ModelRc::from(folder_apps));
+                        ui.set_is_folder_open(true);
+                    }
+                }
+                if std::path::Path::new("/tmp/close_folder").exists() {
+                    let _ = std::fs::remove_file("/tmp/close_folder");
+                    ui.set_is_folder_open(false);
+                }
+
                 let current_mode = ui.get_active_mode();
                 let target_mode = match state.mode {
                     PhoneMode::Home => {
