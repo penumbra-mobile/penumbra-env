@@ -238,8 +238,9 @@ The visual, kinetic, and IPC foundations are complete and validated. The remaini
 ## Active Status Summary
 
 - **Visual & Theming Phases (1–5)**:  **Completed & Deployed on Fairphone 4**
-- **Architectural Cleanup & Depth Zoom (Phase 6A)**:  **Completed & Committed**
-- **Microsecond Socket IPC (Phase 6B)**:  **Completed & Committed**
+- **Architectural Cleanup & Depth Zoom (Phase 6A)**:  **Completed, Built & Deployed on Fairphone 4**
+- **Microsecond Socket IPC (Phase 6B)**:  **Completed, Built & Deployed on Fairphone 4**
 - **Unified SystemUI & GPU Path (Phases 6C–6D)**: ⏳ **Next in Queue**
+
 
 
