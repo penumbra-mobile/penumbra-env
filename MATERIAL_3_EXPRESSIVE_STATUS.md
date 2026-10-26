@@ -157,8 +157,31 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 
 ---
 
-## Final Architecture Status: All 5 Phases Fully Implemented & Verified 
+## Hardware Deployment & Verification: Fairphone 4 (postmarketOS / Nura edge)
 
-All core foundations and expressive milestones specified in [`MATERIAL_3_EXPRESSIVE_PLAN.md`](MATERIAL_3_EXPRESSIVE_PLAN.md) are fully implemented, verified with comprehensive tests, and recorded in this ledger.
+- **Target Device**: Fairphone 4 (`fairphone-fp4 7.2.0 #1-postmarketos-qcom-sm6350 aarch64`, alpine musl).
+- **Deployment Script**: [`scripts/deploy.sh`](scripts/deploy.sh) (and backward-compatible [`scripts/deploy-to-device.sh`](scripts/deploy-to-device.sh)):
+  - Defaults: IP `172.16.42.1`, user `user`, passwords defaulted to `1`.
+  - Flags: `--build`, `--no-build`, `--status`, `--logs`, `--ip`, `--user`, `--password`, `--sudo-pass`, `--no-restart`.
+  - Transferred and installed all 10 release binaries (`penumbra-comp`, `penumbra-top-bar`, `penumbra-homescreen`, `penumbra-quicksettings`, `penumbra-quick-settings`, `penumbra-nav-bar`, `penumbra-settings`, `penumbra-keyboard`, `penumbra-greeter`, `penumbra-shell`).
+  - Staged assets, wayland session wrappers, and desktop entries.
+  - Automatically reloaded udev rules and restarted the display manager (`gdm`).
+- **Live Verification on Phone**:
+  - `ldd /usr/local/bin/penumbra-comp`: All shared libraries resolved cleanly.
+  - Active Display Manager: `gdm` restarted cleanly and auto-logged in `user`.
+  - Active Processes:
+    - `penumbra-comp` (Native DRM backend on `DSI-1` phone display)
+    - `penumbra-top-bar`
+    - `penumbra-homescreen`
+    - `penumbra-quicksettings`
+    - `penumbra-nav-bar`
+    - `penumbra-keyboard` (`/dev/uinput` virtual keyboard)
+  - Wallpaper & Dynamic Theming Engine: Pre-cached `/usr/share/penumbra/assets/wallpaper.jpg`, extracted dominant and secondary tonal palettes, synchronized Monet theme to `/run/user/10000/penumbra-theme.json`, and live-propagated across all running Slint layer-shell surfaces.
+
+---
+
+## Final Architecture Status: All 5 Phases Fully Implemented & Deployed on Hardware 
+
+All core foundations and expressive milestones specified in [`MATERIAL_3_EXPRESSIVE_PLAN.md`](MATERIAL_3_EXPRESSIVE_PLAN.md) are fully implemented, verified with comprehensive tests, and running on physical hardware.
 
 
