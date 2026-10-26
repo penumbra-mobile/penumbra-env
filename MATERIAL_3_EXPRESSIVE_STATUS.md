@@ -15,7 +15,7 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
 | **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) |  **Completed** | `crates/penumbra-services/src/theme.rs`, `penumbra-shell/src/theme.rs` | 63/63 cargo tests passed |
 | **Phase 5** | Homescreen & Floating System Insets Polish |  **Completed** | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | 63/63 cargo tests passed |
-| **Phase 6A** | Duplicate Slint/Binary Cleanup & Compositor Depth Zoom | ⏳ **Planned** | `crates/penumbra-shell/src/bin/`, `ui/quick_settings*`, `penumbra-comp` | Matrix scaling + canonical Slint |
+| **Phase 6A** | Duplicate Slint/Binary Cleanup & Compositor Depth Zoom |  **Completed** | `crates/penumbra-shell/src/bin/`, `ui/quick_settings*`, `penumbra-comp` | 63/63 tests passed, depth scale verified |
 | **Phase 6B** | Microsecond Unix Domain Socket IPC | ⏳ **Planned** | `crates/penumbra-services/src/ipc.rs`, `penumbra-comp`, `penumbra-shell` | High-frequency gesture ring buffer |
 | **Phase 6C** | Consolidated SystemUI Process (`penumbra-shell`) | ⏳ **Planned** | `crates/penumbra-shell/src/main.rs`, `layer-shell-slint` | Unified in-memory Slint chrome |
 | **Phase 6D** | GPU Hardware Acceleration Path | ⏳ **Planned** | `crates/layer-shell-slint/src/` | Adreno EGL / Skia backend path |
@@ -157,6 +157,23 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
     - [`app_surface.slint`](crates/penumbra-shell/ui/app_surface.slint): Updated page indicator track dots to `Theme.surface-variant` with smooth gliding `Theme.radius-pill` active indicator.
 - **Verification**:
   - `cargo check --workspace`: Passed (0 errors, 0 warnings).
+  - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
+
+### 8. Phase 6A: Duplicate Binary Cleanup & Compositor Depth Zoom ($1.0 \to 0.92\times$)
+- **Commit**: `4e12ccf` (*feat(comp): implement Phase 6A wallpaper depth zoom (1.0->0.92x) and canonical quick-settings binary*)
+- **Implementation**:
+  - **Compositor Wallpaper Depth Zoom ($1.0 \to 0.92\times$)**:
+    - [`crates/penumbra-comp/src/native.rs`](crates/penumbra-comp/src/native.rs): Added `layer_elements_transformed` supporting arbitrary scale and physical/logical offsets. Centered the depth zoom transformation on the phone viewport ($c_x = 206, c_y = 457.5$) using:
+      $$s = 1.0 - 0.08 \cdot \text{qs\_progress}$$
+      $$\Delta x = \frac{412 \cdot (1.0 - s)}{2}, \quad \Delta y = \frac{915 \cdot (1.0 - s)}{2}$$
+      producing a smooth optical zoom-out from $1.0\times$ down to $0.92\times$ behind the Dual-Kawase blur and scrim as QuickSettings pulls down.
+    - [`crates/penumbra-comp/src/server.rs`](crates/penumbra-comp/src/server.rs): Applied the same centered $1.0 \to 0.92\times$ depth matrix to both `Layer::Background` and `shell_base` in nested compositor mode.
+  - **Canonical QuickSettings Binary & Cleanup**:
+    - Removed redundant wrapper binary `crates/penumbra-shell/src/bin/quicksettings.rs` and pruned `[[bin]] name = "penumbra-quicksettings"` from [`Cargo.toml`](crates/penumbra-shell/Cargo.toml), saving 17MB binary size and ~20-30s in ARM64 Docker build time.
+    - Updated [`scripts/penumbra-session`](scripts/penumbra-session) to launch canonical `penumbra-quick-settings` with legacy fallback.
+    - Updated [`scripts/deploy.sh`](scripts/deploy.sh) to automatically create a backward-compatible symlink `/usr/local/bin/penumbra-quicksettings -> penumbra-quick-settings`.
+- **Verification**:
+  - `cargo check --workspace` & `cargo check -p penumbra-comp --features native-drm`: Passed (0 errors, 0 warnings).
   - `cargo test --workspace`: **All 63 tests passed across all workspace crates**.
 
 ---
