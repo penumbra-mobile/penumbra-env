@@ -864,18 +864,12 @@ pub(crate) fn handle(
                         // Android 17 Material 3 Expressive snap rules:
                         let target_offset = if vy < -120.0 {
                             -915.0
-                        } else if vy < -40.0 {
-                            if shade_disp < 600.0 { -915.0 } else { -565.0 }
-                        } else if vy > 400.0 {
-                            0.0
-                        } else if vy > 60.0 {
-                            if shade_disp > 420.0 { 0.0 } else { -565.0 }
-                        } else if shade_disp < 160.0 {
+                        } else if vy < -40.0 && shade_disp < 650.0 {
                             -915.0
-                        } else if shade_disp < 500.0 {
-                            -565.0
-                        } else {
+                        } else if vy > 60.0 || shade_disp > 200.0 {
                             0.0
+                        } else {
+                            -915.0
                         };
 
                         let is_open = target_offset > -900.0;
@@ -888,16 +882,16 @@ pub(crate) fn handle(
                         );
                         server.shell_state.drawer_open = is_open;
                         server.shell_state.drawer_dragging = false;
-                        server.shell_state.drawer_pull_dy = shade_disp;
-                        server.shell_state.drawer_progress = (shade_disp / (PHONE_H as f64)).clamp(0.0, 1.0);
+                        server.shell_state.drawer_pull_dy = if is_open { (PHONE_H as f64) } else { 0.0 };
+                        server.shell_state.drawer_progress = if is_open { 1.0 } else { 0.0 };
                         let _ = server.shell_state.save();
                     } else {
-                        // Short tap on the status bar: expand compact shade (350px)
-                        tracing::info!("Status bar tapped: expanding compact QuickSettings shade");
+                        // Short tap on the status bar: expand shade
+                        tracing::info!("Status bar tapped: expanding QuickSettings shade");
                         server.shell_state.drawer_open = true;
                         server.shell_state.drawer_dragging = false;
-                        server.shell_state.drawer_pull_dy = 350.0;
-                        server.shell_state.drawer_progress = 350.0 / (PHONE_H as f64);
+                        server.shell_state.drawer_pull_dy = PHONE_H as f64;
+                        server.shell_state.drawer_progress = 1.0;
                         let _ = server.shell_state.save();
                     }
                     return;

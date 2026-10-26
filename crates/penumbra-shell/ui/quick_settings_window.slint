@@ -13,6 +13,7 @@ export component QuickSettingsWindow inherits Window {
 
     in-out property <length> slide-offset-y: -915px;
     in-out property <float> expansion-progress: 0.0;
+    in-out property <bool> is-full-qs: false;
     in-out property <bool> edit-mode: false;
     in-out property <bool> show-power-dialog: false;
     in-out property <bool> show-volume-modal: false;
@@ -57,6 +58,7 @@ export component QuickSettingsWindow inherits Window {
         height: 100%;
         slide-offset-y <=> root.slide-offset-y;
         expansion-progress: root.expansion-progress;
+        is-full-qs <=> root.is-full-qs;
         edit-mode <=> root.edit-mode;
         brightness <=> root.brightness;
         volume <=> root.volume;

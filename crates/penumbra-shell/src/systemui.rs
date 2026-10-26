@@ -35,34 +35,15 @@ fn release_target(y_current: f64, v_y: f64) -> f64 {
     if v_y < -120.0 {
         return -915.0;
     }
-    // Moderate upward drag from compact shade or lower half closes
-    if v_y < -40.0 {
-        if y_current < 600.0 {
-            return -915.0;
-        } else {
-            return -565.0;
-        }
+    // Moderate upward drag when in upper half closes
+    if v_y < -40.0 && y_current < 650.0 {
+        return -915.0;
     }
-    // Fast downward flick -> full expansion
-    if v_y > 400.0 {
+    // Downward gesture or pull past threshold -> open shade
+    if v_y > 60.0 || y_current > 200.0 {
         return 0.0;
     }
-    // Downward gesture from top
-    if v_y > 60.0 {
-        if y_current > 420.0 {
-            return 0.0;
-        } else {
-            return -565.0;
-        }
-    }
-    // Positional snap thresholds
-    if y_current < 160.0 {
-        -915.0
-    } else if y_current < 500.0 {
-        -565.0
-    } else {
-        0.0
-    }
+    -915.0
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -170,15 +151,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     ));
     let spring_timer = Rc::new(RefCell::new(Timer::default()));
     let last_spring_time = Rc::new(RefCell::new(Instant::now()));
+    let is_animating = Rc::new(std::cell::Cell::new(false));
 
     let animate_to = {
         let spring_state = Rc::clone(&spring_state);
         let spring_timer = Rc::clone(&spring_timer);
         let last_spring_time = Rc::clone(&last_spring_time);
+        let is_animating = Rc::clone(&is_animating);
         let qs_weak = qs_weak.clone();
         let top_bar_weak = top_bar_weak.clone();
 
         move |target: f64, initial_vel: f64| {
+            is_animating.set(true);
             {
                 let mut sp = spring_state.borrow_mut();
                 sp.target = target;
@@ -189,6 +173,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let spring_state = Rc::clone(&spring_state);
             let spring_timer_inner = Rc::clone(&spring_timer);
             let last_spring_time = Rc::clone(&last_spring_time);
+            let is_animating_inner = Rc::clone(&is_animating);
             let qs_weak = qs_weak.clone();
             let top_bar_weak_inner = top_bar_weak.clone();
 
@@ -218,6 +203,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let is_settled = sp.snap_if_settled(1.0, 5.0);
                     let mut state = ShellState::load();
                     if is_settled {
+                        is_animating_inner.set(false);
                         spring_timer_inner.borrow().stop();
                         let target = sp.target;
                         let final_progress = ((target + 915.0) / 915.0).clamp(0.0, 1.0) as f32;
@@ -236,6 +222,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         state.drawer_open = true;
                         state.drawer_pull_dy = (new_y + 915.0).clamp(0.0, 915.0);
                         state.drawer_progress = progress as f64;
+                        state.drawer_dragging = false;
                     }
                     let _ = state.save();
                 },
@@ -846,6 +833,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let animate_to = Rc::clone(&animate_to);
         let spring_state = Rc::clone(&spring_state);
         let spring_timer_ipc = Rc::clone(&spring_timer);
+        let is_animating_ipc = Rc::clone(&is_animating);
         let tb = top_bar_weak.clone();
         let last_known_open = Rc::new(RefCell::new(false));
         let last_known_dragging = Rc::new(RefCell::new(false));
@@ -857,6 +845,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let q = qs_weak.clone();
 
         ipc_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
+            if is_animating_ipc.get() {
+                // If SystemUI's spring is currently animating the shade, don't let stale loopback packets cancel it
+                return;
+            }
+
             let state = if let Some(ref sock) = state_socket {
                 let mut latest = None;
                 while let Some((st, _seq)) = sock.try_recv() {
@@ -896,7 +889,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     *was_dragging = false;
                     // Native drag just completed -> settle spring to target
                     let target_y = if state.drawer_open {
-                        if state.drawer_pull_dy > 600.0 { 0.0 } else { -565.0 }
+                        0.0
                     } else {
                         -915.0
                     };
@@ -908,7 +901,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     let cur_target = spring_state.borrow().target;
                     if state.drawer_open {
                         if cur_target < -570.0 {
-                            let target_y = if state.drawer_pull_dy > 600.0 { 0.0 } else { -565.0 };
+                            let target_y = 0.0;
                             info!("External trigger: opening QuickSettings shade (target={:.1})", target_y);
                             animate_to(target_y, 400.0);
                         }

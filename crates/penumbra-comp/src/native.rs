@@ -479,21 +479,8 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         0.0
     };
 
-    // Material 3 Expressive Android 17 wallpaper depth zoom (1.0 -> 0.92x centered on phone screen)
-    let bg_depth_scale = 1.0 - (0.08 * qs_progress as f64);
-    let bg_offset_x = ((PHONE_W as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
-    let bg_offset_y = ((PHONE_H as f64 * (1.0 - bg_depth_scale)) / 2.0).round() as i32;
-
-    // Phone Layer 0: homescreen and wallpaper on the background layer with depth scaling.
-    let background = layer_elements_transformed(
-        renderer,
-        &server.output_a,
-        canvas,
-        Layer::Background,
-        bg_offset_x,
-        bg_offset_y,
-        bg_depth_scale,
-    );
+    // Phone Layer 0: homescreen and wallpaper on the background layer (stationary, unshifted).
+    let background = layer_elements(renderer, &server.output_a, canvas, Layer::Background);
     let bottom = layer_elements(renderer, &server.output_a, canvas, Layer::Bottom);
 
     // Phone Layer 0.5: Dual-Kawase Blurred Wallpaper & Dimming Scrim modulated by gesture progress
@@ -619,6 +606,37 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
 
     draw_render_elements(&mut frame, scale, &top, &[damage])?;
     draw_render_elements(&mut frame, scale, &overlay, &[damage])?;
+
+    if std::path::Path::new("/tmp/take_screenshot").exists() {
+        let _ = std::fs::remove_file("/tmp/take_screenshot");
+        let w = width as i32;
+        let h = height as i32;
+        let mut pixels = vec![0u8; (w * h * 4) as usize];
+        let _ = frame.with_context(|gl| unsafe {
+            use smithay::backend::renderer::gles::ffi;
+            gl.ReadPixels(
+                0,
+                0,
+                w,
+                h,
+                ffi::RGBA,
+                ffi::UNSIGNED_BYTE,
+                pixels.as_mut_ptr() as *mut _,
+            );
+        });
+        let mut flipped = vec![0u8; pixels.len()];
+        let stride = (w * 4) as usize;
+        for row in 0..h as usize {
+            let src_offset = (h as usize - 1 - row) * stride;
+            let dst_offset = row * stride;
+            flipped[dst_offset..dst_offset + stride].copy_from_slice(&pixels[src_offset..src_offset + stride]);
+        }
+        if let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, flipped) {
+            let _ = img.save("/tmp/penumbra_screenshot.png");
+            tracing::info!("Saved screenshot to /tmp/penumbra_screenshot.png");
+        }
+    }
+
     frame.finish()?.wait()?;
 
     // Frame callbacks let clients schedule their next buffer.
