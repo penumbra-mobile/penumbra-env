@@ -240,7 +240,7 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo test --workspace`: **All 68 tests passed across all workspace crates**.
 
 ### 11. Phase 6D: GPU Hardware Acceleration Path & Dual-Backend Architecture
-- **Commit**: `pending` (*feat(renderer): implement Phase 6D dual-backend architecture and shared-element dissolve physics*)
+- **Commit**: `8a12591` (*feat(renderer): implement Phase 6D dual-backend architecture and shared-element dissolve physics*)
 - **Implementation**:
   - **Dual-Backend Rendering Strategy (`RendererType`)**:
     - [`crates/layer-shell-slint/src/lib.rs`](crates/layer-shell-slint/src/lib.rs): Added `RendererType` (`Auto`, `Software`, `Gpu`) with string parsing and `with_renderer` builder method on `LayerConfig`.
