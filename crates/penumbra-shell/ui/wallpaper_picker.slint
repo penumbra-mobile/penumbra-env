@@ -52,8 +52,8 @@ export component HomescreenContextMenu inherits Rectangle {
             y: parent.height - 300px;
             width: 290px;
             height: 140px;
-            border-radius: 24px;
-            background: #1A1722F0;
+            border-radius: Theme.radius-card;
+            background: Theme.surface-container-high;
             border-width: 1px;
             border-color: Theme.specular-rim;
             drop-shadow-blur: 24px;
@@ -68,8 +68,8 @@ export component HomescreenContextMenu inherits Rectangle {
                 // Wallpaper & Style item
                 Rectangle {
                     height: 54px;
-                    border-radius: 16px;
-                    background: wp-ta.has-hover ? #ffffff18 : transparent;
+                    border-radius: Theme.radius-item;
+                    background: wp-ta.has-hover ? Theme.surface-bright : transparent;
 
                     HorizontalLayout {
                         padding-left: 14px;
@@ -120,8 +120,8 @@ export component HomescreenContextMenu inherits Rectangle {
                 // Edit Homescreen item
                 Rectangle {
                     height: 54px;
-                    border-radius: 16px;
-                    background: edit-ta.has-hover ? #ffffff18 : transparent;
+                    border-radius: Theme.radius-item;
+                    background: edit-ta.has-hover ? Theme.surface-bright : transparent;
 
                     HorizontalLayout {
                         padding-left: 14px;
@@ -133,7 +133,7 @@ export component HomescreenContextMenu inherits Rectangle {
                             width: 36px;
                             height: 36px;
                             border-radius: 18px;
-                            background: #2E2838;
+                            background: Theme.surface-container;
 
                             Text {
                                 text: "✏️";
@@ -223,9 +223,9 @@ export component WallpaperPicker inherits Rectangle {
             y: 90px;
             width: parent.width;
             height: parent.height - 90px;
-            border-top-left-radius: 28px;
-            border-top-right-radius: 28px;
-            background: #141118;
+            border-top-left-radius: Theme.radius-card;
+            border-top-right-radius: Theme.radius-card;
+            background: Theme.surface-container-high;
             border-width: 1px;
             border-color: Theme.specular-rim;
             clip: true;
@@ -236,8 +236,8 @@ export component WallpaperPicker inherits Rectangle {
                 y: 10px;
                 width: 40px;
                 height: 4px;
-                border-radius: 2px;
-                background: #FFFFFF44;
+                border-radius: Theme.radius-pill;
+                background: Theme.outline-variant;
             }
 
             // Header Bar
