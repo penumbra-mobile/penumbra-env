@@ -91,6 +91,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     let qs = QuickSettingsWindow::new()?;
     let qs_weak = qs.as_weak();
 
+    // Default collapsed: input region is 0 so status bar touches fall through to native gesture & top bar
+    layer_shell_slint::sync_input_region(
+        "penumbra-quick-settings",
+        logical_w as i32,
+        logical_h as i32,
+        0,
+        false,
+    );
+
     // Enqueue NavBar config and instantiate
     layer_shell_slint::set_next_window_config(nav_bar_config);
     let nav_bar = NavBarWindow::new()?;
@@ -163,6 +172,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         move |target: f64, initial_vel: f64| {
             is_animating.set(true);
+            if target > -900.0 {
+                // Expanding or opened: capture fullscreen touch events
+                layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
+            }
             {
                 let mut sp = spring_state.borrow_mut();
                 sp.target = target;
@@ -218,6 +231,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         state.drawer_pull_dy = if state.drawer_open { (target + 915.0).max(350.0) } else { 0.0 };
                         state.drawer_progress = if state.drawer_open { final_progress as f64 } else { 0.0 };
                         state.drawer_dragging = false;
+
+                        // When settled retracted, collapse input region to 0 so top bar receives gestures
+                        if target <= -900.0 {
+                            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 0, false);
+                        }
                     } else {
                         state.drawer_open = true;
                         state.drawer_pull_dy = (new_y + 915.0).clamp(0.0, 915.0);
@@ -247,9 +265,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let last_top_pull_y = Rc::clone(&last_top_pull_y);
         let last_top_pull_time = Rc::clone(&last_top_pull_time);
 
-        top_bar.on_top_bar_pulled_down(move |dy| {
+        top_bar.on_top_bar_pulled_down(move |dy, is_qs| {
             // Stop any running settle animation on QuickSettings
             spring_timer.borrow().stop();
+
+            // Expand input region fullscreen to capture drag gesture
+            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
 
             let pull = dy as f64;
             let dt = last_top_pull_time
@@ -279,6 +300,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(shade) = qs_weak.upgrade() {
                 shade.set_slide_offset_y(new_y as f32);
                 shade.set_expansion_progress(progress);
+                shade.set_is_full_qs(is_qs);
             }
             if let Some(tb) = top_bar_weak_drag.upgrade() {
                 tb.set_shade_progress(progress);
@@ -296,6 +318,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             state.drawer_dragging = true;
             state.drawer_pull_dy = shade_disp;
             state.drawer_progress = progress as f64;
+            state.is_full_qs = is_qs;
             let _ = state.save();
         });
     }
@@ -305,17 +328,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let top_drag_velocity = Rc::clone(&top_drag_velocity);
         let spring_state = Rc::clone(&spring_state);
 
-        top_bar.on_top_bar_released(move || {
+        top_bar.on_top_bar_released(move |is_qs| {
             let y_current = spring_state.borrow().position + 915.0;
             let v = *top_drag_velocity.borrow();
             let target = release_target(y_current, v);
             info!(
-                "TopBar released: y_current={:.1}px, v={:.1}px/s -> target={:.1}",
-                y_current, v, target
+                "TopBar released (is_qs={}): y_current={:.1}px, v={:.1}px/s -> target={:.1}",
+                is_qs, y_current, v, target
             );
 
             let mut state = ShellState::load();
             state.drawer_dragging = false;
+            state.is_full_qs = is_qs;
             let _ = state.save();
 
             animate_to(target, v);
@@ -333,6 +357,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         qs.on_drag_delta(move |dy| {
             spring_timer.borrow().stop();
+            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
             if let Some(ui) = qs_weak.upgrade() {
                 let cur_offset = ui.get_slide_offset_y() as f64;
                 let delta = dy as f64;
@@ -405,6 +430,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         qs.on_fast_pull_up(move || {
             info!("QuickSettings: fast pull up detected -> snapping closed");
             animate_to(-915.0, -850.0);
+        });
+    }
+
+    {
+        qs.on_mode_changed(move |is_full_qs| {
+            info!("QuickSettings: mode changed to is_full_qs={}", is_full_qs);
+            let mut state = ShellState::load();
+            state.is_full_qs = is_full_qs;
+            let _ = state.save();
         });
     }
 
@@ -540,29 +574,38 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     // 8. Notifications Stack
     // -----------------------------------------------------------------------
-    let notifs_model = Rc::new(VecModel::from(vec![NotificationData {
-        app: "Penumbra Core".into(),
-        title: "Wayland Ready • M3 Expressive".into(),
-        body: "Consolidated SystemUI and Dual-Kawase blur active".into(),
-    }]));
+    let notifs_store = Rc::new(std::cell::RefCell::new(penumbra_shell::notifications::NotificationStore::load()));
+    let notifs_items = notifs_store.borrow().items.iter().map(|n| NotificationData {
+        id: n.id.clone().into(),
+        app: n.app.clone().into(),
+        title: n.title.clone().into(),
+        body: n.body.clone().into(),
+        time_text: n.time_text.clone().into(),
+    }).collect::<Vec<_>>();
+    let notifs_model = Rc::new(VecModel::from(notifs_items));
     qs.set_notifications(ModelRc::from(Rc::clone(&notifs_model)));
 
     {
         let notifs = Rc::clone(&notifs_model);
+        let store = Rc::clone(&notifs_store);
         qs.on_notification_dismissed(move |idx| {
-            if (idx as usize) < notifs.row_count() {
+            let i = idx as usize;
+            if i < notifs.row_count() {
                 info!("QuickSettings: Notification at index {idx} dismissed");
-                notifs.remove(idx as usize);
+                notifs.remove(i);
+                store.borrow_mut().dismiss_at(i);
             }
         });
     }
     {
         let notifs = Rc::clone(&notifs_model);
+        let store = Rc::clone(&notifs_store);
         qs.on_clear_notifications(move || {
             info!("QuickSettings: Cleared all notifications");
             while notifs.row_count() > 0 {
                 notifs.remove(0);
             }
+            store.borrow_mut().clear();
         });
     }
 
@@ -837,6 +880,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let tb = top_bar_weak.clone();
         let last_known_open = Rc::new(RefCell::new(false));
         let last_known_dragging = Rc::new(RefCell::new(false));
+        let last_known_qs = Rc::new(RefCell::new(false));
         let last_known_power_dialog = Rc::new(RefCell::new(false));
         let last_known_volume_modal = Rc::new(RefCell::new(false));
         let last_known_volume = Rc::new(RefCell::new(-1.0f32));
@@ -862,6 +906,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut last_open = last_known_open.borrow_mut();
             let mut was_dragging = last_known_dragging.borrow_mut();
+            let mut last_qs = last_known_qs.borrow_mut();
+
+            // Direct sync of partition mode
+            if state.is_full_qs != *last_qs {
+                *last_qs = state.is_full_qs;
+                if let Some(shade) = q.upgrade() {
+                    shade.set_is_full_qs(state.is_full_qs);
+                }
+            }
 
             if state.drawer_dragging {
                 *was_dragging = true;
@@ -872,6 +925,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(shade) = q.upgrade() {
                     shade.set_slide_offset_y(new_y as f32);
                     shade.set_expansion_progress(progress);
+                    shade.set_is_full_qs(state.is_full_qs);
                 }
                 if let Some(bar) = tb.upgrade() {
                     bar.set_shade_progress(progress);
@@ -894,7 +948,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         -915.0
                     };
                     let initial_vel = spring_state.borrow().velocity.clamp(-2500.0, 2500.0);
-                    info!("Native drag completed -> spring settling to {:.1} with vel {:.1}", target_y, initial_vel);
+                    info!("Native drag completed -> spring settling to {:.1} with vel {:.1} (is_full_qs={})", target_y, initial_vel, state.is_full_qs);
+                    if let Some(shade) = q.upgrade() {
+                        shade.set_is_full_qs(state.is_full_qs);
+                    }
                     animate_to(target_y, initial_vel);
                 } else if state.drawer_open != *last_open {
                     *last_open = state.drawer_open;
@@ -902,7 +959,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     if state.drawer_open {
                         if cur_target < -570.0 {
                             let target_y = 0.0;
-                            info!("External trigger: opening QuickSettings shade (target={:.1})", target_y);
+                            info!("External trigger: opening QuickSettings shade (target={:.1}, is_full_qs={})", target_y, state.is_full_qs);
+                            if let Some(shade) = q.upgrade() {
+                                shade.set_is_full_qs(state.is_full_qs);
+                            }
                             animate_to(target_y, 400.0);
                         }
                     } else if cur_target > -900.0 {
@@ -918,6 +978,27 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 *last_power = state.power_dialog_open;
                 if let Some(ui) = q.upgrade() {
                     ui.set_show_power_dialog(state.power_dialog_open);
+                }
+            }
+
+            if std::path::Path::new("/tmp/open_shade").exists() {
+                let _ = std::fs::remove_file("/tmp/open_shade");
+                animate_to(0.0, 500.0);
+            }
+            if std::path::Path::new("/tmp/close_shade").exists() {
+                let _ = std::fs::remove_file("/tmp/close_shade");
+                animate_to(-915.0, -500.0);
+            }
+            if std::path::Path::new("/tmp/open_full_qs").exists() {
+                let _ = std::fs::remove_file("/tmp/open_full_qs");
+                if let Some(shade) = q.upgrade() {
+                    shade.set_is_full_qs(true);
+                }
+            }
+            if std::path::Path::new("/tmp/close_full_qs").exists() {
+                let _ = std::fs::remove_file("/tmp/close_full_qs");
+                if let Some(shade) = q.upgrade() {
+                    shade.set_is_full_qs(false);
                 }
             }
 

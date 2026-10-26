@@ -78,7 +78,72 @@ struct PlatformRuntime {
 
 /// Custom Slint platform backend driver implementing zero-winit layer-shell integration.
 pub struct LayerShellPlatform {
-    runtime: RefCell<PlatformRuntime>,
+    runtime: Rc<RefCell<PlatformRuntime>>,
+}
+
+thread_local! {
+    static ACTIVE_WINDOWS: RefCell<Vec<std::rc::Weak<LayerWindow>>> = const { RefCell::new(Vec::new()) };
+    static WL_COMPOSITOR: RefCell<Option<wayland_client::protocol::wl_compositor::WlCompositor>> = const { RefCell::new(None) };
+}
+
+/// Dynamically updates the Wayland input region for a window matching `namespace`.
+///
+/// When `is_expanded_or_dragging` is true, touch coverage expands fullscreen (`screen_width x screen_height`).
+/// When false, touch coverage collapses to the top-edge trigger strip (`screen_width x top_bar_height`).
+pub fn sync_input_region(
+    namespace: &str,
+    screen_width: i32,
+    screen_height: i32,
+    top_bar_height: i32,
+    is_expanded_or_dragging: bool,
+) -> bool {
+    WL_COMPOSITOR.with(|comp_cell| {
+        let comp_opt = comp_cell.borrow();
+        if let Some(ref comp) = *comp_opt {
+            ACTIVE_WINDOWS.with(|wins| {
+                let mut wins_mut = wins.borrow_mut();
+                wins_mut.retain(|w| w.strong_count() > 0);
+                for weak in wins_mut.iter() {
+                    if let Some(win) = weak.upgrade() {
+                        if win.namespace() == namespace {
+                            win.sync_input_region(
+                                comp,
+                                screen_width,
+                                screen_height,
+                                top_bar_height,
+                                is_expanded_or_dragging,
+                            );
+                            return true;
+                        }
+                    }
+                }
+                false
+            })
+        } else {
+            false
+        }
+    })
+}
+
+/// Standalone helper updating the Wayland input region on a surface.
+pub fn sync_surface_input_region(
+    compositor: &wayland_client::protocol::wl_compositor::WlCompositor,
+    surface: &wayland_client::protocol::wl_surface::WlSurface,
+    qh: &QueueHandle<crate::state::AppState>,
+    screen_width: i32,
+    screen_height: i32,
+    top_bar_height: i32,
+    is_expanded_or_dragging: bool,
+) {
+    let region = compositor.create_region(qh, ());
+    if is_expanded_or_dragging {
+        region.add(0, 0, screen_width, screen_height);
+    } else {
+        region.add(0, 0, screen_width, top_bar_height);
+    }
+    surface.set_input_region(Some(&region));
+    surface.commit();
+    region.destroy();
 }
 
 impl LayerShellPlatform {
@@ -103,6 +168,10 @@ impl LayerShellPlatform {
         let compositor_state = CompositorState::bind(&globals, &qh).map_err(|e| {
             LayerShellError::ProtocolError(format!("wl_compositor bind failure: {:?}", e))
         })?;
+
+        WL_COMPOSITOR.with(|c| {
+            *c.borrow_mut() = Some(compositor_state.wl_compositor().clone());
+        });
 
         // Bind output manager protocol
         let output_state = OutputState::new(&globals, &qh);
@@ -171,7 +240,7 @@ impl LayerShellPlatform {
             LayerShellError::EventLoopError(format!("Failed to insert WaylandSource: {:?}", e))
         })?;
 
-        let runtime = PlatformRuntime {
+        let runtime = Rc::new(RefCell::new(PlatformRuntime {
             connection,
             app_state,
             event_loop,
@@ -179,11 +248,9 @@ impl LayerShellPlatform {
             ping,
             default_config: config,
             active_windows: Vec::new(),
-        };
+        }));
 
-        Ok(Self {
-            runtime: RefCell::new(runtime),
-        })
+        Ok(Self { runtime })
     }
 }
 
@@ -263,11 +330,16 @@ impl Platform for LayerShellPlatform {
             rt.qh.clone(),
             rt.ping.clone(),
             effective_renderer,
+            config.namespace.clone(),
         );
 
         // 7. Connect window reference to SCTK state handlers
         rt.app_state.windows.push(Rc::downgrade(&window));
         rt.active_windows.push(window.clone());
+
+        ACTIVE_WINDOWS.with(|wins| {
+            wins.borrow_mut().push(Rc::downgrade(&window));
+        });
 
         debug!(
             "Created native LayerWindow adapter for namespace '{}'",
@@ -281,27 +353,26 @@ impl Platform for LayerShellPlatform {
         debug!("Entering Slint layer-shell event loop");
 
         loop {
-            let mut rt = self.runtime.borrow_mut();
-
             // Check if the compositor requested window closure
-            if rt.app_state.exit_flag.load(Ordering::SeqCst) {
+            if self.runtime.borrow().app_state.exit_flag.load(Ordering::SeqCst) {
                 info!("Exit flag set; breaking event loop");
                 break;
             }
 
             // Prune dead windows from active_windows
-            rt.active_windows.retain(|w| Rc::strong_count(w) > 1);
+            self.runtime.borrow_mut().active_windows.retain(|w| Rc::strong_count(w) > 1);
 
             // Perform render pass for each active window if ready and dirty
-            let active_windows = rt.active_windows.clone();
+            let active_windows = self.runtime.borrow().active_windows.clone();
             for window in &active_windows {
                 if window.can_render() {
+                    let mut rt = self.runtime.borrow_mut();
                     window.render(&mut rt.app_state.pool);
                 }
             }
 
             // Flush pending Wayland outgoing protocol messages
-            if let Err(e) = rt.connection.flush() {
+            if let Err(e) = self.runtime.borrow().connection.flush() {
                 warn!("Wayland connection flush warning: {:?}", e);
             }
 
@@ -309,14 +380,18 @@ impl Platform for LayerShellPlatform {
             let timer_duration = slint::platform::duration_until_next_timer_update();
             let timeout = timer_duration.unwrap_or(Duration::from_millis(100));
 
-            // Run event loop pass with dispatch
-            let PlatformRuntime {
-                ref mut event_loop,
-                ref mut app_state,
-                ..
-            } = *rt;
+            // Run event loop pass with dispatch - rt borrow is explicitly scoped and dropped before timers
+            let dispatch_result = {
+                let mut rt = self.runtime.borrow_mut();
+                let PlatformRuntime {
+                    ref mut event_loop,
+                    ref mut app_state,
+                    ..
+                } = *rt;
+                event_loop.dispatch(Some(timeout), app_state)
+            };
 
-            if let Err(e) = event_loop.dispatch(Some(timeout), app_state) {
+            if let Err(e) = dispatch_result {
                 error!("Error in calloop event loop dispatch: {:?}", e);
                 return Err(PlatformError::Other(format!(
                     "Event loop dispatch error: {:?}",
@@ -324,7 +399,7 @@ impl Platform for LayerShellPlatform {
                 )));
             }
 
-            // Advance Slint timers and trigger animation step
+            // Advance Slint timers and trigger animation step (outside of any RefCell borrow)
             slint::platform::update_timers_and_animations();
         }
 

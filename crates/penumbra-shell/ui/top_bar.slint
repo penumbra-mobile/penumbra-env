@@ -16,28 +16,31 @@ export component TopBarWindow inherits Window {
     in-out property <bool> privacy-active: false;
     in-out property <float> shade-progress: 0.0;
 
-    callback top-bar-pulled-down(float /* dy */);
-    callback top-bar-released();
+    callback top-bar-pulled-down(float /* dy */, bool /* is_qs */);
+    callback top-bar-released(bool /* is_qs */);
 
     touch-area := TouchArea {
+        property <length> press-x: 0px;
         property <length> press-y: 0px;
         property <bool> has-dragged: false;
 
         pointer-event(event) => {
             if (event.kind == PointerEventKind.down) {
+                self.press-x = touch-area.mouse-x;
                 self.press-y = touch-area.mouse-y;
                 self.has-dragged = false;
             } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                 let dy = touch-area.mouse-y - self.press-y;
+                let is-qs = self.press-x >= (root.width / 2);
                 if (!self.has-dragged && dy > 6px) {
-                    root.top-bar-pulled-down(dy / 1px);
+                    root.top-bar-pulled-down(dy / 1px, is-qs);
                     self.has-dragged = true;
                 }
                 if (self.has-dragged) {
-                    root.top-bar-released();
+                    root.top-bar-released(is-qs);
                 } else if (event.kind == PointerEventKind.up && Math.abs(dy) <= 6px) {
-                    root.top-bar-pulled-down(350.0);
-                    root.top-bar-released();
+                    root.top-bar-pulled-down(350.0, is-qs);
+                    root.top-bar-released(is-qs);
                 }
                 self.has-dragged = false;
             }
@@ -45,9 +48,10 @@ export component TopBarWindow inherits Window {
         moved => {
             if (touch-area.pressed) {
                 let dy = touch-area.mouse-y - self.press-y;
+                let is-qs = self.press-x >= (root.width / 2);
                 if (dy > 4px) {
                     self.has-dragged = true;
-                    root.top-bar-pulled-down(dy / 1px);
+                    root.top-bar-pulled-down(dy / 1px, is-qs);
                 }
             }
         }

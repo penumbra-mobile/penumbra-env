@@ -41,6 +41,8 @@ pub struct LayerWindow {
     input_processor: std::cell::RefCell<crate::input::InputProcessor>,
     /// Active rendering strategy (Auto, Software, Gpu).
     renderer_type: Cell<crate::RendererType>,
+    /// Namespace identifier for this layer window.
+    namespace: String,
 }
 
 impl LayerWindow {
@@ -52,6 +54,7 @@ impl LayerWindow {
         qh: QueueHandle<AppState>,
         ping: calloop::ping::Ping,
         renderer_type: crate::RendererType,
+        namespace: String,
     ) -> Rc<Self> {
         let renderer = SoftwareRenderer::new();
         let initial_size = PhysicalSize::new(initial_width, initial_height);
@@ -80,6 +83,7 @@ impl LayerWindow {
                 ping,
                 input_processor: std::cell::RefCell::new(crate::input::InputProcessor::new()),
                 renderer_type: Cell::new(renderer_type),
+                namespace,
             }
         })
     }
@@ -89,9 +93,38 @@ impl LayerWindow {
         self.renderer_type.get()
     }
 
+    /// Returns the namespace identifier for this layer surface.
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
     /// Returns the underlying SCTK [`LayerSurface`].
     pub fn layer_surface(&self) -> &LayerSurface {
         &self.layer_surface
+    }
+
+    /// Dynamically sets the Wayland input region on the underlying `wl_surface`.
+    ///
+    /// When `is_expanded_or_dragging` is false, input is constrained to `top_bar_height` (touch-through).
+    /// When true, input covers the full window (`width x height`).
+    pub fn sync_input_region(
+        &self,
+        compositor: &wayland_client::protocol::wl_compositor::WlCompositor,
+        screen_width: i32,
+        screen_height: i32,
+        top_bar_height: i32,
+        is_expanded_or_dragging: bool,
+    ) {
+        let region = compositor.create_region(&self.qh, ());
+        if is_expanded_or_dragging {
+            region.add(0, 0, screen_width, screen_height);
+        } else {
+            region.add(0, 0, screen_width, top_bar_height);
+        }
+        let wl_surface = self.layer_surface.wl_surface();
+        wl_surface.set_input_region(Some(&region));
+        wl_surface.commit();
+        region.destroy();
     }
 
     /// Returns the current scale factor.

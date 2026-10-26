@@ -78,6 +78,7 @@ pub(crate) struct ShadeTouchTracker {
     pub start_pos: Point<f64, Logical>,
     pub tracker: penumbra_gestures::VelocityTracker,
     pub is_dragging: bool,
+    pub is_qs: bool,
 }
 
 /// Input bookkeeping for the native panel.
@@ -422,16 +423,23 @@ pub(crate) fn handle(
                     }
 
             // Quick Settings shade pull-down gesture:
-            // Intercept if touching the top status bar area (y <= STATUS_BAR_H) and drawer is not already open.
-            let is_top_zone = pos.y <= STATUS_BAR_H as f64;
+            // Intercept if touching the top status bar area (y <= STATUS_BAR_H + 18.0) and drawer is not already open.
+            // Equal split top touch area:
+            // Left half (x < PHONE_W / 2 = 206px) -> Notifications screen (is_full_qs = false)
+            // Right half (x >= PHONE_W / 2 = 206px) -> Quick Settings screen (is_full_qs = true)
+            let is_top_zone = pos.y <= (STATUS_BAR_H as f64 + 18.0);
             if is_top_zone && !server.shell_state.drawer_open && input.shade_tracker.is_none() {
+                let is_qs = pos.x >= (PHONE_W as f64) / 2.0;
+                tracing::info!(x = pos.x, y = pos.y, is_qs, "Top edge shade drag started -> partition split");
                 let mut tracker = penumbra_gestures::VelocityTracker::new(0.8);
                 tracker.start(pos.x, pos.y, std::time::Duration::ZERO);
+                server.shell_state.is_full_qs = is_qs;
                 input.shade_tracker = Some(ShadeTouchTracker {
                     slot,
                     start_pos: pos,
                     tracker,
                     is_dragging: false,
+                    is_qs,
                 });
                 return;
             }
@@ -607,6 +615,7 @@ pub(crate) fn handle(
                         server.shell_state.drawer_dragging = true;
                         server.shell_state.drawer_pull_dy = shade_disp;
                         server.shell_state.drawer_progress = progress;
+                        server.shell_state.is_full_qs = shade.is_qs;
                         let _ = server.shell_state.save();
                     }
                     return;
@@ -884,14 +893,16 @@ pub(crate) fn handle(
                         server.shell_state.drawer_dragging = false;
                         server.shell_state.drawer_pull_dy = if is_open { (PHONE_H as f64) } else { 0.0 };
                         server.shell_state.drawer_progress = if is_open { 1.0 } else { 0.0 };
+                        server.shell_state.is_full_qs = shade.is_qs;
                         let _ = server.shell_state.save();
                     } else {
                         // Short tap on the status bar: expand shade
-                        tracing::info!("Status bar tapped: expanding QuickSettings shade");
+                        tracing::info!(is_qs = shade.is_qs, "Status bar tapped: expanding shade");
                         server.shell_state.drawer_open = true;
                         server.shell_state.drawer_dragging = false;
                         server.shell_state.drawer_pull_dy = PHONE_H as f64;
                         server.shell_state.drawer_progress = 1.0;
+                        server.shell_state.is_full_qs = shade.is_qs;
                         let _ = server.shell_state.save();
                     }
                     return;

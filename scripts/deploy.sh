@@ -140,6 +140,13 @@ if [[ -n "$DEVICE_PASSWORD" ]]; then
     scp_cmd=(sshpass -p "$DEVICE_PASSWORD" scp -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null)
 fi
 
+# Build ARM64 alpine binaries if requested
+if [[ "$BUILD_FIRST" == true ]]; then
+    log_info "Cross-compiling ARM64 Alpine release binaries via Docker..."
+    "$repo_root/scripts/build-arm64-alpine.sh"
+    log_success "ARM64 compilation completed"
+fi
+
 # Quick connectivity test
 log_info "Testing connectivity to device at ${remote}..."
 if ! "${ssh_cmd[@]}" "$remote" 'true' >/dev/null 2>&1; then
@@ -180,19 +187,11 @@ if [[ "$SHOW_LOGS" == true ]]; then
     exit 0
 fi
 
-# Build ARM64 alpine binaries if requested
-if [[ "$BUILD_FIRST" == true ]]; then
-    log_info "Cross-compiling ARM64 Alpine release binaries via Docker..."
-    "$repo_root/scripts/build-arm64-alpine.sh"
-    log_success "ARM64 compilation completed"
-fi
-
 # Comprehensive list of canonical binaries
 required_bins=(
     penumbra-comp
     penumbra-top-bar
     penumbra-homescreen
-    penumbra-quick-settings
     penumbra-nav-bar
     penumbra-settings
     penumbra-keyboard
@@ -248,7 +247,6 @@ set -euo pipefail
 # 1. Install binaries to /usr/local/bin
 install -d /usr/local/bin /usr/share/wayland-sessions /usr/share/penumbra/assets /usr/share/applications
 install -m 0755 "$STAGING_DIR"/bin/* /usr/local/bin/
-ln -sf penumbra-quick-settings /usr/local/bin/penumbra-quicksettings
 
 # 2. Install session wrappers
 install -m 0755 "$STAGING_DIR"/penumbra-session /usr/local/bin/penumbra-session

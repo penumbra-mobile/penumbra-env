@@ -23,7 +23,7 @@ pub use gesture_state::{
     compute_window_scale, rubber_band_clamp, GesturePhase, NavigationTarget,
 };
 pub use nav::{NavGesture, NavGestureConfig, NavGestureRecognizer};
-pub use spring::{DampedHarmonicOscillator, Spring, SpringSolver};
+pub use spring::{DampedHarmonicOscillator, DampedSpring, Spring, SpringSolver};
 pub use state_machine::{GestureStateMachine, NavigationGesture, TouchState};
 pub use touch::{calculate_snap_target, FlickDirection, TouchSample, TouchTracker, Vector2D};
 pub use velocity::VelocityTracker;

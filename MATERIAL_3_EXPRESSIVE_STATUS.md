@@ -20,6 +20,8 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 6C** | Consolidated SystemUI Process (`penumbra-shell`) |  **Completed** | `crates/penumbra-shell/src/main.rs`, `systemui.rs` | Unified in-memory Slint chrome |
 | **Phase 6D** | GPU Hardware Acceleration Path & VBlank Synchronization |  **Completed** | `crates/layer-shell-slint/src/` | Adreno EGL / Skia dual-backend path |
 | **Phase 7** | Android 17 Material 3 Expressive QuickSettings Re-architecture |  **Completed** | `penumbra-comp/src/native_input.rs`, `penumbra-shell/src/systemui.rs`, `ui/quick_settings_slider.slint` | 1:1 Pixel Experience pastille layout deployed |
+| **Phase 8** | Dynamic Wayland Input Region Arbitration (`wl_surface.set_input_region`) |  **Completed** | `crates/layer-shell-slint/src/platform.rs`, `penumbra-shell/src/systemui.rs` | Zero-collusion touch pass-through verified |
+| **Phase 9** | Modern Slate Editor (Android 17 1:1), Tactile Squash & Alignment |  **Completed** | `crates/penumbra-shell/ui/quick_settings_slider.slint`, `icon.slint` | 68/68 cargo tests passed, Slate Editor verified |
 
 ---
 
@@ -282,6 +284,72 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
      - **Spotify Media Card**: Wine/charcoal container (`#2b2024`, radius $26\text{px}$), device chip `[ (TV) Televizorul din dormitor ]`, track info, and large circular play button ($46\text{px}$, light pink accent `#f7d8dc`).
      - **Unified Notification Sheet**: Single large floating rounded card (`border-radius: 28px; background: #23211be6;`) with WhatsApp cards, action chips (`[ Răspunde ]`, `[ Marchează ca citit ]`), and weather footer pill (`10°`).
 
+### 13. Phase 8: Dynamic Wayland Input Region Arbitration (`wl_surface.set_input_region`)
+- **Status**:  **Completed & Deployed on Fairphone 4**
+- **Objective**: Solve full-screen overlay touch interception so collapsed shades ($t = 0.0$) allow touches to fall through to background apps and homescreen, expanding to full display only on active drag.
+- **Architectural Deliverables**:
+  1. **Wayland Region Management (`layer-shell-slint`)**:
+     - Added `Dispatch<WlRegion, ()>` and `sync_input_region(namespace, width, height, top_bar_height, is_expanded)` to [`crates/layer-shell-slint`](crates/layer-shell-slint).
+     - When collapsed ($t = 0.0$): Sets `(0, 0, 412, 42)`, making all touches below $42\text{px}$ touch-through to running apps.
+     - When dragging / expanded ($t > 0.0$): Expands input region to fullscreen $(0, 0, 412, 915)$ to capture tile toggles, slider drags, and dismissal swipes.
+     - Pair region updates with atomic `wl_surface.commit()`.
+  2. **Thread-Safe Decoupled Borrow Architecture**:
+     - Separated `ACTIVE_WINDOWS` and `WL_COMPOSITOR` into dedicated thread-local storage in [`platform.rs`](crates/layer-shell-slint/src/platform.rs), completely avoiding re-entrant `RefCell` borrow collisions during Slint event loop dispatch.
+     - Scoped `PlatformRuntime` borrow inside `run_event_loop` so timers and animations update without holding active runtime locks.
+  3. **Consolidated SystemUI & Standalone Synchronization**:
+     - Wired input region expansion on drag start and collapsed strip clamping on spring settle in both [`systemui.rs`](crates/penumbra-shell/src/systemui.rs) and standalone [`quick_settings.rs`](crates/penumbra-shell/src/bin/quick_settings.rs).
+  4. **Device Deployment**:
+     - Built cross-compiled ARM64 Alpine musl release binaries via Docker.
+     - Deployed release binaries and assets to Fairphone 4 (`172.16.42.1`).
+     - Live logs confirm interactive slider tracking and touch feedback without panics or crashes.
+
+### 14. Phase 9: Modern Slate Editor (Android 17 1:1), Tactile Touch Squash & Optical Alignment
+- **Status**:  **Completed & Deployed on Fairphone 4**
+- **Objective**: Implement the full Android 17 Slate Editor experience with 1:1 Pixel styling, active tile removal (`-`), available tile addition (`+`), reset to defaults, tactile squash physics, and optical alignment.
+- **Architectural Deliverables**:
+  1. **Dual-View Transition Architecture (`normal-view` vs `slate-editor-view`)**:
+     - Embedded inside `chassis` with spring physics transitions (`duration: 260ms`, `easing: cubic-bezier(0.2, 0.0, 0.0, 1.0)`):
+       - Normal view translates to $y = -30\text{px}$ with opacity $1.0 \to 0.0$.
+       - Slate editor translates from $y = 30\text{px} \to 0\text{px}$ with opacity $0.0 \to 1.0$.
+     - Both header and footer trigger buttons (edit pencil icon) wired to `enter-edit-mode()`.
+  2. **1:1 Android 17 Slate Editor UI**:
+     - **Top App Bar**: Circular back button (`chevron-left`), bold "Edit tiles" title ($20\text{px}$), "Hold & drag to reorder" subtitle, tonal "Reset" button (`restart` icon), and primary accent "Done" pill button (`check` icon in `#d0bcff` / `#381e72`).
+     - **Active Tiles Section**: "ACTIVE TILES" section label, dynamic counter pill ("N active"), and responsive 2-column grid of `EditTileItem` pastilles with wine/burgundy circular minus (`-`) action badges. Tapping removes tile to available pool.
+     - **Reorder Banner**: Glass card divider with edit icon and "Hold and drag tiles to reorder" instruction.
+     - **Available Tiles Section**: "AVAILABLE TILES" section label, dynamic counter pill ("N available"), and responsive 2-column grid of `EditTileItem` pastilles with slate/blue circular plus (`+`) action badges. Tapping adds tile to active shade.
+  3. **Tactile Touch Squash Physics ($0.96\times$)**:
+     - Tiles compress inward by $2.5\text{px}$ horizontally and $1.5\text{px}$ vertically on pointer down, with dynamic corner radius compression ($28\text{px} \to 22\text{px}$) and spring release.
+     - Header and action icon buttons (`HeaderIconButton`) and pill action buttons (`PillButton`) implement instant touch squash and background elevation.
+  4. **Optical Text & Material Icon Alignments**:
+     - Added SVG vector path icons: `check` (`M4 12 L9 17 L20 6`), `minus` (`M5 12 L19 12`), `chevron-left` (`M15 5 L8 12 L15 19`), and `chevron-right` (`M9 5 L16 12 L9 19`) in [`crates/penumbra-shell/ui/icon.slint`](crates/penumbra-shell/ui/icon.slint).
+     - Standardized $24\times24$ icon viewports with centered vertical alignment across `QSTile` and `EditTileItem`.
+     - Standardized $14\text{px}$ bold titles with $12\text{px}$ medium subtitles and text ellipsis handling.
+  5. **Data Persistence**:
+     - Seamless integration with existing `QuickSettingsConfig` engine saving to `~/.config/penumbra/quicksettings.json` on `exit-edit-mode()`.
+
+### 15. Phase 10: Split Notifications & Quick Settings (Dual-Shade), Modularized Notifications & Full-Chassis Gestures
+- **Status**:  **Completed & Verified with Full Test Suite**
+- **Objective**: Split the top status bar into two distinct gesture halves (left half for Notifications screen, right half for Quick Settings screen), modularize notifications into dedicated `notifications.slint` and `notifications.rs`, fix 2-column grid layout math, and provide full-screen touch responsiveness without standalone binary fragmentation.
+- **Architectural Deliverables**:
+  1. **Top Touch Area Dual Partitioning ($412\text{px}$ canvas)**:
+     - Left Half ($x < 206\text{px}$): Pulls down the **Notifications Screen** (`is_full_qs = false`).
+     - Right Half ($x \ge 206\text{px}$): Pulls down the **Quick Settings Screen** (`is_full_qs = true`).
+     - Implemented in both compositor gesture tracking ([`crates/penumbra-comp/src/native_input.rs`](crates/penumbra-comp/src/native_input.rs)) and TopBar layer-shell callbacks ([`crates/penumbra-shell/ui/top_bar.slint`](crates/penumbra-shell/ui/top_bar.slint)).
+     - Preserved in binary socket state byte 20 and text state `is_full_qs=0|1`.
+  2. **Modularized Notifications Engine**:
+     - Created [`crates/penumbra-shell/ui/notifications.slint`](crates/penumbra-shell/ui/notifications.slint) exporting `NotificationData`, `NotificationCard`, `NotificationEmptyState`, and `NotificationStack`.
+     - Created [`crates/penumbra-shell/src/notifications.rs`](crates/penumbra-shell/src/notifications.rs) providing `NotificationItem` and persistent `NotificationStore` (`~/.config/penumbra/notifications.json`).
+     - Cleanly integrated into [`systemui.rs`](crates/penumbra-shell/src/systemui.rs) without standalone binary fragmentation (notifications and quick settings are unified in `penumbra-shell`).
+  3. **Split UI Layout & 2-Column Math Fix**:
+     - Fixed Slint float division bug `(idx / 2)` by using `Math.mod(idx, 2)` for column assignment and `Math.floor(idx / 2)` for row calculation across Quick Settings and the Slate Editor.
+     - **Mode 1 (`!is-full-qs`, Notifications)**: Header, Mode Selector Tabs (`[ Notifications ]` [active] | `[ Quick Settings ]`), compact 4-capsule quick toggles strip, and full-screen `NotificationStack`.
+     - **Mode 2 (`is-full-qs`, Quick Settings)**: Header, Mode Selector Tabs (`[ Notifications ]` | `[ Quick Settings ]` [active]), capsule Brightness slider, full 2-column Quick Settings grid (8 tiles), and Quick Settings footer actions (Volume slider, Edit, Settings, Power).
+  4. **Full-Chassis Touch Interaction**:
+     - Background gesture listener across the entire $412 \times 915$ chassis:
+       - Dragging up anywhere on empty areas collapses/dismisses the shade.
+       - Swiping horizontally switches seamlessly between Notifications and Quick Settings.
+       - Tapping the mode tabs immediately switches screens.
+
 ---
 
 ## Active Status Summary
@@ -292,6 +360,9 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 - **Unified SystemUI Process (Phase 6C)**:  **Completed & Deployed on Fairphone 4**
 - **Dual-Backend GPU/CPU Acceleration Path (Phase 6D)**:  **Completed & Verified**
 - **Android 17 M3 Expressive QuickSettings (Phase 7)**:  **Completed & Deployed on Fairphone 4**
+- **Dynamic Wayland Input Region Arbitration (Phase 8)**:  **Completed & Deployed on Fairphone 4**
+- **Modern Slate Editor & Tactile Physics (Phase 9)**:  **Completed & Deployed on Fairphone 4**
+- **Split Notifications & Quick Settings / Modular Notifications (Phase 10)**:  **Completed & Verified**
 
 
 

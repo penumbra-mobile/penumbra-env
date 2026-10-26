@@ -384,3 +384,15 @@ delegate_seat!(AppState);
 delegate_pointer!(AppState);
 delegate_touch!(AppState);
 delegate_layer!(AppState);
+
+impl wayland_client::Dispatch<wayland_client::protocol::wl_region::WlRegion, ()> for AppState {
+    fn event(
+        _state: &mut Self,
+        _proxy: &wayland_client::protocol::wl_region::WlRegion,
+        _event: <wayland_client::protocol::wl_region::WlRegion as wayland_client::Proxy>::Event,
+        _data: &(),
+        _conn: &wayland_client::Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+    }
+}

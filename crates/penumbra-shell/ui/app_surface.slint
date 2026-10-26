@@ -1,4 +1,5 @@
 import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
 import { AppItem, TaskItem, HomescreenItem } from "app_item.slint";
 import { BottomDock } from "dock.slint";
 import { ShortcutTile } from "shortcut_tile.slint";
@@ -378,64 +379,6 @@ export component AppSurface inherits Rectangle {
                         vertical-alignment: center;
                     }
 
-                    // Weather Pill
-                    Rectangle {
-                        height: 26px;
-                        border-radius: Theme.radius-pill;
-                        background: Theme.surface-container-high;
-                        border-width: 1px;
-                        border-color: Theme.specular-rim;
-
-                        HorizontalLayout {
-                            padding-left: 10px;
-                            padding-right: 10px;
-                            spacing: 6px;
-                            alignment: center;
-
-                            Text {
-                                text: "⛅";
-                                font-size: 13px;
-                                vertical-alignment: center;
-                            }
-
-                            Text {
-                                text: "21°C Clear";
-                                font-size: 11.5px;
-                                font-weight: 600;
-                                color: Theme.primary;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Top Subtle Page Label on Pages 1+ (Slides in when page-scroll > 0)
-        Rectangle {
-            x: 20px + ((1.0 - root.page-scroll) * 380px);
-            y: 56px;
-            width: parent.width - 40px;
-            height: 36px;
-            opacity: Math.clamp(root.page-scroll * 1.5 - 0.2, 0.0, 1.0);
-            visible: self.opacity > 0.01;
-
-            HorizontalLayout {
-                alignment: space-between;
-
-                Text {
-                    text: "Page \{Math.min(root.num-pages, Math.round(root.page-scroll) + 1)}";
-                    font-size: Theme.font-title;
-                    font-weight: 700;
-                    color: Theme.on-surface-variant;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: "Swipe right for home";
-                    font-size: Theme.font-label;
-                    color: Theme.outline-variant;
-                    vertical-alignment: center;
                 }
             }
         }
@@ -565,28 +508,7 @@ export component AppSurface inherits Rectangle {
             }
         }
 
-        // Empty Homescreen Hint on Page 0 when no shortcuts are pinned
-        if root.homescreen-items.length == 0: VerticalLayout {
-            x: 0px - (root.page-scroll * 380px);
-            y: 320px;
-            width: parent.width;
-            alignment: center;
-            spacing: 8px;
-            opacity: Math.clamp(1.0 - (root.page-scroll * 1.6), 0.0, 1.0);
-            visible: self.opacity > 0.01;
 
-            Text {
-                text: "✨";
-                font-size: 28px;
-                horizontal-alignment: center;
-            }
-            Text {
-                text: "Swipe up to open App Drawer";
-                font-size: Theme.font-label;
-                color: Theme.on-surface-variant;
-                horizontal-alignment: center;
-            }
-        }
 
         // Material 3 Expressive Worm Page Indicator (Slides smoothly with page-scroll)
         if root.num-pages > 1: Rectangle {
@@ -706,7 +628,7 @@ export component AppSurface inherits Rectangle {
                     }
 
                     Text {
-                        text: "Search apps & web...";
+                        text: "Search";
                         font-size: Theme.font-body;
                         font-weight: 500;
                         color: Theme.on-surface-variant;
@@ -727,12 +649,12 @@ export component AppSurface inherits Rectangle {
                         border-width: 1px;
                         border-color: Theme.specular-rim;
 
-                        Text {
-                            text: "🎙";
-                            font-size: 14px;
-                            color: Theme.primary;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        Icon {
+                            name: "mic";
+                            icon-size: 16px;
+                            icon-color: Theme.primary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
                     }
 
@@ -745,12 +667,12 @@ export component AppSurface inherits Rectangle {
                         border-width: 1px;
                         border-color: Theme.specular-rim;
 
-                        Text {
-                            text: "📷";
-                            font-size: 14px;
-                            color: Theme.secondary;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        Icon {
+                            name: "lens";
+                            icon-size: 16px;
+                            icon-color: Theme.secondary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
                     }
                 }
@@ -844,13 +766,12 @@ export component AppSurface inherits Rectangle {
                         border-width: 1px;
                         border-color: Theme.specular-rim;
 
-                        Text {
-                            text: "✕";
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: #FFFFFF;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        Icon {
+                            name: "close";
+                            icon-size: 16px;
+                            icon-color: #FFFFFF;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
 
                         TouchArea {
@@ -1054,11 +975,12 @@ export component AppSurface inherits Rectangle {
             border-width: 2px;
             border-color: Theme.primary;
 
-            if root.dragging-is-folder: Text {
-                text: "📁";
-                font-size: 28px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            if root.dragging-is-folder: Icon {
+                name: "folder";
+                icon-size: 28px;
+                icon-color: Theme.on-surface;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
             if !root.dragging-is-folder && root.dragging-app-item.has-icon: Image {
                 source: root.dragging-app-item.icon;
@@ -1067,11 +989,12 @@ export component AppSurface inherits Rectangle {
                 x: 8px;
                 y: 8px;
             }
-            if !root.dragging-is-folder && !root.dragging-app-item.has-icon: Text {
-                text: "📱";
-                font-size: 26px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            if !root.dragging-is-folder && !root.dragging-app-item.has-icon: Icon {
+                name: "app";
+                icon-size: 26px;
+                icon-color: Theme.on-surface;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
         }
     }

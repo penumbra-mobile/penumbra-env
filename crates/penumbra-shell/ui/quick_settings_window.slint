@@ -52,6 +52,7 @@ export component QuickSettingsWindow inherits Window {
     callback fast-pull-up();
     callback notification-dismissed(int);
     callback clear-notifications();
+    callback mode-changed(bool);
 
     slider := QuickSettingsSlider {
         width: 100%;
@@ -88,6 +89,7 @@ export component QuickSettingsWindow inherits Window {
         fast-pull-up => { root.fast-pull-up(); }
         notification-dismissed(i) => { root.notification-dismissed(i); }
         clear-notifications => { root.clear-notifications(); }
+        mode-changed(is_qs) => { root.mode-changed(is_qs); }
     }
 
     volume-modal := VolumeModal {

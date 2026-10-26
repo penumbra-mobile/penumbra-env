@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut pull_seq = 0u32;
     bar.on_top_bar_pulled_down({
-        move |dy| {
+        move |dy, is_qs| {
             pull_seq = pull_seq.wrapping_add(1);
             let progress = (dy as f64 / 915.0).clamp(0.0, 1.0);
             let mut state = penumbra_shell::ipc::ShellState::load();
@@ -67,19 +67,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             state.drawer_dragging = true;
             state.drawer_pull_dy = dy as f64;
             state.drawer_progress = progress;
+            state.is_full_qs = is_qs;
             let _ = state.save_with_seq(pull_seq);
             info!(
-                "Top Bar pulled down (dy={:.1}, progress={:.3}) -> signaling Quick Settings overlay transfer",
-                dy, progress
+                "Top Bar pulled down (dy={:.1}, progress={:.3}, is_qs={}) -> signaling Quick Settings overlay transfer",
+                dy, progress, is_qs
             );
         }
     });
 
-    bar.on_top_bar_released(|| {
+    bar.on_top_bar_released(|is_qs| {
         let mut state = penumbra_shell::ipc::ShellState::load();
         state.drawer_dragging = false;
+        state.is_full_qs = is_qs;
         let _ = state.save();
-        info!("Top Bar drag released -> Quick Settings takes over settle");
+        info!("Top Bar drag released (is_qs={}) -> Quick Settings takes over settle", is_qs);
     });
 
     // 3. Telemetry Clock Timer (updates every second)

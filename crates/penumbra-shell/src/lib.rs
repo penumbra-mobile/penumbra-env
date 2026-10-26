@@ -7,6 +7,7 @@ pub mod apps;
 pub mod config;
 pub mod display;
 pub mod ipc;
+pub mod notifications;
 pub mod quick_settings;
 pub mod theme;
 pub mod wallpaper;

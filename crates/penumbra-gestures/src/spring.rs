@@ -380,3 +380,65 @@ impl SpringSolver {
         }
     }
 }
+
+/// Semi-implicit Euler damped harmonic oscillator simulating physical drawer spring dynamics.
+///
+/// Equations of motion:
+/// - Displacement: $x = \text{current} - \text{target}$
+/// - Force: $F = -k \cdot x - c \cdot v$
+/// - Velocity integration: $v_{t+dt} = v_t + F \cdot dt$
+/// - Position integration: $x_{t+dt} = x_t + v_{t+dt} \cdot dt$
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DampedSpring {
+    pub current: f32,
+    pub target: f32,
+    pub velocity: f32,
+    pub stiffness: f32, // ~320.0
+    pub damping: f32,   // ~28.0
+}
+
+impl DampedSpring {
+    /// Creates a new `DampedSpring` with default parameters ($k = 320.0$, $c = 28.0$).
+    pub fn new(current: f32, target: f32) -> Self {
+        Self {
+            current,
+            target,
+            velocity: 0.0,
+            stiffness: 320.0,
+            damping: 28.0,
+        }
+    }
+
+    /// Creates a `DampedSpring` with explicit stiffness and damping constants.
+    pub fn with_params(current: f32, target: f32, stiffness: f32, damping: f32) -> Self {
+        Self {
+            current,
+            target,
+            velocity: 0.0,
+            stiffness,
+            damping,
+        }
+    }
+
+    /// Advances the spring by `dt` seconds using semi-implicit Euler integration.
+    ///
+    /// Returns `true` if the oscillator is still in motion, or `false` once settled.
+    pub fn step(&mut self, dt: f32) -> bool {
+        let displacement = self.current - self.target;
+        let force = -self.stiffness * displacement - self.damping * self.velocity;
+
+        self.velocity += force * dt;
+        self.current += self.velocity * dt;
+
+        let at_target = (self.current - self.target).abs() < 0.001;
+        let at_rest = self.velocity.abs() < 0.005;
+
+        if at_target && at_rest {
+            self.current = self.target;
+            self.velocity = 0.0;
+            return false; // Settled
+        }
+        true // Still moving
+    }
+}
+

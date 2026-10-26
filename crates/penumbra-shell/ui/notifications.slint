@@ -1,0 +1,326 @@
+import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
+
+export struct NotificationData {
+    id: string,
+    app: string,
+    title: string,
+    body: string,
+    time-text: string,
+}
+
+// =========================================================================
+// Material 3 Expressive Notification Card
+// =========================================================================
+export component NotificationCard inherits Rectangle {
+    in property <NotificationData> data;
+    in property <int> index;
+    callback dismiss(int);
+    callback clicked(int);
+
+    property <length> swipe-x: 0px;
+    property <float> touch-start-x: 0.0;
+    property <float> touch-start-y: 0.0;
+    property <bool> is-swiping: false;
+    property <bool> is-pressed: false;
+
+    height: 88px;
+    background: transparent;
+
+    card := Rectangle {
+        x: root.swipe-x;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 22px;
+        background: root.is-pressed ? #2f2d26f0 : #24221de0;
+        border-width: 1px;
+        border-color: Theme.specular-rim;
+        clip: true;
+        opacity: 1.0 - Math.clamp(Math.abs(root.swipe-x) / 160px, 0.0, 1.0);
+
+        animate x { duration: root.is-swiping ? 0ms : 220ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate opacity { duration: root.is-swiping ? 0ms : 220ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate background { duration: 150ms; }
+
+        TouchArea {
+            pointer-event(event) => {
+                if (event.kind == PointerEventKind.down) {
+                    root.touch-start-x = self.mouse-x / 1px;
+                    root.touch-start-y = self.mouse-y / 1px;
+                    root.is-pressed = true;
+                    root.is-swiping = false;
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    root.is-pressed = false;
+                    if (root.is-swiping) {
+                        root.is-swiping = false;
+                        if (Math.abs(root.swipe-x) > 85px) {
+                            root.dismiss(root.index);
+                        } else {
+                            root.swipe-x = 0px;
+                        }
+                    } else if (event.kind == PointerEventKind.up) {
+                        root.clicked(root.index);
+                    }
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    let dx = (self.mouse-x / 1px) - root.touch-start-x;
+                    let dy = (self.mouse-y / 1px) - root.touch-start-y;
+                    if (Math.abs(dx) > 10.0 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                        root.is-swiping = true;
+                        root.swipe-x = dx * 1px;
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            padding-top: 10px;
+            padding-bottom: 10px;
+            padding-left: 14px;
+            padding-right: 14px;
+            spacing: 3px;
+
+            // Header line: App icon, App name, Dot, Timestamp
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+
+                    // App icon badge
+                    Rectangle {
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 10px;
+                        background: #d0bcff;
+
+                        Icon {
+                            name: "bell";
+                            icon-size: 12px;
+                            icon-color: #381e72;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+
+                    Text {
+                        text: root.data.app;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #d0bcff;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "•";
+                        font-size: 10px;
+                        color: Theme.on-surface-variant;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: root.data.time-text != "" ? root.data.time-text : "now";
+                        font-size: 11px;
+                        font-weight: 500;
+                        color: Theme.on-surface-variant;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Options / dismiss chevron icon
+                Icon {
+                    name: "chevron-right";
+                    icon-size: 14px;
+                    icon-color: Theme.on-surface-variant;
+                }
+            }
+
+            // Title
+            Text {
+                text: root.data.title;
+                font-size: 13px;
+                font-weight: 700;
+                color: Theme.on-surface;
+                overflow: elide;
+            }
+
+            // Body
+            Text {
+                text: root.data.body;
+                font-size: 12px;
+                font-weight: 400;
+                color: Theme.on-surface-variant;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Material 3 Expressive Notification Empty State
+// =========================================================================
+export component NotificationEmptyState inherits VerticalLayout {
+    spacing: 12px;
+    alignment: center;
+
+    Rectangle {
+        width: 56px;
+        height: 56px;
+        border-radius: 28px;
+        background: #2b2930;
+        border-width: 1px;
+        border-color: Theme.specular-rim;
+        x: (parent.width - self.width) / 2;
+
+        Icon {
+            name: "bell";
+            icon-size: 26px;
+            icon-color: #938f99;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+
+    Text {
+        text: "No notifications";
+        font-size: 16px;
+        font-weight: 700;
+        color: Theme.on-surface;
+        horizontal-alignment: center;
+    }
+
+    Text {
+        text: "You're all caught up!";
+        font-size: 12px;
+        font-weight: 400;
+        color: Theme.on-surface-variant;
+        horizontal-alignment: center;
+    }
+}
+
+// =========================================================================
+// Notification Stack Container
+// =========================================================================
+export component NotificationStack inherits Rectangle {
+    in property <[NotificationData]> notifications;
+    callback dismiss-notification(int);
+    callback clear-all();
+    callback open-settings();
+
+    border-radius: 28px;
+    background: #1c1a16e6;
+    border-width: 1px;
+    border-color: Theme.specular-rim;
+    clip: true;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: stack-layout.min-height;
+
+        stack-layout := VerticalLayout {
+            padding: 14px;
+            spacing: 10px;
+
+            // Header row: Section Title & Count badge
+            HorizontalLayout {
+                alignment: space-between;
+                padding-left: 4px;
+                padding-right: 4px;
+
+                Text {
+                    text: "NOTIFICATIONS";
+                    font-size: 11px;
+                    font-weight: 800;
+                    color: #d0bcff;
+                    letter-spacing: 0.5px;
+                    vertical-alignment: center;
+                }
+
+                if root.notifications.length > 0: Rectangle {
+                    height: 20px;
+                    border-radius: 10px;
+                    background: #38353d;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        Text {
+                            text: "\{root.notifications.length}";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: #d0bcff;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // Empty state
+            if root.notifications.length == 0: NotificationEmptyState {
+                height: 220px;
+            }
+
+            // Notification cards list
+            for notif[idx] in root.notifications: NotificationCard {
+                data: notif;
+                index: idx;
+                dismiss(i) => { root.dismiss-notification(i); }
+            }
+
+            // Footer row: Clear all & Settings
+            if root.notifications.length > 0: HorizontalLayout {
+                alignment: space-between;
+                padding-top: 8px;
+                padding-left: 4px;
+                padding-right: 4px;
+
+                Rectangle {
+                    height: 38px;
+                    width: 130px;
+                    border-radius: 19px;
+                    background: clear-touch.pressed ? #3d3b34 : #2f2d26;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+
+                    clear-touch := TouchArea {
+                        clicked => { root.clear-all(); }
+                    }
+
+                    Text {
+                        text: "Clear all";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #d0bcff;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Rectangle {
+                    height: 38px;
+                    width: 44px;
+                    border-radius: 19px;
+                    background: settings-touch.pressed ? #3d3b34 : #2f2d26;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+
+                    settings-touch := TouchArea {
+                        clicked => { root.open-settings(); }
+                    }
+
+                    Icon {
+                        name: "settings";
+                        icon-size: 18px;
+                        icon-color: Theme.on-surface-variant;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+        }
+    }
+}

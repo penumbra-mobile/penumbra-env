@@ -26,7 +26,7 @@ pub mod state;
 pub mod window;
 
 pub use error::LayerShellError;
-pub use platform::LayerShellPlatform;
+pub use platform::{sync_input_region, sync_surface_input_region, LayerShellPlatform};
 pub use shm::Argb8888Pixel;
 pub use window::LayerWindow;
 
