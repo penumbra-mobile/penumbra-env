@@ -27,7 +27,7 @@ use smithay::{
 
 use crate::{
     native::Canvas,
-    phone::{self, card_transform, runtime_path, write_atomic, CARD_STEP, NAV_BAR_Y, PHONE_H, PHONE_W, STATUS_BAR_H, PhoneMode},
+    phone::{card_transform, CARD_STEP, NAV_BAR_Y, PHONE_H, PHONE_W, STATUS_BAR_H, PhoneMode},
     server::PenumbraServerState,
 };
 
