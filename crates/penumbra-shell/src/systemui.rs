@@ -176,6 +176,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let spring_timer = Rc::clone(&spring_timer);
         let last_spring_time = Rc::clone(&last_spring_time);
         let qs_weak = qs_weak.clone();
+        let top_bar_weak = top_bar_weak.clone();
 
         move |target: f64, initial_vel: f64| {
             {
@@ -189,6 +190,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             let spring_timer_inner = Rc::clone(&spring_timer);
             let last_spring_time = Rc::clone(&last_spring_time);
             let qs_weak = qs_weak.clone();
+            let top_bar_weak_inner = top_bar_weak.clone();
 
             spring_timer.borrow().start(
                 TimerMode::Repeated,
@@ -209,6 +211,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         ui.set_slide_offset_y(new_y as f32);
                         ui.set_expansion_progress(progress);
                     }
+                    if let Some(tb) = top_bar_weak_inner.upgrade() {
+                        tb.set_shade_progress(progress);
+                    }
 
                     let is_settled = sp.snap_if_settled(1.0, 5.0);
                     let mut state = ShellState::load();
@@ -219,6 +224,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         if let Some(ui) = qs_weak.upgrade() {
                             ui.set_slide_offset_y(target as f32);
                             ui.set_expansion_progress(final_progress);
+                        }
+                        if let Some(tb) = top_bar_weak_inner.upgrade() {
+                            tb.set_shade_progress(final_progress);
                         }
                         state.drawer_open = target > -900.0;
                         state.drawer_pull_dy = if state.drawer_open { 915.0 } else { 0.0 };
@@ -245,6 +253,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     {
         let qs_weak = qs_weak.clone();
+        let top_bar_weak_drag = top_bar_weak.clone();
         let spring_timer = Rc::clone(&spring_timer);
         let spring_state = Rc::clone(&spring_state);
         let top_drag_velocity = Rc::clone(&top_drag_velocity);
@@ -282,6 +291,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(shade) = qs_weak.upgrade() {
                 shade.set_slide_offset_y(new_y as f32);
                 shade.set_expansion_progress(progress);
+            }
+            if let Some(tb) = top_bar_weak_drag.upgrade() {
+                tb.set_shade_progress(progress);
             }
 
             {
@@ -329,6 +341,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let spring_timer = Rc::clone(&spring_timer);
         let spring_state = Rc::clone(&spring_state);
         let qs_weak = qs_weak.clone();
+        let top_bar_weak = top_bar_weak.clone();
 
         qs.on_drag_delta(move |dy| {
             spring_timer.borrow().stop();
@@ -357,6 +370,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
                 ui.set_slide_offset_y(new_y as f32);
                 ui.set_expansion_progress(progress);
+
+                if let Some(tb) = top_bar_weak.upgrade() {
+                    tb.set_shade_progress(progress);
+                }
 
                 let mut sp = spring_state.borrow_mut();
                 sp.position = new_y;

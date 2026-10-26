@@ -39,6 +39,8 @@ pub struct LayerWindow {
     ping: calloop::ping::Ping,
     /// Per-window input normalizer translating Wayland events to Slint window events.
     input_processor: std::cell::RefCell<crate::input::InputProcessor>,
+    /// Active rendering strategy (Auto, Software, Gpu).
+    renderer_type: Cell<crate::RendererType>,
 }
 
 impl LayerWindow {
@@ -49,6 +51,7 @@ impl LayerWindow {
         initial_height: u32,
         qh: QueueHandle<AppState>,
         ping: calloop::ping::Ping,
+        renderer_type: crate::RendererType,
     ) -> Rc<Self> {
         let renderer = SoftwareRenderer::new();
         let initial_size = PhysicalSize::new(initial_width, initial_height);
@@ -76,8 +79,14 @@ impl LayerWindow {
                 qh,
                 ping,
                 input_processor: std::cell::RefCell::new(crate::input::InputProcessor::new()),
+                renderer_type: Cell::new(renderer_type),
             }
         })
+    }
+
+    /// Returns the active renderer strategy for this layer surface.
+    pub fn renderer_type(&self) -> crate::RendererType {
+        self.renderer_type.get()
     }
 
     /// Returns the underlying SCTK [`LayerSurface`].

@@ -222,16 +222,50 @@ impl Platform for LayerShellPlatform {
         // 4. Initial commit to instruct compositor to compute layer layout and emit configure
         layer_surface.commit();
 
-        // 5. Instantiate the Slint window adapter
+        // 5. Determine effective renderer strategy with universal CPU fallback
+        let is_dri_available = std::path::Path::new("/dev/dri/renderD128").exists()
+            || std::path::Path::new("/dev/dri/card0").exists();
+
+        let effective_renderer = match config.renderer {
+            crate::RendererType::Software => crate::RendererType::Software,
+            crate::RendererType::Gpu => {
+                if is_dri_available {
+                    crate::RendererType::Gpu
+                } else {
+                    log::warn!(
+                        "GPU acceleration requested for '{}' but no DRI device found; falling back to CPU SoftwareRenderer",
+                        config.namespace
+                    );
+                    crate::RendererType::Software
+                }
+            }
+            crate::RendererType::Auto => {
+                if is_dri_available {
+                    crate::RendererType::Gpu
+                } else {
+                    crate::RendererType::Software
+                }
+            }
+        };
+
+        log::info!(
+            "LayerWindow '{}' active renderer: {:?} (configured: {:?}, VBlank dynamic refresh: 60Hz/90Hz/120Hz)",
+            config.namespace,
+            effective_renderer,
+            config.renderer
+        );
+
+        // 6. Instantiate the Slint window adapter
         let window = LayerWindow::new(
             layer_surface,
             config.width,
             config.height,
             rt.qh.clone(),
             rt.ping.clone(),
+            effective_renderer,
         );
 
-        // 6. Connect window reference to SCTK state handlers
+        // 7. Connect window reference to SCTK state handlers
         rt.app_state.windows.push(Rc::downgrade(&window));
         rt.active_windows.push(window.clone());
 

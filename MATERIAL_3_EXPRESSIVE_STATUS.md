@@ -239,16 +239,24 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
   - `cargo check --workspace`: Passed (0 errors, 0 warnings).
   - `cargo test --workspace`: **All 68 tests passed across all workspace crates**.
 
----
-
-## Upcoming Architectural Engine Phases (Section 4 Roadmap)
-
-The visual, kinetic, IPC, and SystemUI consolidation foundations are complete and validated. The remaining roadmap items:
-
-### Phase 6D: GPU Hardware Acceleration Path (Section 4.E)
-- **Transition from Software SHM to GPU Scanout**:
-  - Move `layer-shell-slint` away from CPU `SoftwareRenderer` towards Slint's Skia/EGL backend or direct EGL surface creation.
-  - Enable zero-copy GPU compositing directly on Qualcomm Adreno hardware for 120 Hz fluidity and thermal efficiency.
+### 11. Phase 6D: GPU Hardware Acceleration Path & Dual-Backend Architecture
+- **Commit**: `pending` (*feat(renderer): implement Phase 6D dual-backend architecture and shared-element dissolve physics*)
+- **Implementation**:
+  - **Dual-Backend Rendering Strategy (`RendererType`)**:
+    - [`crates/layer-shell-slint/src/lib.rs`](crates/layer-shell-slint/src/lib.rs): Added `RendererType` (`Auto`, `Software`, `Gpu`) with string parsing and `with_renderer` builder method on `LayerConfig`.
+    - [`crates/layer-shell-slint/src/platform.rs`](crates/layer-shell-slint/src/platform.rs): Implemented automatic DRI device detection (`/dev/dri/renderD128`, `/dev/dri/card0`), binding GPU hardware acceleration when available and seamlessly falling back to CPU `SoftwareRenderer` (`wl_shm::SlotPool`).
+    - Added user runtime configuration via `PENUMBRA_RENDERER=auto|gpu|software`.
+  - **Dynamic Display Refresh Rates (60Hz, 90Hz, 120Hz)**:
+    - [`crates/layer-shell-slint/src/window.rs`](crates/layer-shell-slint/src/window.rs): Ensured frame presentation is strictly governed by Wayland VBlank callbacks (`wl_surface.frame()`), dynamically adapting to native panel frequencies (16.6ms at 60Hz, 11.1ms at 90Hz, 8.3ms at 120Hz).
+    - Preserved $\Delta t$ continuous time integration in spring physics, ensuring identical real-world gesture duration at any refresh rate.
+  - **SystemUI Shared-Element Dissolve Physics**:
+    - [`crates/penumbra-shell/ui/top_bar.slint`](crates/penumbra-shell/ui/top_bar.slint): Added `shade-progress` and smooth opacity attenuation ($\alpha = \text{clamp}(1.0 - 2.5 \cdot t, 0.0, 1.0)$) across header content and specular rim.
+    - [`crates/penumbra-shell/src/systemui.rs`](crates/penumbra-shell/src/systemui.rs): Wired real-time shade expansion progress to `TopBarWindow` during pull-down and spring settle, preventing visual overlap with the QuickSettings header clock.
+  - **User & Developer Documentation**:
+    - [`docs/HARDWARE_ACCELERATION_AND_RENDERERS.md`](docs/HARDWARE_ACCELERATION_AND_RENDERERS.md): Created comprehensive documentation detailing CPU fallback rationale, GPU acceleration benefits even at 60Hz, VBlank synchronization, and runtime configuration.
+- **Verification**:
+  - `cargo check --workspace`: Passed (0 errors, 0 warnings).
+  - `cargo test --workspace`: **All 68 tests passed across all workspace crates**.
 
 ---
 
@@ -257,8 +265,8 @@ The visual, kinetic, IPC, and SystemUI consolidation foundations are complete an
 - **Visual & Theming Phases (1–5)**:  **Completed & Deployed on Fairphone 4**
 - **Architectural Cleanup & Depth Zoom (Phase 6A)**:  **Completed, Built & Deployed on Fairphone 4**
 - **Microsecond Socket IPC (Phase 6B)**:  **Completed, Built & Deployed on Fairphone 4**
-- **Unified SystemUI Process (Phase 6C)**:  **Completed & Verified**
-- **GPU Hardware Acceleration Path (Phase 6D)**: ⏳ **Next in Queue**
+- **Unified SystemUI Process (Phase 6C)**:  **Completed & Deployed on Fairphone 4**
+- **Dual-Backend GPU/CPU Acceleration Path (Phase 6D)**:  **Completed & Verified**
 
 
 

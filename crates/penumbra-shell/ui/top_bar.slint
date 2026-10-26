@@ -14,6 +14,7 @@ export component TopBarWindow inherits Window {
     in-out property <int> wifi-signal: 100;
     in-out property <string> carrier-text: "Penumbra";
     in-out property <bool> privacy-active: false;
+    in-out property <float> shade-progress: 0.0;
 
     callback top-bar-pulled-down(float /* dy */);
     callback top-bar-released();
@@ -56,12 +57,14 @@ export component TopBarWindow inherits Window {
         width: parent.width;
         height: 1px;
         background: Theme.specular-rim;
+        opacity: Math.clamp(1.0 - root.shade-progress * 2.5, 0.0, 1.0);
     }
 
     HorizontalLayout {
         padding-left: 16px;
         padding-right: 16px;
         alignment: space-between;
+        opacity: Math.clamp(1.0 - root.shade-progress * 2.5, 0.0, 1.0);
 
         // Left Container: Time and Privacy Indicator
         HorizontalLayout {

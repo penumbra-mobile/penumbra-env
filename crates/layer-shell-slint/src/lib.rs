@@ -90,6 +90,32 @@ mod tests {
     }
 }
 
+/// Supported rendering backend strategies for native layer-shell surfaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RendererType {
+    /// Automatically probe and select the best available renderer.
+    /// Prefers GPU acceleration when available; seamlessly falls back to CPU SHM.
+    #[default]
+    Auto,
+    /// Force CPU software rasterization into Wayland Shared Memory (`wl_shm`).
+    /// Universal failsafe for all Linux mobile hardware (PinePhone, recovery, software DRM).
+    Software,
+    /// Force Hardware GPU rendering path (e.g. Qualcomm Adreno, Mali, Panfrost).
+    Gpu,
+}
+
+impl std::str::FromStr for RendererType {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.trim().to_ascii_lowercase().as_str() {
+            "gpu" | "egl" | "hardware" | "hw" => Self::Gpu,
+            "software" | "sw" | "shm" | "cpu" => Self::Software,
+            _ => Self::Auto,
+        })
+    }
+}
+
 /// Declarative configuration for creating a Wayland layer shell surface.
 #[derive(Debug, Clone)]
 pub struct LayerConfig {
@@ -109,10 +135,17 @@ pub struct LayerConfig {
     pub exclusive_zone: i32,
     /// Level of keyboard focus grabbed by this layer surface.
     pub keyboard_interactivity: KeyboardInteractivity,
+    /// Selected rendering backend (Auto, Software, Gpu).
+    pub renderer: RendererType,
 }
 
 impl Default for LayerConfig {
     fn default() -> Self {
+        let renderer = std::env::var("PENUMBRA_RENDERER")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(RendererType::Auto);
+
         Self {
             namespace: "layer-shell-slint".to_string(),
             layer: Layer::Top,
@@ -122,6 +155,7 @@ impl Default for LayerConfig {
             margin: (0, 0, 0, 0),
             exclusive_zone: 48,
             keyboard_interactivity: KeyboardInteractivity::None,
+            renderer,
         }
     }
 }
@@ -140,6 +174,7 @@ impl LayerConfig {
             margin: (0, 0, 0, 0),
             exclusive_zone: height as i32,
             keyboard_interactivity: KeyboardInteractivity::None,
+            renderer: RendererType::Auto,
         }
     }
 
@@ -156,6 +191,7 @@ impl LayerConfig {
             margin: (0, 0, 0, 0),
             exclusive_zone: height as i32,
             keyboard_interactivity: KeyboardInteractivity::None,
+            renderer: RendererType::Auto,
         }
     }
 
@@ -172,6 +208,7 @@ impl LayerConfig {
             margin: (0, 0, 0, 0),
             exclusive_zone: -1,
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
+            renderer: RendererType::Auto,
         }
     }
 
@@ -215,6 +252,12 @@ impl LayerConfig {
     /// Sets the keyboard interactivity mode (`None`, `Exclusive`, or `OnDemand`).
     pub fn with_keyboard_interactivity(mut self, interactivity: KeyboardInteractivity) -> Self {
         self.keyboard_interactivity = interactivity;
+        self
+    }
+
+    /// Sets the rendering backend strategy (`Auto`, `Software`, `Gpu`).
+    pub fn with_renderer(mut self, renderer: RendererType) -> Self {
+        self.renderer = renderer;
         self
     }
 }
