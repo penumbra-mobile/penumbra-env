@@ -17,7 +17,36 @@ export struct NotificationData {
 }
 
 // =========================================================================
-// Material 3 Expressive Notification Card
+// Material 3 Expressive Action Pill Chip
+// =========================================================================
+component ActionChip inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    height: 30px;
+    border-radius: 15px;
+    background: Theme.surface-container-high;
+    border-width: 1px;
+    border-color: Theme.specular-rim;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: center;
+        Text {
+            text: root.label;
+            font-size: 11px;
+            font-weight: 600;
+            color: Theme.on-surface;
+            vertical-alignment: center;
+        }
+    }
+
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+// =========================================================================
+// Material 3 Expressive Notification Card (Grouped inside Glass Sheet)
 // =========================================================================
 component NotificationCard inherits Rectangle {
     in property <NotificationData> data;
@@ -28,15 +57,15 @@ component NotificationCard inherits Rectangle {
     property <float> touch-start-x: 0.0;
     property <bool> is-swiping: false;
 
-    height: 72px;
+    height: 96px;
     background: transparent;
 
     card := Rectangle {
         x: root.swipe-x;
         width: parent.width;
         height: parent.height;
-        border-radius: Theme.radius-item;
-        background: Theme.surface-container-low;
+        border-radius: 20px;
+        background: #2a2822a0;
         border-width: 1px;
         border-color: Theme.specular-rim;
         opacity: 1.0 - Math.clamp(Math.abs(root.swipe-x) / 180px, 0.0, 1.0);
@@ -66,67 +95,90 @@ component NotificationCard inherits Rectangle {
             }
         }
 
-        HorizontalLayout {
+        VerticalLayout {
+            padding: 10px;
             padding-left: 14px;
             padding-right: 14px;
-            spacing: 12px;
-            alignment: center;
+            spacing: 6px;
 
-            Rectangle {
-                width: 38px;
-                height: 38px;
-                border-radius: Theme.radius-pill;
-                background: Theme.primary-container;
+            // Header line: Avatar, App name • time, expand chevron
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: space-between;
+
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: center;
+                    Rectangle {
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 11px;
+                        background: Theme.primary;
+                        Icon {
+                            name: "bell";
+                            icon-size: 13px;
+                            icon-color: Theme.on-primary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+                    Text {
+                        text: "\{root.data.app} • acum";
+                        font-size: 11px;
+                        font-weight: 500;
+                        color: Theme.on-surface-variant;
+                    }
+                }
+
                 Icon {
-                    name: "bell";
-                    icon-size: 19px;
-                    icon-color: Theme.primary;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
+                    name: "chevron-down";
+                    icon-size: 14px;
+                    icon-color: Theme.on-surface-variant;
                 }
             }
 
+            // Body text
             VerticalLayout {
-                horizontal-stretch: 1;
-                alignment: center;
                 spacing: 2px;
                 Text {
-                    text: root.data.app;
-                    font-size: Theme.font-caption;
-                    color: Theme.on-surface-variant;
-                    overflow: elide;
-                }
-                Text {
                     text: root.data.title;
-                    font-size: Theme.font-body;
+                    font-size: 13px;
                     font-weight: 700;
                     color: Theme.on-surface;
                     overflow: elide;
                 }
                 Text {
                     text: root.data.body;
-                    font-size: Theme.font-caption;
+                    font-size: 11px;
                     color: Theme.on-surface-variant;
                     overflow: elide;
                 }
+            }
+
+            // Quick actions line
+            HorizontalLayout {
+                spacing: 8px;
+                ActionChip { label: "Răspunde"; }
+                ActionChip { label: "Marchează ca citit"; }
             }
         }
     }
 }
 
 // =========================================================================
-// Material 3 Expressive Tile View (2-Column Pastille with Tactile Squash)
+// Material 3 Expressive Wide Pastille Tile
 // =========================================================================
-component TileView inherits Rectangle {
+component WideTile inherits Rectangle {
     in property <TileData> data;
     callback clicked();
     callback long-pressed();
 
-    property <float> touch-start-x: 0.0;
-    property <float> touch-start-y: 0.0;
     property <bool> is-down: false;
     property <bool> did-long-press: false;
+    property <float> touch-start-x: 0.0;
+    property <float> touch-start-y: 0.0;
 
+    height: 54px;
     background: transparent;
     opacity: root.data.enabled ? 1.0 : 0.5;
 
@@ -142,76 +194,63 @@ component TileView inherits Rectangle {
         }
     }
 
-    // Inner tile pastille that squashes 0.96x on pointer down
-    inner-tile := Rectangle {
-        property <length> squash-dx: root.is-down ? 2.5px : 0px;
-        property <length> squash-dy: root.is-down ? 1.5px : 0px;
+    inner := Rectangle {
+        property <length> squash-dx: root.is-down ? 2px : 0px;
+        property <length> squash-dy: root.is-down ? 1px : 0px;
 
         x: self.squash-dx;
         y: self.squash-dy;
         width: parent.width - 2 * self.squash-dx;
         height: parent.height - 2 * self.squash-dy;
 
-        border-radius: root.is-down ? Theme.radius-tile-squash : Theme.radius-tile;
-        background: !root.data.enabled ? Theme.surface-container-low : (root.data.active ? (root.is-down ? Theme.primary.brighter(8%) : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high));
+        border-radius: root.is-down ? 23px : 27px;
+        // Monet Sand / Butter pale accent when active, elevated dark container when inactive
+        background: root.data.active ? (root.is-down ? #DFD6B9 : #E8E0C5) : (root.is-down ? #32302b : #252420);
         border-width: 1px;
-        border-color: root.data.active ? Theme.specular-rim-active : Theme.specular-rim;
+        border-color: root.data.active ? #ffffff33 : Theme.specular-rim;
         clip: true;
 
         animate x, y, width, height, border-radius {
             duration: Theme.duration-short;
             easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
         }
-        animate background, border-color {
-            duration: Theme.duration-short;
-            easing: ease-out;
-        }
 
-        // Left circular icon badge
-        Rectangle {
-            width: 38px;
-            height: 38px;
-            x: 12px;
-            y: (parent.height - self.height) / 2;
-            border-radius: Theme.radius-pill;
-            background: root.data.active ? Theme.on-primary : Theme.surface-container-highest;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+            spacing: 12px;
+            alignment: start;
 
-            animate background {
-                duration: Theme.duration-short;
-                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
-            }
-
-            Icon {
-                name: root.data.icon-name;
-                icon-size: 19px;
-                icon-color: root.data.active ? Theme.primary : Theme.on-surface;
-                x: (parent.width - self.width) / 2;
+            Rectangle {
+                width: 22px;
+                height: 22px;
                 y: (parent.height - self.height) / 2;
+                Icon {
+                    name: root.data.icon-name;
+                    icon-size: 20px;
+                    icon-color: root.data.active ? #3D3720 : #E3E2E6;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
             }
-        }
 
-        // Right textual info
-        VerticalLayout {
-            x: 58px;
-            width: Math.max(0px, parent.width - 66px);
-            y: 0px;
-            height: parent.height;
-            alignment: center;
-            spacing: 2px;
-
-            Text {
-                text: root.data.title;
-                font-size: Theme.font-body;
-                font-weight: 700;
-                color: root.data.active ? Theme.on-primary : Theme.on-surface;
-                overflow: elide;
-            }
-            Text {
-                text: root.data.subtitle;
-                font-size: Theme.font-caption;
-                font-weight: 500;
-                color: root.data.active ? Theme.on-primary : Theme.on-surface-variant;
-                overflow: elide;
+            VerticalLayout {
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: root.data.title;
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: root.data.active ? #3D3720 : #E3E2E6;
+                    overflow: elide;
+                }
+                if root.data.subtitle != "": Text {
+                    text: root.data.subtitle;
+                    font-size: 10px;
+                    font-weight: 500;
+                    color: root.data.active ? #564F34 : Theme.on-surface-variant;
+                    overflow: elide;
+                }
             }
         }
     }
@@ -229,9 +268,95 @@ component TileView inherits Rectangle {
                 if (root.is-down) {
                     let dx = Math.abs((self.mouse-x / 1px) - root.touch-start-x);
                     let dy = Math.abs((self.mouse-y / 1px) - root.touch-start-y);
-                    if (dx > 12.0 || dy > 12.0) {
-                        lp-timer.running = false;
+                    if (dx > 12.0 || dy > 12.0) { lp-timer.running = false; }
+                }
+            } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                lp-timer.running = false;
+                if (root.is-down) {
+                    root.is-down = false;
+                    let dx = Math.abs((self.mouse-x / 1px) - root.touch-start-x);
+                    let dy = Math.abs((self.mouse-y / 1px) - root.touch-start-y);
+                    if (!root.did-long-press && dx < 12.0 && dy < 12.0) {
+                        root.clicked();
                     }
+                }
+            }
+        }
+    }
+}
+
+// =========================================================================
+// Material 3 Expressive Compact Squircle Tile (Wi-Fi / Mobile Data)
+// =========================================================================
+component CompactTile inherits Rectangle {
+    in property <TileData> data;
+    callback clicked();
+    callback long-pressed();
+
+    property <bool> is-down: false;
+    property <bool> did-long-press: false;
+    property <float> touch-start-x: 0.0;
+    property <float> touch-start-y: 0.0;
+
+    height: 54px;
+    background: transparent;
+    opacity: root.data.enabled ? 1.0 : 0.5;
+
+    lp-timer := Timer {
+        interval: 400ms;
+        running: false;
+        triggered => {
+            self.running = false;
+            if (root.is-down) {
+                root.did-long-press = true;
+                root.long-pressed();
+            }
+        }
+    }
+
+    inner := Rectangle {
+        property <length> squash-dx: root.is-down ? 2px : 0px;
+        property <length> squash-dy: root.is-down ? 1px : 0px;
+
+        x: self.squash-dx;
+        y: self.squash-dy;
+        width: parent.width - 2 * self.squash-dx;
+        height: parent.height - 2 * self.squash-dy;
+
+        border-radius: root.is-down ? 22px : 26px;
+        background: root.data.active ? (root.is-down ? #DFD6B9 : #E8E0C5) : (root.is-down ? #32302b : #252420);
+        border-width: 1px;
+        border-color: root.data.active ? #ffffff33 : Theme.specular-rim;
+        clip: true;
+
+        animate x, y, width, height, border-radius {
+            duration: Theme.duration-short;
+            easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+        }
+
+        Icon {
+            name: root.data.icon-name;
+            icon-size: 22px;
+            icon-color: root.data.active ? #3D3720 : #E3E2E6;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+    }
+
+    TouchArea {
+        pointer-event(event) => {
+            if (!root.data.enabled) { return; }
+            if (event.kind == PointerEventKind.down) {
+                root.touch-start-x = self.mouse-x / 1px;
+                root.touch-start-y = self.mouse-y / 1px;
+                root.is-down = true;
+                root.did-long-press = false;
+                lp-timer.running = true;
+            } else if (event.kind == PointerEventKind.move) {
+                if (root.is-down) {
+                    let dx = Math.abs((self.mouse-x / 1px) - root.touch-start-x);
+                    let dy = Math.abs((self.mouse-y / 1px) - root.touch-start-y);
+                    if (dx > 12.0 || dy > 12.0) { lp-timer.running = false; }
                 }
             } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                 lp-timer.running = false;
@@ -260,7 +385,6 @@ component SliderPill inherits Rectangle {
     property <length> stretch-offset: 0px;
     property <bool> is-dragging: false;
 
-    // Dynamic icon morphing based on fill ratio
     property <string> resolved-icon: root.icon-name == "brightness"
         ? (root.value < 0.35 ? "brightness-low" : "brightness")
         : (root.icon-name == "volume"
@@ -280,7 +404,7 @@ component SliderPill inherits Rectangle {
         height: parent.height - 2 * self.squash-y;
 
         border-radius: Theme.radius-pill;
-        background: Theme.surface-container-high;
+        background: #252420;
         border-width: 1px;
         border-color: root.is-dragging ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
@@ -290,13 +414,12 @@ component SliderPill inherits Rectangle {
             easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
         }
 
-        // Active fill level with boundary stretch expansion
         fill-bar := Rectangle {
             x: 0px;
             y: 0px;
             width: Math.clamp(parent.width * Math.clamp(root.value, 0.0, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), 0px, parent.width);
             height: parent.height;
-            background: Theme.primary;
+            background: #E8E0C5;
             border-radius: Theme.radius-pill;
 
             animate width {
@@ -321,7 +444,7 @@ component SliderPill inherits Rectangle {
                     Icon {
                         name: root.resolved-icon;
                         icon-size: 20px;
-                        icon-color: root.value > 0.08 ? Theme.on-primary : Theme.on-surface;
+                        icon-color: root.value > 0.08 ? #3D3720 : #E3E2E6;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -331,7 +454,7 @@ component SliderPill inherits Rectangle {
                     text: root.label;
                     font-size: Theme.font-label;
                     font-weight: 700;
-                    color: root.value > 0.38 ? Theme.on-primary : Theme.on-surface;
+                    color: root.value > 0.38 ? #3D3720 : #E3E2E6;
                     vertical-alignment: center;
                 }
             }
@@ -340,7 +463,7 @@ component SliderPill inherits Rectangle {
                 text: "\{Math.round(root.value * 100.0)}%";
                 font-size: Theme.font-caption;
                 font-weight: 700;
-                color: root.value > 0.88 ? Theme.on-primary : Theme.on-surface-variant;
+                color: root.value > 0.88 ? #3D3720 : Theme.on-surface-variant;
                 vertical-alignment: center;
             }
         }
@@ -383,7 +506,7 @@ component SliderPill inherits Rectangle {
 // =========================================================================
 // Circular Action Chip Button
 // =========================================================================
-component SmallButton inherits Rectangle {
+export component SmallButton inherits Rectangle {
     in property <string> label;
     in property <string> icon;
     in property <bool> accent: false;
@@ -393,14 +516,14 @@ component SmallButton inherits Rectangle {
     width: root.button-width;
     height: 36px;
     border-radius: 18px;
-    background: root.accent ? Theme.primary : Theme.surface-container-high;
+    background: root.accent ? #E8E0C5 : #252420;
     border-width: 1px;
-    border-color: root.accent ? Theme.specular-rim-active : Theme.specular-rim;
+    border-color: root.accent ? #ffffff33 : Theme.specular-rim;
 
     if root.icon != "": Icon {
         name: root.icon;
         icon-size: 18px;
-        icon-color: root.accent ? Theme.on-primary : Theme.on-surface;
+        icon-color: root.accent ? #3D3720 : #E3E2E6;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
     }
@@ -408,7 +531,7 @@ component SmallButton inherits Rectangle {
         text: root.label;
         font-size: 12px;
         font-weight: 700;
-        color: root.accent ? Theme.on-primary : Theme.on-surface;
+        color: root.accent ? #3D3720 : #E3E2E6;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -416,18 +539,17 @@ component SmallButton inherits Rectangle {
 }
 
 // =========================================================================
-// QuickSettingsSlider: 1:1 Android 17 Material 3 Expressive Quick Settings
+// QuickSettingsSlider: 1:1 Authentic Android 17 / Pixel M3 Expressive Shade
 // =========================================================================
 export component QuickSettingsSlider inherits Rectangle {
-    // Driven by Rust in [-915px, 0px]
     in-out property <length> slide-offset-y: -915px;
     in property <float> expansion-progress: 0.0;
     in-out property <bool> edit-mode: false;
 
     in-out property <float> brightness: 0.75;
     in-out property <float> volume: 0.60;
-    in-out property <string> time-text: "12:00";
-    in-out property <string> date-text: "Wednesday, Oct 21";
+    in-out property <string> time-text: "10:10";
+    in-out property <string> date-text: "Lun., 26 oct.";
     in-out property <string> carrier-text: "Penumbra 5G";
     in property <int> battery-pct: 100;
 
@@ -440,50 +562,39 @@ export component QuickSettingsSlider inherits Rectangle {
     callback settings-action();
     callback brightness-changed(float);
     callback volume-changed(float);
-    callback tile-clicked(string /* id */);
-    callback tile-long-pressed(string /* id */);
+    callback tile-clicked(string);
+    callback tile-long-pressed(string);
     callback enter-edit-mode();
     callback exit-edit-mode();
     callback reset-tiles();
     callback reorder-tiles(int, int);
     callback remove-tile(string);
     callback add-tile(string);
-    callback drag-delta(length /* dy */);
-    callback drag-released(length /* current_y */, float /* velocity */);
+    callback drag-delta(length);
+    callback drag-released(length, float);
     callback fast-pull-up();
     callback notification-dismissed(int);
     callback clear-notifications();
 
-    // Visible shade height in px (0 = closed .. 915 = fully open).
+    // Pull displacement: 0 (closed) .. 915px (fully open).
     property <length> disp: Math.clamp(root.slide-offset-y + 915px, 0px, 915px);
-    // Stage 1 (QQS) up to ~350px, then smooth progressive morph to full QS by ~750px.
+    // Continuous morph from QQS (350px) to full QS (750px+).
     property <float> morph: root.edit-mode ? 1.0 : Math.clamp((root.disp - 340px) / 380px, 0.0, 1.0);
     property <length> pad: 16px;
-    property <length> grid-top: 114px;
-    // Dynamic vertical offsets maintaining clean separation:
-    // In QQS (morph=0): Brightness is at 252px (right below Row 1).
-    // In QS (morph=1): Brightness is at 388px (below Row 3).
-    property <length> brightness-y: 252px + 136px * root.morph;
-    property <length> volume-y: root.brightness-y + 58px;
-    property <length> media-y: root.brightness-y + 116px;
-    property <length> notif-y: 316px + 264px * root.morph;
 
+    // Direct spring translation: content slides in smoothly from above the screen!
+    property <length> slide-y: -290px + Math.min(root.disp, 290px);
+
+    // Completely transparent root: allows compositor Dual-Kawase blur to show through!
     background: transparent;
 
-    // Scrim overlay below shade: darkens wallpaper and dismisses on tap
+    // Scrim touch area: dismisses shade on tap outside content
     scrim-touch := TouchArea {
         enabled: root.disp > 20px;
         y: root.disp;
         width: parent.width;
         height: Math.max(0px, parent.height - self.y);
         property <length> press-y: 0px;
-
-        Rectangle {
-            width: parent.width;
-            height: parent.height;
-            background: #00000070;
-            opacity: Math.clamp(root.disp / 350px, 0.0, 1.0);
-        }
 
         pointer-event(event) => {
             if (event.kind == PointerEventKind.down) {
@@ -500,31 +611,19 @@ export component QuickSettingsSlider inherits Rectangle {
     }
 
     // =========================================================================
-    // The Quick Settings Chassis: Solid Frosted Deep OLED Canvas
+    // The Floating Quick Settings Assembly (Translates with Spring Physics)
     // =========================================================================
     chassis := Rectangle {
         x: 0px;
-        y: 0px;
+        // Translates directly with spring motion!
+        y: root.slide-y;
         width: parent.width;
-        height: root.disp;
-        // Deep obsidian solid dark canvas: wallpaper & icons NEVER bleed through!
-        background: #0e0d14fa;
-        border-bottom-left-radius: 32px;
-        border-bottom-right-radius: 32px;
-        border-width: 1px;
-        border-color: Theme.specular-rim;
-        clip: true;
+        height: root.disp - root.slide-y;
+        // Soft transparent scrim lets compositor's Dual-Kawase blur diffuse underneath!
+        background: transparent;
+        clip: false;
 
-        // Subtle specular highlight glow on top edge
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: 1px;
-            background: Theme.specular-rim;
-        }
-
-        // Full-body gesture listener for swiping / dragging anywhere on the shade background
+        // Full-screen background touch area for drag gestures
         shade-touch := TouchArea {
             x: 0px;
             y: 0px;
@@ -573,188 +672,337 @@ export component QuickSettingsSlider inherits Rectangle {
         }
 
         // ---------------------------------------------------------------------
-        // Header: Time, Subtitle Status, and Quick Action Chips
+        // Top Status Bar Line: Time, Date, Status Icons, Battery Pill
         // ---------------------------------------------------------------------
-        VerticalLayout {
-            x: root.pad;
-            y: 44px;
-            width: parent.width - 2 * root.pad - 150px;
-            height: 48px;
-            spacing: 2px;
-            alignment: center;
-            Text {
-                text: root.time-text;
-                font-size: 26px;
-                font-weight: 800;
-                color: Theme.on-surface;
-            }
-            Text {
-                text: "\{root.date-text} • \{root.carrier-text} • \{root.battery-pct}%";
-                font-size: 11px;
-                font-weight: 500;
-                color: Theme.on-surface-variant;
-                overflow: elide;
-            }
-        }
         HorizontalLayout {
-            x: parent.width - root.pad - 138px;
-            y: 48px;
-            width: 138px;
-            height: 36px;
-            spacing: 8px;
-            alignment: end;
-            if root.morph > 0.4 || root.edit-mode: SmallButton {
-                icon: "edit";
-                button-width: 36px;
-                accent: root.edit-mode;
-                clicked => { if (root.edit-mode) { root.exit-edit-mode(); } else { root.enter-edit-mode(); } }
+            x: root.pad;
+            y: 12px;
+            width: parent.width - 2 * root.pad;
+            height: 32px;
+            alignment: space-between;
+
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+                Text {
+                    text: root.time-text;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: Theme.on-surface;
+                }
+                Text {
+                    text: root.date-text;
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: Theme.on-surface;
+                }
             }
-            SmallButton { icon: "settings"; button-width: 36px; clicked => { root.settings-action(); } }
-            SmallButton { icon: "power"; button-width: 36px; clicked => { root.power-action(); } }
+
+            HorizontalLayout {
+                spacing: 10px;
+                alignment: center;
+
+                // Alarm icon
+                Icon {
+                    name: "bell";
+                    icon-size: 16px;
+                    icon-color: Theme.on-surface;
+                }
+
+                // Cellular / Wi-Fi icon
+                Icon {
+                    name: "wifi";
+                    icon-size: 16px;
+                    icon-color: Theme.on-surface;
+                }
+
+                // Battery Pill with percentage (Screenshot 4 & 5 green pill)
+                Rectangle {
+                    height: 22px;
+                    width: 58px;
+                    border-radius: 11px;
+                    background: #48E885;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        spacing: 4px;
+                        alignment: center;
+                        Icon {
+                            name: "battery";
+                            icon-size: 12px;
+                            icon-color: #003915;
+                        }
+                        Text {
+                            text: "\{root.battery-pct}%";
+                            font-size: 11px;
+                            font-weight: 800;
+                            color: #003915;
+                        }
+                    }
+                }
+            }
         }
 
         // ---------------------------------------------------------------------
-        // Normal Mode: 2-Column Pastille Grid + Sliders + MPRIS + Notifications
+        // Quick Settings Tiles: Exact Pixel Layout (Screenshot 4 & 5)
         // ---------------------------------------------------------------------
-        if !root.edit-mode: Rectangle {
+        if !root.edit-mode: normal-mode := Rectangle {
             width: parent.width;
             height: parent.height;
 
-            // Stable 2-column pastille grid: 2 tiles per row
-            for tile[i] in root.active-tiles: TileView {
-                property <length> cw2: (parent.width - 2 * root.pad - 10px) / 2;
-                property <int> tile-col: Math.mod(i, 2);
-                property <int> tile-row: Math.floor(i / 2);
-
-                data: tile;
-                x: root.pad + self.tile-col * (self.cw2 + 10px);
-                // Rows 0 & 1 are fixed at 114px and 182px. Rows 2 & 3 unfold below.
-                y: root.grid-top + self.tile-row * 68px;
-                width: self.cw2;
-                height: 60px;
-
-                // Rows 0 & 1 (i < 4) are always visible in QQS and QS.
-                // Rows 2 & 3 (i >= 4) reveal smoothly as QS expands.
-                visible: i < 4 || root.morph > 0.05;
-                opacity: i < 4 ? 1.0 : (i < 6 ? Math.clamp((root.morph - 0.1) / 0.45, 0.0, 1.0) : Math.clamp((root.morph - 0.3) / 0.5, 0.0, 1.0));
-
-                clicked => { root.tile-clicked(tile.id); }
-                long-pressed => { root.tile-long-pressed(tile.id); }
+            property <length> r1-wide-w: parent.width - 2 * root.pad - 180px - 16px;
+            property <length> r2-w: (parent.width - 2 * root.pad - 10px) / 2;
+            property <length> media-top: 174px + 62px * root.morph;
+            property <length> notif-top: self.media-top + 84px + (root.morph > 0.15 ? 120px : 0px);
+            WideTile {
+                x: root.pad;
+                y: 48px;
+                width: parent.r1-wide-w;
+                data: root.active-tiles[0];
+                clicked => { root.tile-clicked(root.active-tiles[0].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[0].id); }
+            }
+            CompactTile {
+                x: root.pad + parent.r1-wide-w + 8px;
+                y: 48px;
+                width: 86px;
+                data: root.active-tiles[1];
+                clicked => { root.tile-clicked(root.active-tiles[1].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[1].id); }
+            }
+            CompactTile {
+                x: root.pad + parent.r1-wide-w + 86px + 16px;
+                y: 48px;
+                width: 86px;
+                data: root.active-tiles[2];
+                clicked => { root.tile-clicked(root.active-tiles[2].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[2].id); }
             }
 
-            // Brightness Slider (Always visible, smoothly tracks below active tiles)
-            SliderPill {
+            // Row 2: Two wide pastilles (e.g. Bluetooth + Flashlight)
+            WideTile {
                 x: root.pad;
-                y: root.brightness-y;
-                width: parent.width - 2 * root.pad;
-                value <=> root.brightness;
-                icon-name: "brightness";
-                label: "Brightness";
-                changed(v) => { root.brightness-changed(v); }
+                y: 110px;
+                width: parent.r2-w;
+                data: root.active-tiles[3];
+                clicked => { root.tile-clicked(root.active-tiles[3].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[3].id); }
+            }
+            WideTile {
+                x: root.pad + parent.r2-w + 10px;
+                y: 110px;
+                width: parent.r2-w;
+                data: root.active-tiles[4];
+                clicked => { root.tile-clicked(root.active-tiles[4].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[4].id); }
             }
 
-            // Media Volume Slider (Expands below brightness slider in full QS)
-            if root.morph > 0.05: SliderPill {
+            // Row 3 & 4: Unfold smoothly in full QS
+            if root.morph > 0.05: WideTile {
                 x: root.pad;
-                y: root.volume-y;
-                width: parent.width - 2 * root.pad;
-                value <=> root.volume;
-                icon-name: "volume";
-                label: "Media volume";
-                opacity: Math.clamp((root.morph - 0.15) / 0.45, 0.0, 1.0);
-                changed(v) => { root.volume-changed(v); }
+                y: 172px;
+                width: parent.r2-w;
+                data: root.active-tiles[5];
+                opacity: Math.clamp((root.morph - 0.1) / 0.45, 0.0, 1.0);
+                clicked => { root.tile-clicked(root.active-tiles[5].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[5].id); }
+            }
+            if root.morph > 0.05: WideTile {
+                x: root.pad + parent.r2-w + 10px;
+                y: 172px;
+                width: parent.r2-w;
+                data: root.active-tiles[6];
+                opacity: Math.clamp((root.morph - 0.1) / 0.45, 0.0, 1.0);
+                clicked => { root.tile-clicked(root.active-tiles[6].id); }
+                long-pressed => { root.tile-long-pressed(root.active-tiles[6].id); }
             }
 
-            // MPRIS Media Player Card
-            if root.morph > 0.15: Rectangle {
+            // -----------------------------------------------------------------
+            // Media Player Card (Screenshot 5: Spotify with circular play button)
+            // -----------------------------------------------------------------
+            Rectangle {
                 x: root.pad;
-                y: root.media-y;
+                y: normal-mode.media-top;
                 width: parent.width - 2 * root.pad;
-                height: 72px;
-                border-radius: Theme.radius-tile;
-                background: Theme.surface-container;
+                height: 76px;
+                border-radius: 26px;
+                background: #2b2024;
                 border-width: 1px;
                 border-color: Theme.specular-rim;
-                opacity: Math.clamp((root.morph - 0.25) / 0.45, 0.0, 1.0);
                 clip: true;
 
                 HorizontalLayout {
-                    padding: 12px;
+                    padding-left: 16px;
+                    padding-right: 16px;
                     spacing: 12px;
-                    Rectangle {
-                        width: 48px;
-                        height: 48px;
-                        border-radius: 14px;
-                        background: Theme.primary-container;
-                        Icon {
-                            name: "music";
-                            icon-size: 22px;
-                            icon-color: Theme.primary;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
+                    alignment: space-between;
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        alignment: center;
+                        Rectangle {
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 12px;
+                            background: #48232c;
+                            Icon {
+                                name: "music";
+                                icon-size: 20px;
+                                icon-color: #f7d8dc;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: "Spotify";
+                                font-size: 14px;
+                                font-weight: 700;
+                                color: #E3E2E6;
+                            }
+                            Text {
+                                text: "Televizorul din dormitor";
+                                font-size: 11px;
+                                color: Theme.on-surface-variant;
+                            }
                         }
                     }
-                    VerticalLayout {
+
+                    // Large circular play button (Screenshot 5)
+                    HorizontalLayout {
+                        spacing: 10px;
                         alignment: center;
-                        spacing: 2px;
-                        Text {
-                            text: "Nothing playing";
-                            font-size: 13px;
-                            font-weight: 700;
-                            color: Theme.on-surface;
+                        Rectangle {
+                            height: 26px;
+                            border-radius: 13px;
+                            background: #48232c;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                alignment: center;
+                                Text {
+                                    text: "Televizorul din ...";
+                                    font-size: 11px;
+                                    color: #f7d8dc;
+                                }
+                            }
                         }
-                        Text {
-                            text: "MPRIS player";
-                            font-size: 11px;
-                            color: Theme.on-surface-variant;
+                        Rectangle {
+                            width: 46px;
+                            height: 46px;
+                            border-radius: 23px;
+                            background: #f7d8dc;
+                            Icon {
+                                name: "play";
+                                icon-size: 22px;
+                                icon-color: #48232c;
+                                x: (parent.width - self.width) / 2 + 1px;
+                                y: (parent.height - self.height) / 2;
+                            }
                         }
                     }
                 }
             }
 
-            // Notification Stack: Sits below the active controls
-            VerticalLayout {
+            // -----------------------------------------------------------------
+            // Sliders (Revealed in Full QS)
+            // -----------------------------------------------------------------
+            if root.morph > 0.15: VerticalLayout {
                 x: root.pad;
-                y: root.notif-y;
+                y: normal-mode.media-top + 84px;
                 width: parent.width - 2 * root.pad;
                 spacing: 8px;
+                opacity: Math.clamp((root.morph - 0.2) / 0.45, 0.0, 1.0);
 
-                if root.notifications.length == 0: Text {
-                    text: "No notifications";
-                    font-size: Theme.font-label;
-                    color: Theme.on-surface-variant;
-                    horizontal-alignment: center;
+                SliderPill {
+                    value <=> root.brightness;
+                    icon-name: "brightness";
+                    label: "Brightness";
+                    changed(v) => { root.brightness-changed(v); }
                 }
-
-                for n[idx] in root.notifications: NotificationCard {
-                    data: n;
-                    index: idx;
-                    dismiss(i) => { root.notification-dismissed(i); }
+                SliderPill {
+                    value <=> root.volume;
+                    icon-name: "volume";
+                    label: "Media volume";
+                    changed(v) => { root.volume-changed(v); }
                 }
+            }
 
-                if root.notifications.length > 0: HorizontalLayout {
-                    alignment: end;
-                    padding-top: 4px;
-                    Rectangle {
-                        height: 32px;
-                        width: 92px;
-                        border-radius: Theme.radius-pill;
-                        background: clear-btn-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
-                        border-width: 1px;
-                        border-color: Theme.specular-rim;
-                        animate background { duration: Theme.duration-short; }
+            // -----------------------------------------------------------------
+            // Unified Notification Sheet (Screenshot 4 & 5 Rounded Glass Container)
+            // -----------------------------------------------------------------
+            Rectangle {
+                x: root.pad;
+                y: normal-mode.notif-top;
+                width: parent.width - 2 * root.pad;
+                height: Math.max(120px, parent.height - normal-mode.notif-top - 40px);
+                border-radius: 28px;
+                background: #23211be6;
+                border-width: 1px;
+                border-color: Theme.specular-rim;
+                clip: true;
 
-                        clear-btn-touch := TouchArea {
-                            clicked => { root.clear-notifications(); }
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 8px;
+
+                    if root.notifications.length == 0: Text {
+                        text: "No notifications";
+                        font-size: Theme.font-label;
+                        color: Theme.on-surface-variant;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        height: 60px;
+                    }
+
+                    for n[idx] in root.notifications: NotificationCard {
+                        data: n;
+                        index: idx;
+                        dismiss(i) => { root.notification-dismissed(i); }
+                    }
+
+                    // Bottom weather & settings footer pill (Screenshot 5)
+                    HorizontalLayout {
+                        alignment: space-between;
+                        padding: 6px;
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: center;
+                            Text {
+                                text: "10°";
+                                font-size: 13px;
+                                font-weight: 700;
+                                color: Theme.on-surface;
+                            }
+                            Icon {
+                                name: "bell";
+                                icon-size: 14px;
+                                icon-color: Theme.on-surface-variant;
+                            }
                         }
 
-                        Text {
-                            text: "Clear all";
-                            font-size: Theme.font-caption;
-                            font-weight: 700;
-                            color: Theme.primary;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                        if root.notifications.length > 0: Rectangle {
+                            height: 28px;
+                            width: 80px;
+                            border-radius: 14px;
+                            background: clear-btn-touch.pressed ? #3d3b34 : #2f2d26;
+                            border-width: 1px;
+                            border-color: Theme.specular-rim;
+
+                            clear-btn-touch := TouchArea {
+                                clicked => { root.clear-notifications(); }
+                            }
+                            Text {
+                                text: "Clear all";
+                                font-size: 11px;
+                                font-weight: 700;
+                                color: #E8E0C5;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
                         }
                     }
                 }
@@ -762,158 +1010,23 @@ export component QuickSettingsSlider inherits Rectangle {
         }
 
         // ---------------------------------------------------------------------
-        // Edit Mode: Reorder, Add, Remove Quick Settings Tiles
-        // ---------------------------------------------------------------------
-        if root.edit-mode: Rectangle {
-            width: parent.width;
-            height: parent.height;
-            property <length> cw: (parent.width - 2 * root.pad - 10px) / 2;
-
-            Text {
-                x: root.pad;
-                y: 92px;
-                text: "Reorder with arrows, remove with close";
-                font-size: 12px;
-                font-weight: 600;
-                color: Theme.on-surface-variant;
-            }
-            for tile[i] in root.active-tiles: Rectangle {
-                x: root.pad + Math.mod(i, 2) * (parent.cw + 10px);
-                y: 116px + Math.floor(i / 2) * 64px;
-                width: parent.cw;
-                height: 56px;
-                border-radius: 16px;
-                background: Theme.surface-container-high;
-                border-width: 1px;
-                border-color: Theme.specular-rim;
-                Text {
-                    x: 12px;
-                    width: parent.width - 108px;
-                    text: tile.title;
-                    font-size: 12px;
-                    font-weight: 600;
-                    color: Theme.on-surface;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
-                HorizontalLayout {
-                    x: parent.width - 96px;
-                    y: 13px;
-                    width: 90px;
-                    spacing: 3px;
-                    SmallButton { icon: "chevron-left"; button-width: 28px; clicked => { root.reorder-tiles(i, i - 1); } }
-                    SmallButton { icon: "chevron-right"; button-width: 28px; clicked => { root.reorder-tiles(i, i + 1); } }
-                    SmallButton { icon: "close"; button-width: 28px; clicked => { root.remove-tile(tile.id); } }
-                }
-            }
-
-            Rectangle {
-                x: root.pad;
-                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 8px;
-                width: parent.width - 2 * root.pad;
-                height: 1px;
-                background: Theme.specular-rim;
-            }
-            Text {
-                x: root.pad;
-                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 18px;
-                text: "Available tiles — tap + to add";
-                font-size: 12px;
-                font-weight: 600;
-                color: Theme.on-surface-variant;
-            }
-            for tile[i] in root.available-tiles: Rectangle {
-                x: root.pad + Math.mod(i, 2) * (parent.cw + 10px);
-                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 42px + Math.floor(i / 2) * 64px;
-                width: parent.cw;
-                height: 56px;
-                border-radius: 16px;
-                background: Theme.surface-container-low;
-                border-width: 1px;
-                border-color: Theme.specular-rim;
-                Text {
-                    x: 12px;
-                    width: parent.width - 52px;
-                    text: tile.title;
-                    font-size: 12px;
-                    color: Theme.on-surface;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
-                SmallButton {
-                    x: parent.width - 40px;
-                    y: 13px;
-                    icon: "plus";
-                    accent: true;
-                    clicked => { root.add-tile(tile.id); }
-                }
-            }
-
-            SmallButton {
-                x: root.pad;
-                y: 790px;
-                label: "Reset";
-                button-width: 96px;
-                clicked => { root.reset-tiles(); }
-            }
-            SmallButton {
-                x: parent.width - root.pad - 96px;
-                y: 790px;
-                label: "Done";
-                accent: true;
-                button-width: 96px;
-                clicked => { root.exit-edit-mode(); }
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        // Drag Handle: Glued to the bottom edge of the visible shade
+        // Drag Handle: Glued to bottom of visible shade
         // ---------------------------------------------------------------------
         Rectangle {
             x: 0px;
-            y: parent.height - 32px;
+            y: parent.height - 28px;
             width: parent.width;
-            height: 32px;
+            height: 28px;
             background: transparent;
 
             Rectangle {
                 width: 44px;
                 height: 4px;
                 x: (parent.width - self.width) / 2;
-                y: 18px;
+                y: 12px;
                 border-radius: 2px;
                 background: Theme.specular-rim-glow;
                 opacity: root.disp > 880px ? 0.35 : 0.85;
-            }
-
-            handle-touch := TouchArea {
-                property <length> press-y: 0px;
-                property <length> last-pos-y: 0px;
-                property <float> velocity: 0.0;
-
-                pointer-event(event) => {
-                    if (event.kind == PointerEventKind.down) {
-                        self.press-y = handle-touch.mouse-y;
-                        self.last-pos-y = handle-touch.mouse-y;
-                        self.velocity = 0.0;
-                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
-                        let total-dy = handle-touch.mouse-y - self.press-y;
-                        if (self.velocity < -120.0 || total-dy < -30px) {
-                            root.fast-pull-up();
-                        } else {
-                            root.drag-released(root.slide-offset-y, self.velocity);
-                        }
-                    }
-                }
-
-                moved => {
-                    if (handle-touch.pressed) {
-                        let delta = handle-touch.mouse-y - self.last-pos-y;
-                        self.velocity = self.velocity * 0.6 + (delta / 1px / 0.016) * 0.4;
-                        self.last-pos-y = handle-touch.mouse-y;
-                        root.drag-delta(delta);
-                    }
-                }
             }
         }
     }

@@ -888,12 +888,8 @@ pub(crate) fn handle(
                         );
                         server.shell_state.drawer_open = is_open;
                         server.shell_state.drawer_dragging = false;
-                        server.shell_state.drawer_pull_dy = if is_open { target_offset + (PHONE_H as f64) } else { 0.0 };
-                        server.shell_state.drawer_progress = if is_open {
-                            (server.shell_state.drawer_pull_dy / (PHONE_H as f64)).clamp(0.0, 1.0)
-                        } else {
-                            0.0
-                        };
+                        server.shell_state.drawer_pull_dy = shade_disp;
+                        server.shell_state.drawer_progress = (shade_disp / (PHONE_H as f64)).clamp(0.0, 1.0);
                         let _ = server.shell_state.save();
                     } else {
                         // Short tap on the status bar: expand compact shade (350px)

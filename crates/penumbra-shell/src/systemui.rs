@@ -884,8 +884,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     bar.set_shade_progress(progress);
                 }
                 let mut sp = spring_state.borrow_mut();
+                let now = Instant::now();
+                let mut last_t = last_spring_time.borrow_mut();
+                let dt = now.duration_since(*last_t).as_secs_f64().clamp(0.001, 0.05);
+                *last_t = now;
+                let v = (new_y - sp.position) / dt;
+                sp.velocity = sp.velocity * 0.3 + v * 0.7;
                 sp.position = new_y;
-                sp.velocity = 0.0;
             } else {
                 if *was_dragging {
                     *was_dragging = false;
@@ -895,8 +900,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         -915.0
                     };
-                    info!("Native drag completed -> spring settling to {:.1}", target_y);
-                    animate_to(target_y, 0.0);
+                    let initial_vel = spring_state.borrow().velocity.clamp(-2500.0, 2500.0);
+                    info!("Native drag completed -> spring settling to {:.1} with vel {:.1}", target_y, initial_vel);
+                    animate_to(target_y, initial_vel);
                 } else if state.drawer_open != *last_open {
                     *last_open = state.drawer_open;
                     let cur_target = spring_state.borrow().target;
