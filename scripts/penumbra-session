@@ -15,7 +15,7 @@ if [[ -z "${PENUMBRA_DBUS_WRAPPED:-}" ]] && command -v dbus-run-session >/dev/nu
     exec dbus-run-session -- "$0" "$@"
 fi
 
-export XDG_CURRENT_DESKTOP=Penumbra
+export XDG_CURRENT_DESKTOP=Penumbra:GNOME
 export XDG_SESSION_DESKTOP=Penumbra
 export XDG_SESSION_TYPE=wayland
 export GDK_BACKEND=wayland,x11
@@ -103,6 +103,16 @@ if [[ ! -S "$socket" ]]; then
 fi
 
 export WAYLAND_DISPLAY=wayland-penumbra-0
+
+# Synchronize display and desktop environment with the session D-Bus and systemd
+# This is necessary for D-Bus activated services (such as GNOME Maps / gapplication) to find the display
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DISPLAY 2>/dev/null || \
+    dbus-update-activation-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DISPLAY 2>/dev/null || true
+fi
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DISPLAY 2>/dev/null || true
+fi
 
 # Launch consolidated Penumbra SystemUI with automatic crash supervisor watchdog (Phase 7)
 if command -v penumbra-shell >/dev/null 2>&1; then

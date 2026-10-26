@@ -13,13 +13,14 @@ use smithay::{
     backend::{
         input::{
             AbsolutePositionEvent, Axis, ButtonState, InputEvent, KeyState, KeyboardKeyEvent,
-            Keycode, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent, TouchEvent,
+            Keycode, PointerAxisEvent, PointerButtonEvent, PointerMotionEvent, TouchEvent, TouchSlot,
         },
         libinput::LibinputInputBackend,
     },
     input::{
         keyboard::FilterResult,
         pointer::{AxisFrame, ButtonEvent, MotionEvent, PointerHandle},
+        touch::{DownEvent, MotionEvent as TouchMotionEvent, TouchHandle, UpEvent},
     },
     reexports::wayland_server::protocol::wl_surface::WlSurface,
     utils::{Logical, Point, Serial},
@@ -30,9 +31,6 @@ use crate::{
     phone::{card_transform, CARD_STEP, NAV_BAR_Y, PHONE_H, PHONE_W, STATUS_BAR_H, PhoneMode},
     server::PenumbraServerState,
 };
-
-/// Linux `BTN_LEFT` key code.
-const BTN_LEFT: u32 = 0x110;
 
 /// Linux hardware key codes (both raw evdev and Smithay/XKB scancodes).
 const KEY_POWER_RAW: u32 = 116;
@@ -45,9 +43,9 @@ const KEY_VOLUMEDOWN_XKB: u32 = 122;
 /// Focus target and origin for a pointer position.
 type Focus = Option<(WlSurface, Point<f64, Logical>)>;
 
-/// The finger currently driving the emulated pointer.
+/// The finger currently driving touch on a surface.
+#[derive(Clone)]
 struct TouchContact {
-    slot: i32,
     /// Surface that received the touch-down; motion stays with it until release.
     focus: Focus,
 }
@@ -84,12 +82,13 @@ pub(crate) struct ShadeTouchTracker {
 /// Input bookkeeping for the native panel.
 pub(crate) struct InputState {
     pointer: PointerHandle<PenumbraServerState>,
+    touch_handle: TouchHandle<PenumbraServerState>,
     canvas: Canvas,
     /// Panel size in physical pixels.
     panel: (i32, i32),
     serial: u32,
     started: std::time::Instant,
-    touch: Option<TouchContact>,
+    touches: std::collections::HashMap<i32, TouchContact>,
     edge_gesture: Option<EdgeBackGesture>,
     pub nav_tracker: Option<NavTouchTracker>,
     pub shade_tracker: Option<ShadeTouchTracker>,
@@ -102,16 +101,18 @@ pub(crate) struct InputState {
 impl InputState {
     pub(crate) fn new(
         pointer: PointerHandle<PenumbraServerState>,
+        touch_handle: TouchHandle<PenumbraServerState>,
         canvas: Canvas,
         panel: (i32, i32),
     ) -> Self {
         Self {
             pointer,
+            touch_handle,
             canvas,
             panel,
             serial: 0,
             started: std::time::Instant::now(),
-            touch: None,
+            touches: std::collections::HashMap::new(),
             edge_gesture: None,
             nav_tracker: None,
             shade_tracker: None,
@@ -185,13 +186,18 @@ fn hover(server: &mut PenumbraServerState, input: &mut InputState, pos: Point<f6
     send_motion(server, input, pos, focus);
 }
 
-/// Releases the emulated button when the tracked finger lifts or is cancelled.
+/// Releases the touch slot when the tracked finger lifts or is cancelled.
 fn end_touch(server: &mut PenumbraServerState, input: &mut InputState, slot: i32) {
-    if !matches!(input.touch, Some(ref contact) if contact.slot == slot) {
-        return;
+    if let Some(_contact) = input.touches.remove(&slot) {
+        let serial = input.next_serial();
+        let up_event = UpEvent {
+            slot: TouchSlot::from(if slot >= 0 { Some(slot as u32) } else { None }),
+            serial,
+            time: input.time(),
+        };
+        input.touch_handle.up(server, &up_event);
+        input.touch_handle.frame(server);
     }
-    input.touch = None;
-    send_button(server, input, BTN_LEFT, ButtonState::Released);
 }
 
 fn handle_keyboard(
@@ -444,17 +450,21 @@ pub(crate) fn handle(
                 return;
             }
 
-            // Only the first finger drives the emulated pointer.
-            if input.touch.is_some() {
-                return;
-            }
             let focus = server.phone_focus_under(pos);
-            input.touch = Some(TouchContact {
-                slot,
+            input.touches.insert(slot, TouchContact {
                 focus: focus.clone(),
             });
-            send_motion(server, input, pos, focus.clone());
-            send_button(server, input, BTN_LEFT, ButtonState::Pressed);
+            server.pointer_location = pos;
+
+            let serial = input.next_serial();
+            let down_event = DownEvent {
+                slot: event.slot(),
+                location: pos,
+                serial,
+                time: input.time(),
+            };
+            input.touch_handle.down(server, focus.clone(), &down_event);
+            input.touch_handle.frame(server);
 
             let serial = input.next_serial();
             if let Some((ref target_surf, _)) = focus {
@@ -622,11 +632,17 @@ pub(crate) fn handle(
                 }
             }
 
-            let focus = match input.touch.as_ref() {
-                Some(contact) if contact.slot == slot => contact.focus.clone(),
-                _ => return,
-            };
-            send_motion(server, input, pos, focus);
+            if let Some(contact) = input.touches.get(&slot) {
+                let focus = contact.focus.clone();
+                let motion_event = TouchMotionEvent {
+                    slot: event.slot(),
+                    location: pos,
+                    time: input.time(),
+                };
+                input.touch_handle.motion(server, focus, &motion_event);
+                input.touch_handle.frame(server);
+                server.pointer_location = pos;
+            }
         }
         InputEvent::TouchUp { event } => {
             if server.screen_blanked {
@@ -891,7 +907,7 @@ pub(crate) fn handle(
                         );
                         server.shell_state.drawer_open = is_open;
                         server.shell_state.drawer_dragging = false;
-                        server.shell_state.drawer_pull_dy = if is_open { (PHONE_H as f64) } else { 0.0 };
+                        server.shell_state.drawer_pull_dy = if is_open { PHONE_H as f64 } else { 0.0 };
                         server.shell_state.drawer_progress = if is_open { 1.0 } else { 0.0 };
                         server.shell_state.is_full_qs = shade.is_qs;
                         let _ = server.shell_state.save();
@@ -941,6 +957,10 @@ pub(crate) fn handle(
             input.shade_tracker = None;
             input.edge_gesture = None;
             end_touch(server, input, slot);
+            input.touch_handle.cancel(server);
+        }
+        InputEvent::TouchFrame { .. } => {
+            input.touch_handle.frame(server);
         }
         InputEvent::Keyboard { event } => {
             let key = event.key_code();

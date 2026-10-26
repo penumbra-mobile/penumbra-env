@@ -772,6 +772,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let mut seat = seat_state.new_wl_seat(&dh, "penumbra-seat");
     // The pointer capability carries libinput mouse input and emulated touch.
     let pointer = seat.add_pointer();
+    let touch = seat.add_touch();
     let _keyboard = seat.add_keyboard(Default::default(), 200, 200)?;
     let xdg_shell_state = XdgShellState::new::<PenumbraServerState>(&dh);
     let layer_shell_state = WlrLayerShellState::new::<PenumbraServerState>(&dh);
@@ -913,7 +914,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         display,
         server,
         clients: Vec::new(),
-        input: InputState::new(pointer, canvas, panel),
+        input: InputState::new(pointer, touch, canvas, panel),
         started: now,
         last_ipc_poll: now,
     };

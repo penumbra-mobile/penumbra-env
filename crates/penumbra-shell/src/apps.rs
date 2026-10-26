@@ -145,12 +145,16 @@ pub fn launch_app(app: &InstalledApp, target_output: Option<&str>) -> std::io::R
         app.name, command_str, socket, target
     );
 
+    let desktop =
+        std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_else(|_| "Penumbra:GNOME".to_string());
+
     std::process::Command::new("sh")
         .arg("-c")
         .arg(command_str)
         .env("WAYLAND_DISPLAY", &socket)
         .env("GDK_BACKEND", "wayland")
         .env("QT_QPA_PLATFORM", "wayland")
+        .env("XDG_CURRENT_DESKTOP", desktop)
         .spawn()?;
 
     Ok(())

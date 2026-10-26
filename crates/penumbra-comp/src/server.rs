@@ -1468,6 +1468,7 @@ impl PenumbraCompositor {
 
         let keyboard = state.seat.add_keyboard(Default::default(), 200, 200)?;
         let pointer = state.seat.add_pointer();
+        let _touch = state.seat.add_touch();
 
         // Root multi-output viewport sizing:
         // Output A: 412x915
