@@ -220,7 +220,7 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 ---
 
 ### 10. Phase 6C: Consolidated SystemUI Process (`penumbra-shell`)
-- **Commit**: `pending` (*feat(systemui): implement Phase 6C consolidated SystemUI runtime and multi-surface layer-shell platform*)
+- **Commit**: `a359779` (*feat(systemui): implement Phase 6C consolidated SystemUI runtime and multi-surface layer-shell platform*)
 - **Implementation**:
   - **Multi-Surface Layer-Shell Platform Backend**:
     - [`crates/layer-shell-slint/src/lib.rs`](crates/layer-shell-slint/src/lib.rs): Added thread-local `set_next_window_config` and `take_next_window_config` to configure distinct layer properties per Slint window instance.
