@@ -15,6 +15,10 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 3** | Fluid Elastic Sliders (Logarithmic Bounds) |  **Completed** | `crates/penumbra-shell/ui/quick_settings*` | 48/48 cargo tests passed |
 | **Phase 4** | Dynamic Monet Theming (Wallpaper Color Extraction) |  **Completed** | `crates/penumbra-services/src/theme.rs`, `penumbra-shell/src/theme.rs` | 63/63 cargo tests passed |
 | **Phase 5** | Homescreen & Floating System Insets Polish |  **Completed** | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | 63/63 cargo tests passed |
+| **Phase 6A** | Duplicate Slint/Binary Cleanup & Compositor Depth Zoom | ⏳ **Planned** | `crates/penumbra-shell/src/bin/`, `ui/quick_settings*`, `penumbra-comp` | Matrix scaling + canonical Slint |
+| **Phase 6B** | Microsecond Unix Domain Socket IPC | ⏳ **Planned** | `crates/penumbra-services/src/ipc.rs`, `penumbra-comp`, `penumbra-shell` | High-frequency gesture ring buffer |
+| **Phase 6C** | Consolidated SystemUI Process (`penumbra-shell`) | ⏳ **Planned** | `crates/penumbra-shell/src/main.rs`, `layer-shell-slint` | Unified in-memory Slint chrome |
+| **Phase 6D** | GPU Hardware Acceleration Path | ⏳ **Planned** | `crates/layer-shell-slint/src/` | Adreno EGL / Skia backend path |
 
 ---
 
@@ -180,8 +184,38 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 
 ---
 
-## Final Architecture Status: All 5 Phases Fully Implemented & Deployed on Hardware 
+## Upcoming Architectural Engine Phases (Section 4 Roadmap)
 
-All core foundations and expressive milestones specified in [`MATERIAL_3_EXPRESSIVE_PLAN.md`](MATERIAL_3_EXPRESSIVE_PLAN.md) are fully implemented, verified with comprehensive tests, and running on physical hardware.
+The visual, kinetic, and theming foundation is complete and validated on hardware. The next milestone tackles the underlying architectural engine bottlenecks defined in [`MATERIAL_3_EXPRESSIVE_PLAN.md`](MATERIAL_3_EXPRESSIVE_PLAN.md#4-architectural-mismatches-what-doesnt-fit-m3e-today):
+
+### Phase 6A: Duplicate Slint / Binary Cleanup & Compositor Depth Zoom (Sections 4.D & 4.B)
+- **Duplicate Binaries**: Prune `crates/penumbra-shell/src/bin/quicksettings.rs` in favor of canonical `quick_settings.rs`; update scripts to ensure no broken entrypoints.
+- **Divergent Slint Components**: Canonicalize `quick_settings.slint` and `quick_settings_window.slint` / `quick_settings_slider.slint` into a clean single component tree.
+- **Compositor Wallpaper Depth Zoom ($1.0 \to 0.92\times$)**:
+  - In `crates/penumbra-comp/src/server.rs`, calculate $s = 1.0 - 0.08 \cdot \text{qs\_progress}$.
+  - Apply scale transform to background wallpaper quad centered on viewport $(W/2, H/2)$ during shade pull-down.
+
+### Phase 6B: Microsecond Unix Domain Socket IPC (Section 4.C)
+- **Eliminate Disk I/O Polling**:
+  - Replace `/run/user/10000/penumbra-shell-state` flash file writes/reads with a non-blocking Unix Domain Socket (UDS) / memory-mapped event channel.
+  - Deliver sub-millisecond gesture coordinates, velocities, and progress from `penumbra-comp` to `penumbra-shell` without filesystem syscall overhead.
+
+### Phase 6C: Consolidated SystemUI Process (Section 4.A)
+- **Unify System Chrome**:
+  - Consolidate `penumbra-top-bar`, `penumbra-quicksettings`, and `penumbra-nav-bar` into a single `penumbra-shell` (SystemUI) process.
+  - Share Slint memory state between status bar elements, quick settings drawer, and navigation gestures to enable seamless shared-element animations (e.g. status bar clock smoothly morphing into QuickSettings header).
+  - Update `penumbra-session` and `deploy.sh` to run the unified SystemUI.
+
+### Phase 6D: GPU Hardware Acceleration Path (Section 4.E)
+- **Transition from Software SHM to GPU Scanout**:
+  - Move `layer-shell-slint` away from CPU `SoftwareRenderer` towards Slint's Skia/EGL backend or direct EGL surface creation.
+  - Enable zero-copy GPU compositing directly on Qualcomm Adreno hardware for 120 Hz fluidity and thermal efficiency.
+
+---
+
+## Active Status Summary
+
+- **Visual & Theming Phases (1–5)**:  **Completed & Deployed on Fairphone 4**
+- **Architectural Engine Phases (6A–6D)**: ⏳ **Documented & Queued for Implementation**
 
 
