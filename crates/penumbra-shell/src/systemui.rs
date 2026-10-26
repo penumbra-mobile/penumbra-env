@@ -272,7 +272,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .clamp(0.001, 0.1);
             let last_y = *last_top_pull_y.borrow();
             let instant_v = (pull - last_y) / dt;
-            *top_drag_velocity.borrow_mut() = *top_drag_velocity.borrow() * 0.6 + instant_v * 0.4;
+            let current_v = *top_drag_velocity.borrow();
+            *top_drag_velocity.borrow_mut() = current_v * 0.6 + instant_v * 0.4;
             *last_top_pull_y.borrow_mut() = pull;
             *last_top_pull_time.borrow_mut() = Instant::now();
 

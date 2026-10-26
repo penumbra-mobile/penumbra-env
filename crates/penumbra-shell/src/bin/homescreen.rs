@@ -451,27 +451,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    // Pulldown gesture on main screen -> opens / drags down Quick Settings
-    ui.on_homescreen_pulled_down(move |dy| {
-        let progress = (dy as f64 / 915.0).clamp(0.0, 1.0);
-        let mut state = ShellState::load();
-        state.drawer_open = true;
-        state.drawer_dragging = true;
-        state.drawer_pull_dy = dy as f64;
-        state.drawer_progress = progress;
-        let _ = state.save();
-        info!(
-            "Homescreen pulled down (dy={:.1}, progress={:.3}) -> signaling Quick Settings overlay transfer",
-            dy, progress
-        );
-    });
-
-    ui.on_homescreen_pull_released(move || {
-        let mut state = ShellState::load();
-        state.drawer_dragging = false;
-        let _ = state.save();
-        info!("Homescreen drag released -> Quick Settings takes over settle");
-    });
+    // Pulldown gesture on homescreen is managed strictly at compositor level (Phase 7)
+    ui.on_homescreen_pulled_down(|_| {});
+    ui.on_homescreen_pull_released(|| {});
 
     // 7. Dock & Homescreen Drag-and-Drop Handlers
     {

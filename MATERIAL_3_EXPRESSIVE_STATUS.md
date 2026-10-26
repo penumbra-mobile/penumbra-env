@@ -17,8 +17,9 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 | **Phase 5** | Homescreen & Floating System Insets Polish |  **Completed** | `crates/penumbra-shell/ui/homescreen.slint`, `app_surface.slint` | 63/63 cargo tests passed |
 | **Phase 6A** | Duplicate Slint/Binary Cleanup & Compositor Depth Zoom |  **Completed** | `crates/penumbra-shell/src/bin/`, `ui/quick_settings*`, `penumbra-comp` | 63/63 tests passed, depth scale verified |
 | **Phase 6B** | Microsecond Unix Domain Socket IPC |  **Completed** | `crates/penumbra-shell/src/ipc.rs`, `penumbra-comp/src/phone.rs`, `server.rs`, `quick_settings.rs` | 63/63 cargo tests passed, zero disk I/O |
-| **Phase 6C** | Consolidated SystemUI Process (`penumbra-shell`) | ⏳ **Planned** | `crates/penumbra-shell/src/main.rs`, `layer-shell-slint` | Unified in-memory Slint chrome |
-| **Phase 6D** | GPU Hardware Acceleration Path | ⏳ **Planned** | `crates/layer-shell-slint/src/` | Adreno EGL / Skia backend path |
+| **Phase 6C** | Consolidated SystemUI Process (`penumbra-shell`) |  **Completed** | `crates/penumbra-shell/src/main.rs`, `systemui.rs` | Unified in-memory Slint chrome |
+| **Phase 6D** | GPU Hardware Acceleration Path & VBlank Synchronization |  **Completed** | `crates/layer-shell-slint/src/` | Adreno EGL / Skia dual-backend path |
+| **Phase 7** | Android 17 Material 3 Expressive QuickSettings Re-architecture | ⏳ **In Progress** | `penumbra-comp/src/native_input.rs`, `penumbra-shell/src/systemui.rs`, `ui/` | Authentic Pixel Experience architecture |
 
 ---
 
@@ -260,6 +261,29 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 
 ---
 
+### 12. Phase 7: Android 17 Material 3 Expressive Quick Settings & Notification Center (Pixel Experience Architecture)
+- **Status**: ⏳ **In Progress**
+- **Objective**: Re-architect the Quick Settings & Notification shade according to Android 17 Material 3 Expressive (Pixel Experience) principles, eliminating fragile cross-process gesture conflicts, RefCell double-borrow crashes, and surface-boundary clipping.
+- **Architectural Pillars**:
+  1. **Single-Authority Gesture Pipeline**:
+     - Remove redundant, conflicting pull-down gesture handlers in `penumbra-homescreen` (`app_surface.slint` and `homescreen.rs`). The compositor (`crates/penumbra-comp/src/native_input.rs`) is the sole authority for system edge gestures.
+     - 120Hz libinput hardware velocity tracking with authentic Android 17 dual-stage progressive resistance:
+       $$\text{disp}(dy) = \begin{cases} dy & \text{if } dy \le 320\text{px} \text{ (QQS Compact threshold)} \\ 320 + (dy - 320) \times 0.85 & \text{if } dy > 320\text{px} \text{ (QS Full expansion)} \end{cases}$$
+     - Velocity-sensitive snap physics ($v_y > 400\text{px/s} \to \text{Full}$, $v_y < -120\text{px/s} \to \text{Close}$, positional thresholds).
+  2. **RefCell & Memory Safety in SystemUI**:
+     - Eliminate RefCell double-borrow bugs in `systemui.rs` by storing motion state in plain primitive copies or dedicated scope blocks.
+     - Prevent `penumbra-shell` panics that drop the top bar and navigation bar.
+  3. **Continuous Morphological Pastille UI (QQS $\to$ QS)**:
+     - **Stage 1 (QQS Compact, $0 \to 350\text{px}$)**: Compact header, 4 compact pastille tiles, active notification pastilles.
+     - **Stage 2 (QS Expanded, $350 \to 915\text{px}$)**: 2-column pastille grid with label + subtitle, M3E fluid logarithmic Brightness & Volume pastille sliders, footer system actions.
+  4. **Layer-Shell Surface Geometry & Input Isolation**:
+     - `Layer::Overlay` is hit-tested only when `drawer_open && drawer_pull_dy > 42.0` or dialogs are active.
+     - `scrim-touch` in Slint is strictly disabled when retracted (`enabled: root.disp > 20px;`), preventing touch-eating across the display.
+  5. **Process Watchdog & Session Supervisor**:
+     - Update `scripts/penumbra-session` with an automatic respawn watchdog for `penumbra-shell`, ensuring that if SystemUI ever experiences an unhandled condition, it immediately recovers within milliseconds without losing status bar or navigation chrome.
+
+---
+
 ## Active Status Summary
 
 - **Visual & Theming Phases (1–5)**:  **Completed & Deployed on Fairphone 4**
@@ -267,6 +291,7 @@ This ledger tracks implemented phases, architectural milestones, commit hashes, 
 - **Microsecond Socket IPC (Phase 6B)**:  **Completed, Built & Deployed on Fairphone 4**
 - **Unified SystemUI Process (Phase 6C)**:  **Completed & Deployed on Fairphone 4**
 - **Dual-Backend GPU/CPU Acceleration Path (Phase 6D)**:  **Completed & Verified**
+- **Android 17 M3 Expressive QuickSettings (Phase 7)**: ⏳ **In Progress**
 
 
 

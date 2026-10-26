@@ -104,9 +104,19 @@ fi
 
 export WAYLAND_DISPLAY=wayland-penumbra-0
 
-# Launch consolidated Penumbra SystemUI (TopBar, QuickSettings, and NavBar in unified process)
+# Launch consolidated Penumbra SystemUI with automatic crash supervisor watchdog (Phase 7)
 if command -v penumbra-shell >/dev/null 2>&1; then
-    penumbra-shell --systemui &
+    (
+        while kill -0 "$penumbra_comp_pid" 2>/dev/null; do
+            printf '%s [SystemUI-Supervisor] Starting penumbra-shell --systemui\n' "$(date -Iseconds)"
+            penumbra-shell --systemui || true
+            if ! kill -0 "$penumbra_comp_pid" 2>/dev/null; then
+                break
+            fi
+            printf '%s [SystemUI-Supervisor] penumbra-shell exited; recovering in 200ms...\n' "$(date -Iseconds)"
+            sleep 0.2
+        done
+    ) &
     shell_pids+=("$!")
 else
     penumbra-top-bar &
