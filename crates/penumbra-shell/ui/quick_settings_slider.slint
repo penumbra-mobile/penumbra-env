@@ -16,8 +16,9 @@ export struct NotificationData {
     body: string,
 }
 
-// Single morphing tile: `morph` 0.0 = compact icon cell, 1.0 = full pastille.
-// Stacked Notification Pastille with swipe-to-dismiss gesture
+// =========================================================================
+// Material 3 Expressive Notification Card
+// =========================================================================
 component NotificationCard inherits Rectangle {
     in property <NotificationData> data;
     in property <int> index;
@@ -66,8 +67,8 @@ component NotificationCard inherits Rectangle {
         }
 
         HorizontalLayout {
-            padding-left: 16px;
-            padding-right: 16px;
+            padding-left: 14px;
+            padding-right: 14px;
             spacing: 12px;
             alignment: center;
 
@@ -89,18 +90,34 @@ component NotificationCard inherits Rectangle {
                 horizontal-stretch: 1;
                 alignment: center;
                 spacing: 2px;
-                Text { text: root.data.app; font-size: Theme.font-caption; color: Theme.on-surface-variant; overflow: elide; }
-                Text { text: root.data.title; font-size: Theme.font-body; font-weight: 700; color: Theme.on-surface; overflow: elide; }
-                Text { text: root.data.body; font-size: Theme.font-caption; color: Theme.on-surface-variant; overflow: elide; }
+                Text {
+                    text: root.data.app;
+                    font-size: Theme.font-caption;
+                    color: Theme.on-surface-variant;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.title;
+                    font-size: Theme.font-body;
+                    font-weight: 700;
+                    color: Theme.on-surface;
+                    overflow: elide;
+                }
+                Text {
+                    text: root.data.body;
+                    font-size: Theme.font-caption;
+                    color: Theme.on-surface-variant;
+                    overflow: elide;
+                }
             }
         }
     }
 }
 
-// Single morphing tile: `morph` 0.0 = compact icon cell, 1.0 = full pastille.
-// Material 3 Expressive tactile squash: 0.96x compression on pointer down.
+// =========================================================================
+// Material 3 Expressive Tile View (2-Column Pastille with Tactile Squash)
+// =========================================================================
 component TileView inherits Rectangle {
-    in property <float> morph: 1.0;
     in property <TileData> data;
     callback clicked();
     callback long-pressed();
@@ -125,7 +142,7 @@ component TileView inherits Rectangle {
         }
     }
 
-    // Inner tile container that compresses 0.96x on pointer down
+    // Inner tile pastille that squashes 0.96x on pointer down
     inner-tile := Rectangle {
         property <length> squash-dx: root.is-down ? 2.5px : 0px;
         property <length> squash-dy: root.is-down ? 1.5px : 0px;
@@ -135,7 +152,7 @@ component TileView inherits Rectangle {
         width: parent.width - 2 * self.squash-dx;
         height: parent.height - 2 * self.squash-dy;
 
-        border-radius: root.is-down ? Theme.radius-tile-squash : (Theme.radius-item + (Theme.radius-tile - Theme.radius-item) * root.morph);
+        border-radius: root.is-down ? Theme.radius-tile-squash : Theme.radius-tile;
         background: !root.data.enabled ? Theme.surface-container-low : (root.data.active ? (root.is-down ? Theme.primary.brighter(8%) : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high));
         border-width: 1px;
         border-color: root.data.active ? Theme.specular-rim-active : Theme.specular-rim;
@@ -150,16 +167,16 @@ component TileView inherits Rectangle {
             easing: ease-out;
         }
 
-        // Icon badge slides from the cell centre (compact QQS) to the left edge (expanded QS).
+        // Left circular icon badge
         Rectangle {
             width: 38px;
             height: 38px;
-            x: (parent.width - self.width) / 2 * (1.0 - root.morph) + 12px * root.morph;
+            x: 12px;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.radius-pill;
             background: root.data.active ? Theme.on-primary : Theme.surface-container-highest;
 
-            animate x, background {
+            animate background {
                 duration: Theme.duration-short;
                 easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
             }
@@ -173,6 +190,7 @@ component TileView inherits Rectangle {
             }
         }
 
+        // Right textual info
         VerticalLayout {
             x: 58px;
             width: Math.max(0px, parent.width - 66px);
@@ -180,7 +198,6 @@ component TileView inherits Rectangle {
             height: parent.height;
             alignment: center;
             spacing: 2px;
-            opacity: Math.clamp((root.morph - 0.25) / 0.55, 0.0, 1.0);
 
             Text {
                 text: root.data.title;
@@ -192,6 +209,7 @@ component TileView inherits Rectangle {
             Text {
                 text: root.data.subtitle;
                 font-size: Theme.font-caption;
+                font-weight: 500;
                 color: root.data.active ? Theme.on-primary : Theme.on-surface-variant;
                 overflow: elide;
             }
@@ -230,6 +248,9 @@ component TileView inherits Rectangle {
     }
 }
 
+// =========================================================================
+// Material 3 Expressive Slider Pill
+// =========================================================================
 component SliderPill inherits Rectangle {
     in-out property <float> value: 0.75;
     in property <string> icon-name: "brightness";
@@ -359,19 +380,26 @@ component SliderPill inherits Rectangle {
     }
 }
 
+// =========================================================================
+// Circular Action Chip Button
+// =========================================================================
 component SmallButton inherits Rectangle {
     in property <string> label;
     in property <string> icon;
     in property <bool> accent: false;
-    in property <length> button-width: 30px;
+    in property <length> button-width: 36px;
     callback clicked();
+
     width: root.button-width;
-    height: 30px;
-    border-radius: 15px;
-    background: root.accent ? Theme.primary : Theme.surface-highest;
+    height: 36px;
+    border-radius: 18px;
+    background: root.accent ? Theme.primary : Theme.surface-container-high;
+    border-width: 1px;
+    border-color: root.accent ? Theme.specular-rim-active : Theme.specular-rim;
+
     if root.icon != "": Icon {
         name: root.icon;
-        icon-size: 16px;
+        icon-size: 18px;
         icon-color: root.accent ? Theme.on-primary : Theme.on-surface;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
@@ -387,8 +415,11 @@ component SmallButton inherits Rectangle {
     TouchArea { clicked => { root.clicked(); } }
 }
 
+// =========================================================================
+// QuickSettingsSlider: 1:1 Android 17 Material 3 Expressive Quick Settings
+// =========================================================================
 export component QuickSettingsSlider inherits Rectangle {
-    // Rust drives `slide-offset-y` in [-915px, 0px]; the visible shade height is its offset from closed.
+    // Driven by Rust in [-915px, 0px]
     in-out property <length> slide-offset-y: -915px;
     in property <float> expansion-progress: 0.0;
     in-out property <bool> edit-mode: false;
@@ -425,25 +456,34 @@ export component QuickSettingsSlider inherits Rectangle {
 
     // Visible shade height in px (0 = closed .. 915 = fully open).
     property <length> disp: Math.clamp(root.slide-offset-y + 915px, 0px, 915px);
-    // Stage 1 (QQS + notifications) up to ~300px, then continuous morph to full QS by ~700px.
-    property <float> morph: root.edit-mode ? 1.0 : Math.clamp((root.disp - 300px) / 400px, 0.0, 1.0);
+    // Stage 1 (QQS) up to ~350px, then smooth progressive morph to full QS by ~750px.
+    property <float> morph: root.edit-mode ? 1.0 : Math.clamp((root.disp - 340px) / 380px, 0.0, 1.0);
     property <length> pad: 16px;
-    property <length> grid-top: 108px;
-    property <int> n-tiles: root.active-tiles.length;
-    property <length> grid-h: Math.ceil(root.n-tiles / 2) * 76px;
-    property <length> tiles-h: 64px + (Math.max(root.grid-h, 64px) - 64px) * root.morph;
-    property <length> below-tiles: root.grid-top + root.tiles-h + 12px;
-    property <length> qs-block-h: 48px + 8px + 48px + 8px + 72px + 12px;
+    property <length> grid-top: 114px;
+    // Dynamic vertical offsets maintaining clean separation:
+    // In QQS (morph=0): Brightness is at 252px (right below Row 1).
+    // In QS (morph=1): Brightness is at 388px (below Row 3).
+    property <length> brightness-y: 252px + 136px * root.morph;
+    property <length> volume-y: root.brightness-y + 58px;
+    property <length> media-y: root.brightness-y + 116px;
+    property <length> notif-y: 316px + 264px * root.morph;
 
     background: transparent;
 
-    // Tap or swipe up on the scrim below the shade to dismiss.
+    // Scrim overlay below shade: darkens wallpaper and dismisses on tap
     scrim-touch := TouchArea {
         enabled: root.disp > 20px;
         y: root.disp;
         width: parent.width;
         height: Math.max(0px, parent.height - self.y);
         property <length> press-y: 0px;
+
+        Rectangle {
+            width: parent.width;
+            height: parent.height;
+            background: #00000070;
+            opacity: Math.clamp(root.disp / 350px, 0.0, 1.0);
+        }
 
         pointer-event(event) => {
             if (event.kind == PointerEventKind.down) {
@@ -459,16 +499,30 @@ export component QuickSettingsSlider inherits Rectangle {
         }
     }
 
-    // The shade is a window that reveals fixed content (clip), not a card that translates.
+    // =========================================================================
+    // The Quick Settings Chassis: Solid Frosted Deep OLED Canvas
+    // =========================================================================
     chassis := Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: root.disp;
-        background: transparent;
-        border-bottom-left-radius: 28px;
-        border-bottom-right-radius: 28px;
+        // Deep obsidian solid dark canvas: wallpaper & icons NEVER bleed through!
+        background: #0e0d14fa;
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        border-width: 1px;
+        border-color: Theme.specular-rim;
         clip: true;
+
+        // Subtle specular highlight glow on top edge
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 1px;
+            background: Theme.specular-rim;
+        }
 
         // Full-body gesture listener for swiping / dragging anywhere on the shade background
         shade-touch := TouchArea {
@@ -518,124 +572,152 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // ---- Header ----
+        // ---------------------------------------------------------------------
+        // Header: Time, Subtitle Status, and Quick Action Chips
+        // ---------------------------------------------------------------------
         VerticalLayout {
             x: root.pad;
-            y: 46px;
+            y: 44px;
             width: parent.width - 2 * root.pad - 150px;
-            height: 44px;
+            height: 48px;
             spacing: 2px;
             alignment: center;
             Text {
                 text: root.time-text;
-                font-size: 22px + 8px * root.morph;
+                font-size: 26px;
                 font-weight: 800;
                 color: Theme.on-surface;
             }
             Text {
                 text: "\{root.date-text} • \{root.carrier-text} • \{root.battery-pct}%";
                 font-size: 11px;
+                font-weight: 500;
                 color: Theme.on-surface-variant;
                 overflow: elide;
             }
         }
         HorizontalLayout {
             x: parent.width - root.pad - 138px;
-            y: 51px;
+            y: 48px;
             width: 138px;
-            height: 34px;
-            spacing: 6px;
+            height: 36px;
+            spacing: 8px;
             alignment: end;
-            if root.morph > 0.5 || root.edit-mode: SmallButton {
+            if root.morph > 0.4 || root.edit-mode: SmallButton {
                 icon: "edit";
-                button-width: 34px;
+                button-width: 36px;
                 accent: root.edit-mode;
                 clicked => { if (root.edit-mode) { root.exit-edit-mode(); } else { root.enter-edit-mode(); } }
             }
-            SmallButton { icon: "settings"; button-width: 34px; clicked => { root.settings-action(); } }
-            SmallButton { icon: "power"; button-width: 34px; clicked => { root.power-action(); } }
+            SmallButton { icon: "settings"; button-width: 36px; clicked => { root.settings-action(); } }
+            SmallButton { icon: "power"; button-width: 36px; clicked => { root.power-action(); } }
         }
 
-        // ---- Normal mode ----
+        // ---------------------------------------------------------------------
+        // Normal Mode: 2-Column Pastille Grid + Sliders + MPRIS + Notifications
+        // ---------------------------------------------------------------------
         if !root.edit-mode: Rectangle {
             width: parent.width;
             height: parent.height;
 
-            // Morphing tiles: compact 4-up strip -> 2-column pastille grid
+            // Stable 2-column pastille grid: 2 tiles per row
             for tile[i] in root.active-tiles: TileView {
-                property <length> cw4: (parent.width - 2 * root.pad - 30px) / 4;
-                property <length> cw2: (parent.width - 2 * root.pad - 12px) / 2;
-                property <length> cx: root.pad + i * (self.cw4 + 10px);
-                property <length> ex: root.pad + Math.mod(i, 2) * (self.cw2 + 12px);
-                property <length> ey: root.grid-top + Math.floor(i / 2) * 76px;
-                morph: root.morph;
+                property <length> cw2: (parent.width - 2 * root.pad - 10px) / 2;
+                property <int> tile-col: Math.mod(i, 2);
+                property <int> tile-row: Math.floor(i / 2);
+
                 data: tile;
-                // tiles beyond the 4th only exist in the full grid
-                visible: i < 4 || root.morph > 0.02;
-                opacity: i < 4 ? 1.0 : root.morph;
-                x: i < 4 ? self.cx + (self.ex - self.cx) * root.morph : self.ex;
-                y: root.grid-top + (self.ey - root.grid-top) * root.morph;
-                width: i < 4 ? self.cw4 + (self.cw2 - self.cw4) * root.morph : self.cw2;
-                height: 64px;
+                x: root.pad + self.tile-col * (self.cw2 + 10px);
+                // Rows 0 & 1 are fixed at 114px and 182px. Rows 2 & 3 unfold below.
+                y: root.grid-top + self.tile-row * 68px;
+                width: self.cw2;
+                height: 60px;
+
+                // Rows 0 & 1 (i < 4) are always visible in QQS and QS.
+                // Rows 2 & 3 (i >= 4) reveal smoothly as QS expands.
+                visible: i < 4 || root.morph > 0.05;
+                opacity: i < 4 ? 1.0 : (i < 6 ? Math.clamp((root.morph - 0.1) / 0.45, 0.0, 1.0) : Math.clamp((root.morph - 0.3) / 0.5, 0.0, 1.0));
+
                 clicked => { root.tile-clicked(tile.id); }
                 long-pressed => { root.tile-long-pressed(tile.id); }
             }
 
-            // Sliders + media (Stage 2)
-            if root.morph > 0.05: Rectangle {
+            // Brightness Slider (Always visible, smoothly tracks below active tiles)
+            SliderPill {
                 x: root.pad;
-                y: root.below-tiles;
+                y: root.brightness-y;
                 width: parent.width - 2 * root.pad;
-                height: root.qs-block-h;
-                opacity: Math.clamp((root.morph - 0.15) / 0.6, 0.0, 1.0);
+                value <=> root.brightness;
+                icon-name: "brightness";
+                label: "Brightness";
+                changed(v) => { root.brightness-changed(v); }
+            }
 
-                SliderPill {
-                    y: 0px;
-                    value <=> root.brightness;
-                    icon-name: "brightness";
-                    label: "Brightness";
-                    changed(v) => { root.brightness-changed(v); }
-                }
-                SliderPill {
-                    y: 56px;
-                    value <=> root.volume;
-                    icon-name: "volume";
-                    label: "Media volume";
-                    changed(v) => { root.volume-changed(v); }
-                }
-                Rectangle {
-                    y: 112px;
-                    height: 72px;
-                    border-radius: Theme.radius-tile;
-                    background: Theme.surface-low;
-                    border-width: 1px;
-                    border-color: Theme.specular-rim;
-                    HorizontalLayout {
-                        padding: 12px;
-                        spacing: 12px;
-                        Rectangle {
-                            width: 48px;
-                            height: 48px;
-                            border-radius: 12px;
-                            background: Theme.primary-container;
-                            Icon { name: "music"; icon-size: 22px; icon-color: Theme.primary; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; }
+            // Media Volume Slider (Expands below brightness slider in full QS)
+            if root.morph > 0.05: SliderPill {
+                x: root.pad;
+                y: root.volume-y;
+                width: parent.width - 2 * root.pad;
+                value <=> root.volume;
+                icon-name: "volume";
+                label: "Media volume";
+                opacity: Math.clamp((root.morph - 0.15) / 0.45, 0.0, 1.0);
+                changed(v) => { root.volume-changed(v); }
+            }
+
+            // MPRIS Media Player Card
+            if root.morph > 0.15: Rectangle {
+                x: root.pad;
+                y: root.media-y;
+                width: parent.width - 2 * root.pad;
+                height: 72px;
+                border-radius: Theme.radius-tile;
+                background: Theme.surface-container;
+                border-width: 1px;
+                border-color: Theme.specular-rim;
+                opacity: Math.clamp((root.morph - 0.25) / 0.45, 0.0, 1.0);
+                clip: true;
+
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 12px;
+                    Rectangle {
+                        width: 48px;
+                        height: 48px;
+                        border-radius: 14px;
+                        background: Theme.primary-container;
+                        Icon {
+                            name: "music";
+                            icon-size: 22px;
+                            icon-color: Theme.primary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 2px;
-                            Text { text: "Nothing playing"; font-size: 13px; font-weight: 700; color: Theme.on-surface; }
-                            Text { text: "MPRIS player"; font-size: 11px; color: Theme.on-surface-variant; }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        Text {
+                            text: "Nothing playing";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: Theme.on-surface;
+                        }
+                        Text {
+                            text: "MPRIS player";
+                            font-size: 11px;
+                            color: Theme.on-surface-variant;
                         }
                     }
                 }
             }
 
-            // Notification stack: sits under the compact strip, gets pushed down as QS expands
+            // Notification Stack: Sits below the active controls
             VerticalLayout {
                 x: root.pad;
-                y: root.below-tiles + root.qs-block-h * root.morph;
+                y: root.notif-y;
                 width: parent.width - 2 * root.pad;
-                spacing: 10px;
+                spacing: 8px;
 
                 if root.notifications.length == 0: Text {
                     text: "No notifications";
@@ -679,7 +761,9 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // ---- Edit mode ----
+        // ---------------------------------------------------------------------
+        // Edit Mode: Reorder, Add, Remove Quick Settings Tiles
+        // ---------------------------------------------------------------------
         if root.edit-mode: Rectangle {
             width: parent.width;
             height: parent.height;
@@ -687,7 +771,7 @@ export component QuickSettingsSlider inherits Rectangle {
 
             Text {
                 x: root.pad;
-                y: 88px;
+                y: 92px;
                 text: "Reorder with arrows, remove with close";
                 font-size: 12px;
                 font-weight: 600;
@@ -695,14 +779,23 @@ export component QuickSettingsSlider inherits Rectangle {
             }
             for tile[i] in root.active-tiles: Rectangle {
                 x: root.pad + Math.mod(i, 2) * (parent.cw + 10px);
-                y: 112px + Math.floor(i / 2) * 64px;
+                y: 116px + Math.floor(i / 2) * 64px;
                 width: parent.cw;
                 height: 56px;
                 border-radius: 16px;
-                background: Theme.surface-high;
+                background: Theme.surface-container-high;
                 border-width: 1px;
                 border-color: Theme.specular-rim;
-                Text { x: 12px; width: parent.width - 108px; text: tile.title; font-size: 12px; font-weight: 600; color: Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                Text {
+                    x: 12px;
+                    width: parent.width - 108px;
+                    text: tile.title;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: Theme.on-surface;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
                 HorizontalLayout {
                     x: parent.width - 96px;
                     y: 13px;
@@ -716,14 +809,14 @@ export component QuickSettingsSlider inherits Rectangle {
 
             Rectangle {
                 x: root.pad;
-                y: 112px + Math.ceil(root.active-tiles.length / 2) * 64px + 8px;
+                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 8px;
                 width: parent.width - 2 * root.pad;
                 height: 1px;
                 background: Theme.specular-rim;
             }
             Text {
                 x: root.pad;
-                y: 112px + Math.ceil(root.active-tiles.length / 2) * 64px + 18px;
+                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 18px;
                 text: "Available tiles — tap + to add";
                 font-size: 12px;
                 font-weight: 600;
@@ -731,14 +824,22 @@ export component QuickSettingsSlider inherits Rectangle {
             }
             for tile[i] in root.available-tiles: Rectangle {
                 x: root.pad + Math.mod(i, 2) * (parent.cw + 10px);
-                y: 112px + Math.ceil(root.active-tiles.length / 2) * 64px + 42px + Math.floor(i / 2) * 64px;
+                y: 116px + Math.ceil(root.active-tiles.length / 2) * 64px + 42px + Math.floor(i / 2) * 64px;
                 width: parent.cw;
                 height: 56px;
                 border-radius: 16px;
-                background: Theme.surface-low;
+                background: Theme.surface-container-low;
                 border-width: 1px;
                 border-color: Theme.specular-rim;
-                Text { x: 12px; width: parent.width - 52px; text: tile.title; font-size: 12px; color: Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                Text {
+                    x: 12px;
+                    width: parent.width - 52px;
+                    text: tile.title;
+                    font-size: 12px;
+                    color: Theme.on-surface;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
                 SmallButton {
                     x: parent.width - 40px;
                     y: 13px;
@@ -765,22 +866,24 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // ---- Drag handle, glued to the bottom of the visible shade ----
+        // ---------------------------------------------------------------------
+        // Drag Handle: Glued to the bottom edge of the visible shade
+        // ---------------------------------------------------------------------
         Rectangle {
             x: 0px;
-            y: parent.height - 36px;
+            y: parent.height - 32px;
             width: parent.width;
-            height: 36px;
+            height: 32px;
             background: transparent;
 
             Rectangle {
-                width: 48px;
-                height: 5px;
+                width: 44px;
+                height: 4px;
                 x: (parent.width - self.width) / 2;
-                y: 22px;
-                border-radius: 2.5px;
+                y: 18px;
+                border-radius: 2px;
                 background: Theme.specular-rim-glow;
-                opacity: root.disp > 880px ? 0.4 : 1.0;
+                opacity: root.disp > 880px ? 0.35 : 0.85;
             }
 
             handle-touch := TouchArea {
@@ -805,9 +908,7 @@ export component QuickSettingsSlider inherits Rectangle {
 
                 moved => {
                     if (handle-touch.pressed) {
-                        // mouse-y is relative to this (moving) area, so the delta is the true finger motion.
                         let delta = handle-touch.mouse-y - self.last-pos-y;
-                        // low-pass filtered velocity in px/s assuming ~60Hz motion events
                         self.velocity = self.velocity * 0.6 + (delta / 1px / 0.016) * 0.4;
                         self.last-pos-y = handle-touch.mouse-y;
                         root.drag-delta(delta);

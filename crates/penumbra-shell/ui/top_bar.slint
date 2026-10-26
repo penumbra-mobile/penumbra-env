@@ -60,14 +60,14 @@ export component TopBarWindow inherits Window {
         width: parent.width;
         height: 1px;
         background: Theme.specular-rim;
-        opacity: Math.clamp(1.0 - root.shade-progress * 2.5, 0.0, 1.0);
+        opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
     }
 
     HorizontalLayout {
         padding-left: 16px;
         padding-right: 16px;
         alignment: space-between;
-        opacity: Math.clamp(1.0 - root.shade-progress * 2.5, 0.0, 1.0);
+        opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
 
         // Left Container: Time and Privacy Indicator
         HorizontalLayout {
