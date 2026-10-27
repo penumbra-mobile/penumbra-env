@@ -1,3 +1,4 @@
+mod buttons;
 mod greetd;
 mod power;
 mod sessions;
@@ -256,15 +257,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     );
 
+    // Hardware physical buttons listener (Power, Vol Up, Vol Down)
+    ui.set_volume_level(buttons::get_initial_volume());
+    buttons::start_button_listener(ui.as_weak());
+
     // Callbacks
     // 1. Backspace from virtual keyboard
     let ui_weak = ui.as_weak();
     ui.on_backspace_requested(move || {
         if let Some(ui) = ui_weak.upgrade() {
-            let mut pw = ui.get_password_input().to_string();
-            pw.pop();
-            ui.set_password_input(pw.into());
-            ui.set_error_message("".into());
+            if ui.get_focused_field() == "username" {
+                let mut u = ui.get_current_username().to_string();
+                u.pop();
+                ui.set_current_username(u.into());
+            } else {
+                let mut pw = ui.get_password_input().to_string();
+                pw.pop();
+                ui.set_password_input(pw.into());
+                ui.set_error_message("".into());
+            }
         }
     });
 
