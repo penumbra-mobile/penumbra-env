@@ -89,11 +89,17 @@ component BrightnessSliderCard inherits Rectangle {
     }
 }
 
+// Timeout option item data
+struct TimeoutOption {
+    label: string,
+    seconds: int,
+}
+
 // ==============================================================================
 // Component: PageDisplay
 // ==============================================================================
 // Display, theme, and screen lock configuration subpage.
-export component PageDisplay inherits Flickable {
+export component PageDisplay inherits Rectangle {
     // Current display backlight level (0.05 to 1.0).
     in-out property <float> brightness: 0.75;
     // Whether automatic ambient light adaptation is enabled.
@@ -105,97 +111,236 @@ export component PageDisplay inherits Flickable {
     // Real screen display resolution.
     in property <string> display-resolution: "1920 × 1080 Display";
 
+    // Dialog state for screen timeout picker
+    in-out property <bool> show-timeout-picker: false;
+
     // Emitted when the user adjusts the backlight slider.
     callback brightness-changed(float);
     // Emitted when the user toggles adaptive ambient brightness.
     callback toggle-adaptive-brightness(bool);
     // Emitted when the user toggles dark theme mode.
     callback toggle-dark-theme(bool);
+    // Emitted when the user selects a screen timeout duration (seconds, display text).
+    callback screen-timeout-selected(int, string);
 
-    content := VerticalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: 12px;
-        padding-bottom: 96px;
-        spacing: 12px;
+    background: Theme.base-surface;
 
-        // Brightness Slider Card
-        BrightnessSliderCard {
-            value <=> root.brightness;
-            changed(v) => { root.brightness-changed(v); }
-        }
+    property <[TimeoutOption]> timeout-options: [
+        { label: "15 seconds", seconds: 15 },
+        { label: "30 seconds", seconds: 30 },
+        { label: "1 minute", seconds: 60 },
+        { label: "2 minutes", seconds: 120 },
+        { label: "5 minutes", seconds: 300 },
+        { label: "10 minutes", seconds: 600 },
+        { label: "Never", seconds: 0 },
+    ];
 
-        // Display Controls Card
-        VerticalLayout {
-            spacing: 8px;
-            SettingsSectionHeader { title: "Light & color"; }
-            SettingsSectionCard {
-                VerticalLayout {
-                    padding-top: 4px;
-                    padding-bottom: 4px;
+    Flickable {
+        width: 100%;
+        height: 100%;
 
-                    SettingsTile {
-                        icon-name: "brightness";
-                        icon-bg: #ffcc80;
-                        icon-tint: #4e2600;
-                        title: "Adaptive brightness";
-                        subtitle: "Optimize brightness for available ambient light";
-                        is-switch: true;
-                        switch-checked: root.adaptive-brightness;
-                        is-first: true;
-                        is-last: false;
-                        show-divider: true;
-                        toggled(val) => { root.toggle-adaptive-brightness(val); }
+        content := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 12px;
+            padding-bottom: 96px;
+            spacing: 12px;
+
+            // Brightness Slider Card
+            BrightnessSliderCard {
+                value <=> root.brightness;
+                changed(v) => { root.brightness-changed(v); }
+            }
+
+            // Display Controls Card
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Light & color"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+
+                        SettingsTile {
+                            icon-name: "brightness";
+                            icon-bg: #ffcc80;
+                            icon-tint: #4e2600;
+                            title: "Adaptive brightness";
+                            subtitle: "Optimize brightness for available ambient light";
+                            is-switch: true;
+                            switch-checked: root.adaptive-brightness;
+                            is-first: true;
+                            is-last: false;
+                            show-divider: true;
+                            toggled(val) => { root.toggle-adaptive-brightness(val); }
+                        }
+
+                        SettingsTile {
+                            icon-name: "settings";
+                            icon-bg: #d0bcff;
+                            icon-tint: #381e72;
+                            title: "Dark theme";
+                            subtitle: root.dark-theme ? "On" : "Off";
+                            is-switch: true;
+                            switch-checked: root.dark-theme;
+                            is-first: false;
+                            is-last: true;
+                            show-divider: false;
+                            toggled(val) => { root.toggle-dark-theme(val); }
+                        }
                     }
+                }
+            }
 
-                    SettingsTile {
-                        icon-name: "settings";
-                        icon-bg: #d0bcff;
-                        icon-tint: #381e72;
-                        title: "Dark theme";
-                        subtitle: root.dark-theme ? "On" : "Off";
-                        is-switch: true;
-                        switch-checked: root.dark-theme;
-                        is-first: false;
-                        is-last: true;
-                        show-divider: false;
-                        toggled(val) => { root.toggle-dark-theme(val); }
+            // Screen & Behavior
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Screen timeout & display"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+
+                        SettingsTile {
+                            icon-name: "settings";
+                            icon-bg: #7dd8fc;
+                            icon-tint: #00354e;
+                            title: "Screen timeout";
+                            subtitle: "After " + root.screen-timeout + " of inactivity";
+                            show-chevron: true;
+                            is-first: true;
+                            is-last: false;
+                            show-divider: true;
+                            clicked => { root.show-timeout-picker = true; }
+                        }
+
+                        SettingsTile {
+                            icon-name: "devices";
+                            icon-bg: #a3e8b0;
+                            icon-tint: #073919;
+                            title: "Screen resolution";
+                            subtitle: root.display-resolution;
+                            show-chevron: false;
+                            is-first: false;
+                            is-last: true;
+                            show-divider: false;
+                        }
                     }
                 }
             }
         }
+    }
 
-        // Screen & Behavior
-        VerticalLayout {
-            spacing: 8px;
-            SettingsSectionHeader { title: "Screen timeout & display"; }
-            SettingsSectionCard {
-                VerticalLayout {
-                    padding-top: 4px;
-                    padding-bottom: 4px;
+    // Modal Screen Timeout Picker Dialog
+    if root.show-timeout-picker: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
 
-                    SettingsTile {
-                        icon-name: "settings";
-                        icon-bg: #7dd8fc;
-                        icon-tint: #00354e;
-                        title: "Screen timeout";
-                        subtitle: "After " + root.screen-timeout + " of inactivity";
-                        show-chevron: true;
-                        is-first: true;
-                        is-last: false;
-                        show-divider: true;
+        TouchArea {}
+
+        Rectangle {
+            width: Math.min(parent.width - 36px, 380px);
+            border-radius: 28px;
+            background: #25232a;
+            border-width: 1px;
+            border-color: #383540;
+            y: (parent.height - self.height) / 2;
+
+            VerticalLayout {
+                padding: 24px;
+                spacing: 12px;
+
+                Text {
+                    text: "Screen timeout";
+                    font-size: 20px;
+                    font-weight: 600;
+                    color: Theme.on-surface;
+                }
+
+                Text {
+                    text: "Select inactivity duration before display turns off:";
+                    font-size: 13px;
+                    color: Theme.on-surface-variant;
+                }
+
+                Rectangle { height: 4px; }
+
+                // List of timeout options
+                for opt[idx] in root.timeout-options: Rectangle {
+                    height: 48px;
+                    border-radius: 14px;
+                    background: opt-touch.pressed ? #35333c : (root.screen-timeout == opt.label ? #323545 : transparent);
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 12px;
+
+                        // Radio circle indicator
+                        Rectangle {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            border-width: 2px;
+                            border-color: root.screen-timeout == opt.label ? #7dd8fc : #938f99;
+                            background: transparent;
+                            y: (parent.height - self.height) / 2;
+
+                            if root.screen-timeout == opt.label: Rectangle {
+                                width: 10px;
+                                height: 10px;
+                                border-radius: 5px;
+                                background: #7dd8fc;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        Text {
+                            text: opt.label;
+                            font-size: 15px;
+                            font-weight: root.screen-timeout == opt.label ? 600 : 400;
+                            color: root.screen-timeout == opt.label ? #7dd8fc : Theme.on-surface;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
                     }
 
-                    SettingsTile {
-                        icon-name: "devices";
-                        icon-bg: #a3e8b0;
-                        icon-tint: #073919;
-                        title: "Screen resolution";
-                        subtitle: root.display-resolution;
-                        show-chevron: false;
-                        is-first: false;
-                        is-last: true;
-                        show-divider: false;
+                    opt-touch := TouchArea {
+                        clicked => {
+                            root.screen-timeout = opt.label;
+                            root.show-timeout-picker = false;
+                            root.screen-timeout-selected(opt.seconds, opt.label);
+                        }
+                    }
+                }
+
+                Rectangle { height: 8px; }
+
+                HorizontalLayout {
+                    alignment: end;
+
+                    Rectangle {
+                        height: 40px;
+                        min-width: 80px;
+                        border-radius: 20px;
+                        background: cancel-touch.pressed ? #323038 : transparent;
+
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: #a8c7fa;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        cancel-touch := TouchArea {
+                            clicked => {
+                                root.show-timeout-picker = false;
+                            }
+                        }
                     }
                 }
             }

@@ -469,6 +469,8 @@ impl PenumbraServerState {
                     if let Some(toplevel) = first.window.toplevel() {
                         toplevel.with_pending_state(|state| {
                             state.states.set(xdg_toplevel::State::Activated);
+                            state.states.set(xdg_toplevel::State::Maximized);
+                            state.size = Some((PHONE_W, APP_H).into());
                         });
                         toplevel.send_configure();
                         let surf = toplevel.wl_surface().clone();
@@ -673,6 +675,8 @@ impl PenumbraServerState {
                 if let Some(toplevel) = window.toplevel() {
                     toplevel.with_pending_state(|state| {
                         state.states.set(xdg_toplevel::State::Activated);
+                        state.states.set(xdg_toplevel::State::Maximized);
+                        state.size = Some((PHONE_W, APP_H).into());
                     });
                     toplevel.send_configure();
                     let surf = toplevel.wl_surface().clone();
@@ -958,10 +962,6 @@ impl XdgShellHandler for PenumbraServerState {
 
             let serial = smithay::utils::SERIAL_COUNTER.next_serial();
             if let Some(toplevel) = window_clone.toplevel() {
-                toplevel.with_pending_state(|state| {
-                    state.states.set(xdg_toplevel::State::Activated);
-                });
-                toplevel.send_configure();
                 let surf = toplevel.wl_surface().clone();
                 if let Some(keyboard) = self.seat.get_keyboard() {
                     keyboard.set_focus(self, Some(surf), serial);

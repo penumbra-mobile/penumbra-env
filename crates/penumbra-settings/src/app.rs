@@ -20,7 +20,7 @@ use tracing::{info, warn};
 
 use penumbra_services::{
     apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
-    FingerprintManager, LockType, SecurityConfig,
+    DisplayConfig, FingerprintManager, LockType, SecurityConfig, SoundConfig,
 };
 
 use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend};
@@ -84,11 +84,21 @@ pub fn setup_app(
         window.set_battery_state_text(power.state_text.into());
         window.set_battery_saver(power.power_saver);
 
-        // Populate initial hardware brightness and media volume
-        let init_b = read_backlight_ratio().unwrap_or(0.75);
+        // Populate display & backlight settings
+        let disp_cfg = DisplayConfig::load();
+        let init_b = read_backlight_ratio().unwrap_or(disp_cfg.brightness);
         window.set_brightness(init_b as f32);
+        window.set_adaptive_brightness(disp_cfg.adaptive_brightness);
+        window.set_dark_theme(disp_cfg.dark_theme);
+
+        // Populate sound channels & preferences
+        let snd_cfg = SoundConfig::load();
         let init_v = read_volume_ratio();
         window.set_media_volume(init_v as f32);
+        window.set_call_volume(snd_cfg.call_volume as f32);
+        window.set_ring_volume(snd_cfg.ring_volume as f32);
+        window.set_dnd_enabled(snd_cfg.dnd_enabled);
+        window.set_vibrate_for_calls(snd_cfg.vibrate_for_calls);
 
         // Pre-populate search catalog
         window.set_search_results(crate::search::filter_search(""));
@@ -110,6 +120,10 @@ pub fn setup_app(
         window.set_battery_health(sys.battery_health.into());
         window.set_battery_model(sys.battery_model.into());
 
+        // Live telemetry summaries for Overview Page
+        window.set_storage_summary(sys.storage_summary.into());
+        window.set_apps_summary(sys.apps_summary.into());
+
         // Populate virtual and physical keyboard telemetry
         reload_keyboards(window);
 
@@ -121,6 +135,19 @@ pub fn setup_app(
         window.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && has_fp);
         window.set_auto_lock_timeout(sec_cfg.auto_lock_timeout_secs as i32);
         window.set_hide_sensitive_notifications(sec_cfg.hide_sensitive_notifications);
+
+        let timeout_secs = sec_cfg.auto_lock_timeout_secs;
+        let timeout_text = match timeout_secs {
+            15 => "15 seconds".to_string(),
+            30 => "30 seconds".to_string(),
+            60 => "1 minute".to_string(),
+            120 => "2 minutes".to_string(),
+            300 => "5 minutes".to_string(),
+            600 => "10 minutes".to_string(),
+            0 => "Never".to_string(),
+            s => format!("{s} seconds"),
+        };
+        window.set_screen_timeout(timeout_text.into());
     }
 
     // Search Query & Virtual Keyboard IPC Callbacks
@@ -260,6 +287,34 @@ pub fn setup_app(
     {
         let net = net_backend.clone();
         let rt = rt_handle.clone();
+        window.on_connect_ap_with_password(move |ssid, password| {
+            info!("Settings: Connect to Wi-Fi SSID '{ssid}' with password");
+            let net = net.clone();
+            let ssid = ssid.to_string();
+            let pw = password.to_string();
+            rt.spawn(async move {
+                net.connect_to_network(&ssid, Some(&pw)).await;
+            });
+        });
+    }
+
+    window.on_password_input_focused(|| {
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+        let cmd_file = std::path::PathBuf::from(runtime_dir).join("penumbra-keyboard-cmd");
+        let _ = std::fs::write(cmd_file, "show");
+        info!("Wi-Fi password input focused -> showing on-screen virtual keyboard");
+    });
+
+    window.on_password_input_dismissed(|| {
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+        let cmd_file = std::path::PathBuf::from(runtime_dir).join("penumbra-keyboard-cmd");
+        let _ = std::fs::write(cmd_file, "hide");
+        info!("Wi-Fi password input dismissed -> hiding on-screen virtual keyboard");
+    });
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
         window.on_refresh_wifi_scan(move || {
             info!("Settings: User requested Wi-Fi rescan");
             let net = net.clone();
@@ -326,11 +381,80 @@ pub fn setup_app(
         if let Err(error) = apply_backlight_ratio(v as f64) {
             tracing::warn!(?error, "Failed to apply system backlight in settings");
         }
+        let mut cfg = DisplayConfig::load();
+        cfg.brightness = v as f64;
+        let _ = cfg.save();
     });
+
+    window.on_toggle_adaptive_brightness(|val| {
+        info!("Settings: Toggle adaptive brightness -> {val}");
+        let mut cfg = DisplayConfig::load();
+        cfg.adaptive_brightness = val;
+        let _ = cfg.save();
+    });
+
+    window.on_toggle_dark_theme(|val| {
+        info!("Settings: Toggle dark theme -> {val}");
+        let mut cfg = DisplayConfig::load();
+        cfg.dark_theme = val;
+        let _ = cfg.save();
+        cfg.apply_gsettings();
+    });
+
+    {
+        let weak = ui_weak.clone();
+        window.on_screen_timeout_selected(move |seconds, label| {
+            info!("Settings: Screen timeout selected -> {seconds}s ({label})");
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.auto_lock_timeout_secs = seconds.max(0) as u32;
+            let _ = sec_cfg.save();
+
+            let mut disp_cfg = DisplayConfig::load();
+            disp_cfg.screen_timeout_secs = seconds.max(0) as u32;
+            let _ = disp_cfg.save();
+            disp_cfg.apply_gsettings();
+
+            if let Some(ui) = weak.upgrade() {
+                ui.set_screen_timeout(label);
+                ui.set_auto_lock_timeout(seconds);
+            }
+        });
+    }
 
     window.on_media_volume_changed(|v| {
         info!("Settings: Media volume changed -> {:.2}", v);
         apply_volume_ratio(v as f64);
+        let mut cfg = SoundConfig::load();
+        cfg.media_volume = v as f64;
+        let _ = cfg.save();
+    });
+
+    window.on_call_volume_changed(|v| {
+        info!("Settings: Call volume changed -> {:.2}", v);
+        let mut cfg = SoundConfig::load();
+        cfg.call_volume = v as f64;
+        let _ = cfg.save();
+    });
+
+    window.on_ring_volume_changed(|v| {
+        info!("Settings: Ring volume changed -> {:.2}", v);
+        let mut cfg = SoundConfig::load();
+        cfg.ring_volume = v as f64;
+        let _ = cfg.save();
+    });
+
+    window.on_toggle_dnd(|val| {
+        info!("Settings: Toggle DND -> {val}");
+        let mut cfg = SoundConfig::load();
+        cfg.dnd_enabled = val;
+        let _ = cfg.save();
+    });
+
+    window.on_toggle_vibrate_calls(|val| {
+        info!("Settings: Toggle vibrate for calls -> {val}");
+        let mut cfg = SoundConfig::load();
+        cfg.vibrate_for_calls = val;
+        let _ = cfg.save();
     });
 
     // Keyboard Action Callbacks

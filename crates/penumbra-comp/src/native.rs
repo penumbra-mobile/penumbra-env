@@ -307,8 +307,16 @@ fn app_elements(
             }
         }
     } else {
+        let geo_loc = expanding_task
+            .map(|t| t.window.geometry().loc)
+            .unwrap_or_default();
         elements.extend(cropped(
-            surface_elements(renderer, &surface, canvas.loc(0, APP_Y), canvas.scale),
+            surface_elements(
+                renderer,
+                &surface,
+                canvas.loc(-geo_loc.x, APP_Y - geo_loc.y),
+                canvas.scale,
+            ),
             canvas.scale,
             canvas.rect(0, APP_Y, PHONE_W, APP_H),
         ));

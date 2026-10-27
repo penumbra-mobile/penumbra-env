@@ -99,6 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 4. Instantiate Slint SettingsWindow
     let window = SettingsWindow::new()?;
+    window.window().set_size(slint::LogicalSize::new(412.0, 841.0));
     let ui_weak = window.as_weak();
 
     // Set initial page from CLI argument
@@ -133,4 +134,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.run()?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_window_geometry() {
+        let window = SettingsWindow::new().unwrap();
+        println!("Default window size: {:?}", window.window().size());
+        window.window().set_size(slint::LogicalSize::new(412.0, 841.0));
+        println!("After set_size: {:?}", window.window().size());
+    }
 }

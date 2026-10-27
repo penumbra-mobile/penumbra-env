@@ -24,12 +24,16 @@ export component PageBattery inherits Flickable {
     // Emitted when the user toggles the Battery Saver switch.
     callback toggle-battery-saver(bool);
 
-    content := VerticalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: 12px;
-        padding-bottom: 96px;
-        spacing: 12px;
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 12px;
+            padding-bottom: 96px;
+            spacing: 12px;
 
         // Battery Hero Card
         Rectangle {
@@ -157,4 +161,5 @@ export component PageBattery inherits Flickable {
             }
         }
     }
+}
 }

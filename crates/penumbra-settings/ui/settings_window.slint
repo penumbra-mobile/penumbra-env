@@ -40,8 +40,11 @@ export { WifiApData, BtDeviceData, SearchResultData, VirtualKeyboardData, Physic
 //      displayed title reactively from `active-page`.
 export component SettingsWindow inherits Window {
     title: "Penumbra Settings";
-    width: 412px;
-    height: 841px;
+    no-frame: true;
+    preferred-width: 412px;
+    preferred-height: 841px;
+    min-width: 412px;
+    min-height: 841px;
     background: Theme.base-surface;
     default-font-family: "Droid Sans";
 
@@ -112,6 +115,8 @@ export component SettingsWindow inherits Window {
     in-out property <float> ring-volume: 0.70;
     // Whether Do Not Disturb notification suppression is enabled.
     in-out property <bool> dnd-enabled: false;
+    // Whether haptic vibration is enabled for incoming voice calls.
+    in-out property <bool> vibrate-for-calls: true;
 
     // --------------------------------------------------------------------------
     // Search State & Query Callbacks
@@ -138,6 +143,8 @@ export component SettingsWindow inherits Window {
     in property <string> display-resolution: "1920 × 1080 Display";
     in property <string> battery-health: "Normal";
     in property <string> battery-model: "Li-ion Battery";
+    in property <string> storage-summary: "Calculating...";
+    in property <string> apps-summary: "Installed apps";
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Keyboard (KDE Virtual Keyboard & Physical)
@@ -161,6 +168,11 @@ export component SettingsWindow inherits Window {
     callback toggle-wifi(bool);
     // Wi-Fi connection trigger with target SSID parameter.
     callback connect-ap(string);
+    // Wi-Fi connection trigger with password parameter.
+    callback connect-ap-with-password(string, string);
+    // Wi-Fi dialog keyboard triggers.
+    callback password-input-focused();
+    callback password-input-dismissed();
     // Trigger immediate wireless beacon rescan.
     callback refresh-wifi-scan();
     // Bluetooth adapter power toggle action callback.
@@ -175,6 +187,8 @@ export component SettingsWindow inherits Window {
     callback toggle-adaptive-brightness(bool);
     // Dark theme toggle event callback.
     callback toggle-dark-theme(bool);
+    // Screen timeout selection event callback.
+    callback screen-timeout-selected(int, string);
     // Battery saver power profile toggle event callback.
     callback toggle-battery-saver(bool);
     // Media volume adjustment event callback.
@@ -185,6 +199,8 @@ export component SettingsWindow inherits Window {
     callback ring-volume-changed(float);
     // Do Not Disturb toggle event callback.
     callback toggle-dnd(bool);
+    // Call vibration toggle event callback.
+    callback toggle-vibrate-calls(bool);
     // Keyboard action callbacks.
     callback toggle-hide-on-physical(bool);
     callback select-virtual-keyboard(string);
@@ -235,6 +251,8 @@ export component SettingsWindow inherits Window {
     }
 
     VerticalLayout {
+        width: 100%;
+        height: 100%;
         spacing: 0px;
 
         // Top App Bar
@@ -269,6 +287,8 @@ export component SettingsWindow inherits Window {
                     bt-status: root.bt-enabled ? (root.bt-devices.length > 0 ? (root.bt-devices.length + " devices found") : "No devices") : "Disabled";
                     battery-status: root.battery-pct + "% • " + root.battery-state-text;
                     device-summary: root.device-model + " • " + root.os-version;
+                    storage-summary: root.storage-summary;
+                    apps-summary: root.apps-summary;
                     search-results: root.search-results;
                     search-query-changed(q) => { root.search-query-changed(q); }
                     search-focused => { root.search-focused(); }
@@ -299,6 +319,9 @@ export component SettingsWindow inherits Window {
                     access-points: root.wifi-access-points;
                     toggle-wifi(val) => { root.toggle-wifi(val); }
                     connect-ap(ssid) => { root.connect-ap(ssid); }
+                    connect-ap-with-password(ssid, pw) => { root.connect-ap-with-password(ssid, pw); }
+                    password-input-focused => { root.password-input-focused(); }
+                    password-input-dismissed => { root.password-input-dismissed(); }
                     scan-requested => { root.refresh-wifi-scan(); }
                 }
 
@@ -326,6 +349,7 @@ export component SettingsWindow inherits Window {
                     brightness-changed(v) => { root.brightness-changed(v); }
                     toggle-adaptive-brightness(v) => { root.toggle-adaptive-brightness(v); }
                     toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
+                    screen-timeout-selected(secs, lbl) => { root.screen-timeout-selected(secs, lbl); }
                 }
 
                 if root.active-page == "battery": PageBattery {
@@ -347,10 +371,12 @@ export component SettingsWindow inherits Window {
                     call-volume <=> root.call-volume;
                     ring-volume <=> root.ring-volume;
                     dnd-enabled <=> root.dnd-enabled;
+                    vibrate-for-calls <=> root.vibrate-for-calls;
                     media-volume-changed(v) => { root.media-volume-changed(v); }
                     call-volume-changed(v) => { root.call-volume-changed(v); }
                     ring-volume-changed(v) => { root.ring-volume-changed(v); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
+                    toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
                 }
 
                 if root.active-page == "about": PageAbout {

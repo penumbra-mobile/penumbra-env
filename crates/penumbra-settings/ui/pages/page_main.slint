@@ -35,6 +35,10 @@ export component PageMain inherits Rectangle {
     in property <string> battery-status: "86% • About 14 hr left";
     // Current device model & OS summary for About phone tile.
     in property <string> device-summary: "Linux Device";
+    // Current storage breakdown summary (e.g. "15.2 GB used of 118.4 GB").
+    in property <string> storage-summary: "Calculating...";
+    // Current installed applications count / summary.
+    in property <string> apps-summary: "Installed apps";
 
     // --------------------------------------------------------------------------
     // Search State
@@ -58,6 +62,8 @@ export component PageMain inherits Rectangle {
     background: Theme.base-surface;
 
     VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding: 0px;
         spacing: 0px;
 
@@ -212,10 +218,14 @@ export component PageMain inherits Rectangle {
 
         // ======================================================================
         // Body: Viewport Content
-        // ======================================================================
-        // View 1: Search Results List
-        if root.is-searching: Flickable {
+        Rectangle {
             vertical-stretch: 1;
+            clip: true;
+
+            // View 1: Search Results List
+            if root.is-searching: Flickable {
+                width: 100%;
+                height: 100%;
 
             VerticalLayout {
                 padding-left: 16px;
@@ -300,7 +310,8 @@ export component PageMain inherits Rectangle {
 
         // View 2: Android 17 Root Overview (Image 4 Replica)
         if !root.is-searching: Flickable {
-            vertical-stretch: 1;
+            width: 100%;
+            height: 100%;
 
             VerticalLayout {
                 padding-left: 16px;
@@ -356,7 +367,7 @@ export component PageMain inherits Rectangle {
                             icon-bg: #a8c7fa; // pastel periwinkle
                             icon-tint: #042b59; // deep navy
                             title: "Apps";
-                            subtitle: "Assistant, recent apps, default apps";
+                            subtitle: root.apps-summary;
                             show-chevron: false;
                             is-first: true;
                             is-last: false;
@@ -480,11 +491,11 @@ export component PageMain inherits Rectangle {
                             icon-bg: #f9d868; // pastel yellow
                             icon-tint: #3b2e00; // deep amber/brown
                             title: "Storage";
-                            subtitle: "Internal storage, system memory";
+                            subtitle: root.storage-summary;
                             show-chevron: false;
                             is-first: true;
                             is-last: false;
-                            clicked => { root.navigate-to("battery"); }
+                            clicked => { root.navigate-to("about"); }
                         }
 
                         SettingsTile {
@@ -542,4 +553,5 @@ export component PageMain inherits Rectangle {
             }
         }
     }
+}
 }

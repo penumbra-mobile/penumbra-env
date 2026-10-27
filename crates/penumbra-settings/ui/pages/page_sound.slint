@@ -106,6 +106,8 @@ export component PageSound inherits Flickable {
     in-out property <float> ring-volume: 0.70;
     // Whether Do Not Disturb mode is actively suppressing notifications.
     in-out property <bool> dnd-enabled: false;
+    // Whether haptic vibration is enabled for incoming voice calls.
+    in-out property <bool> vibrate-for-calls: true;
 
     // Emitted when the media volume slider is scrubbed.
     callback media-volume-changed(float);
@@ -115,6 +117,8 @@ export component PageSound inherits Flickable {
     callback ring-volume-changed(float);
     // Emitted when the user toggles Do Not Disturb mode.
     callback toggle-dnd(bool);
+    // Emitted when the user toggles call vibration.
+    callback toggle-vibrate-calls(bool);
 
     content := VerticalLayout {
         padding-left: 16px;
@@ -177,12 +181,13 @@ export component PageSound inherits Flickable {
                         icon-bg: #ffcc80;
                         icon-tint: #4e2600;
                         title: "Vibrate for calls";
-                        subtitle: "Always vibrate";
+                        subtitle: root.vibrate-for-calls ? "Always vibrate" : "Never vibrate";
                         is-switch: true;
-                        switch-checked: true;
+                        switch-checked: root.vibrate-for-calls;
                         is-first: false;
                         is-last: true;
                         show-divider: false;
+                        toggled(v) => { root.toggle-vibrate-calls(v); }
                     }
                 }
             }

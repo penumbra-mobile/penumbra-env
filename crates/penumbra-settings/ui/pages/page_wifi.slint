@@ -22,7 +22,7 @@ export struct WifiApData {
 // Component: PageWifi
 // ==============================================================================
 // Wi-Fi network configuration subpage adhering strictly to Android 17 design.
-export component PageWifi inherits Flickable {
+export component PageWifi inherits Rectangle {
     // Current wireless adapter power state.
     in-out property <bool> wifi-enabled: true;
     // SSID of the active wireless connection, or empty string if disconnected.
@@ -36,132 +36,346 @@ export component PageWifi inherits Flickable {
 
     // Emitted when the user toggles the master Wi-Fi power switch.
     callback toggle-wifi(bool);
-    // Emitted when the user selects an access point to initiate a connection.
+    // Emitted when the user selects an open access point to initiate a connection.
     callback connect-ap(string);
+    // Emitted when the user connects to a secured access point with a password.
+    callback connect-ap-with-password(string, string);
     // Emitted when the user requests an immediate wireless beacon rescan.
     callback scan-requested();
+    // Signals to activate the on-screen virtual keyboard.
+    callback password-input-focused();
+    // Signals to dismiss the on-screen virtual keyboard.
+    callback password-input-dismissed();
 
-    content := VerticalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: 12px;
-        padding-bottom: 96px;
-        spacing: 12px;
+    // Dialog state for WPA/WPA2 authentication
+    in-out property <bool> show-password-dialog: false;
+    in-out property <string> selected-ap-ssid: "";
+    in-out property <string> selected-ap-security: "";
+    in-out property <string> entered-password: "";
+    in-out property <bool> show-password-text: false;
 
-        // Master Switch Card
-        SettingsSectionCard {
-            SettingsTile {
-                icon-name: "wifi";
-                icon-bg: root.wifi-enabled ? #7dd8fc : #36343b;
-                icon-tint: root.wifi-enabled ? #00354e : #938f99;
-                title: "Use Wi-Fi";
-                subtitle: root.wifi-enabled ? "On" : "Off";
-                is-switch: true;
-                switch-checked: root.wifi-enabled;
-                show-divider: false;
-                is-first: true;
-                is-last: true;
-                toggled(val) => { root.toggle-wifi(val); }
-            }
-        }
+    background: Theme.base-surface;
 
-        if root.wifi-enabled: VerticalLayout {
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        content := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 12px;
+            padding-bottom: 96px;
             spacing: 12px;
 
-            // Connected Network Card
-            if root.connected-ssid != "": VerticalLayout {
-                spacing: 8px;
-                SettingsSectionHeader { title: "Connected network"; }
-                SettingsSectionCard {
-                    SettingsTile {
-                        icon-name: "wifi";
-                        icon-bg: #a3e8b0;
-                        icon-tint: #073919;
-                        title: root.connected-ssid;
-                        subtitle: "Connected • " + root.signal-strength + "% Signal";
-                        trailing-text: "Connected";
-                        show-chevron: false;
-                        show-divider: false;
-                        is-first: true;
-                        is-last: true;
-                    }
+            // Master Switch Card
+            SettingsSectionCard {
+                SettingsTile {
+                    icon-name: "wifi";
+                    icon-bg: root.wifi-enabled ? #7dd8fc : #36343b;
+                    icon-tint: root.wifi-enabled ? #00354e : #938f99;
+                    title: "Use Wi-Fi";
+                    subtitle: root.wifi-enabled ? "On" : "Off";
+                    is-switch: true;
+                    switch-checked: root.wifi-enabled;
+                    show-divider: false;
+                    is-first: true;
+                    is-last: true;
+                    toggled(val) => { root.toggle-wifi(val); }
                 }
             }
 
-            // Available Networks
-            VerticalLayout {
-                spacing: 8px;
-                SettingsSectionHeader { title: "Available networks"; }
-                SettingsSectionCard {
-                    VerticalLayout {
-                        padding-top: 4px;
-                        padding-bottom: 4px;
+            if root.wifi-enabled: VerticalLayout {
+                spacing: 12px;
 
-                        if root.access-points.length == 0: SettingsTile {
-                            icon-name: "refresh";
-                            icon-bg: #282a30;
-                            icon-tint: #938f99;
-                            title: "Scanning for networks...";
-                            subtitle: "Searching for available Wi-Fi access points";
+                // Connected Network Card
+                if root.connected-ssid != "": VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionHeader { title: "Connected network"; }
+                    SettingsSectionCard {
+                        SettingsTile {
+                            icon-name: "wifi";
+                            icon-bg: #a3e8b0;
+                            icon-tint: #073919;
+                            title: root.connected-ssid;
+                            subtitle: "Connected • " + root.signal-strength + "% Signal";
+                            trailing-text: "Connected";
                             show-chevron: false;
+                            show-divider: false;
                             is-first: true;
                             is-last: true;
-                            show-divider: false;
                         }
+                    }
+                }
 
-                        for ap[idx] in root.access-points: SettingsTile {
-                            icon-name: "wifi";
-                            icon-bg: ap.connected ? #a3e8b0 : #282a30;
-                            icon-tint: ap.connected ? #073919 : #e6e0e9;
-                            title: ap.ssid;
-                            subtitle: ap.security + " • " + ap.signal + "% Signal";
-                            trailing-text: ap.connected ? "Active" : "";
-                            show-chevron: !ap.connected;
-                            is-first: idx == 0;
-                            is-last: idx == root.access-points.length - 1;
-                            show-divider: idx < root.access-points.length - 1;
-                            clicked => {
-                                if (!ap.connected) {
-                                    root.connect-ap(ap.ssid);
+                // Available Networks
+                VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionHeader { title: "Available networks"; }
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 4px;
+
+                            if root.access-points.length == 0: SettingsTile {
+                                icon-name: "refresh";
+                                icon-bg: #282a30;
+                                icon-tint: #938f99;
+                                title: "Scanning for networks...";
+                                subtitle: "Searching for available Wi-Fi access points";
+                                show-chevron: false;
+                                is-first: true;
+                                is-last: true;
+                                show-divider: false;
+                            }
+
+                            for ap[idx] in root.access-points: SettingsTile {
+                                icon-name: "wifi";
+                                icon-bg: ap.connected ? #a3e8b0 : #282a30;
+                                icon-tint: ap.connected ? #073919 : #e6e0e9;
+                                title: ap.ssid;
+                                subtitle: ap.security + " • " + ap.signal + "% Signal";
+                                trailing-text: ap.connected ? "Active" : "";
+                                show-chevron: !ap.connected;
+                                is-first: idx == 0;
+                                is-last: idx == root.access-points.length - 1;
+                                show-divider: idx < root.access-points.length - 1;
+                                clicked => {
+                                    if (!ap.connected) {
+                                        if (ap.security == "Open" || ap.security == "None" || ap.security == "") {
+                                            root.connect-ap(ap.ssid);
+                                        } else {
+                                            root.selected-ap-ssid = ap.ssid;
+                                            root.selected-ap-security = ap.security;
+                                            root.entered-password = "";
+                                            root.show-password-text = false;
+                                            root.show-password-dialog = true;
+                                            root.password-input-focused();
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                // Wi-Fi Preferences
+                VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionHeader { title: "Network preferences"; }
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 4px;
+
+                            SettingsTile {
+                                icon-name: "refresh";
+                                icon-bg: #7dd8fc;
+                                icon-tint: #00354e;
+                                title: "Scan for networks";
+                                subtitle: "Trigger broadcast beacon discovery";
+                                show-chevron: true;
+                                is-first: true;
+                                is-last: false;
+                                show-divider: true;
+                                clicked => { root.scan-requested(); }
+                            }
+
+                            SettingsTile {
+                                icon-name: "network";
+                                icon-bg: #d0bcff;
+                                icon-tint: #381e72;
+                                title: "Wi-Fi MAC address";
+                                subtitle: root.wifi-mac;
+                                show-chevron: false;
+                                is-first: false;
+                                is-last: true;
+                                show-divider: false;
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
 
-            // Wi-Fi Preferences
+    // Modal Password Entry Dialog
+    if root.show-password-dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        // Scrim blocker to absorb touches behind the modal
+        TouchArea {}
+
+        Rectangle {
+            width: Math.min(parent.width - 36px, 380px);
+            border-radius: 28px;
+            background: #25232a;
+            border-width: 1px;
+            border-color: #383540;
+            y: (parent.height - self.height) / 2 - 40px;
+
             VerticalLayout {
-                spacing: 8px;
-                SettingsSectionHeader { title: "Network preferences"; }
-                SettingsSectionCard {
-                    VerticalLayout {
-                        padding-top: 4px;
-                        padding-bottom: 4px;
+                padding: 24px;
+                spacing: 16px;
 
-                        SettingsTile {
-                            icon-name: "refresh";
-                            icon-bg: #7dd8fc;
-                            icon-tint: #00354e;
-                            title: "Scan for networks";
-                            subtitle: "Trigger broadcast beacon discovery";
-                            show-chevron: true;
-                            is-first: true;
-                            is-last: false;
-                            show-divider: true;
-                            clicked => { root.scan-requested(); }
+                // Header
+                HorizontalLayout {
+                    spacing: 14px;
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: #7dd8fc;
+                        y: (parent.height - self.height) / 2;
+
+                        Icon {
+                            name: "wifi";
+                            icon-size: 24px;
+                            icon-color: #00354e;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+                    }
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        Text {
+                            text: "Connect to Network";
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                        }
+                        Text {
+                            text: root.selected-ap-ssid;
+                            font-size: 14px;
+                            color: #7dd8fc;
+                            overflow: elide;
+                        }
+                    }
+                }
+
+                Text {
+                    text: "Enter authentication password for " + root.selected-ap-ssid + " (" + root.selected-ap-security + "):";
+                    font-size: 13px;
+                    color: Theme.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                // Password Input Container
+                Rectangle {
+                    height: 52px;
+                    border-radius: 14px;
+                    background: #19181d;
+                    border-width: 1.5px;
+                    border-color: #48454e;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 8px;
+
+                        pw-input := TextInput {
+                            text <=> root.entered-password;
+                            font-size: 16px;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                            single-line: true;
+                            input-type: root.show-password-text ? InputType.text : InputType.password;
+
+                            accepted => {
+                                if (root.entered-password != "") {
+                                    root.connect-ap-with-password(root.selected-ap-ssid, root.entered-password);
+                                    root.show-password-dialog = false;
+                                    root.password-input-dismissed();
+                                }
+                            }
                         }
 
-                        SettingsTile {
-                            icon-name: "network";
-                            icon-bg: #d0bcff;
-                            icon-tint: #381e72;
-                            title: "Wi-Fi MAC address";
-                            subtitle: root.wifi-mac;
-                            show-chevron: false;
-                            is-first: false;
-                            is-last: true;
-                            show-divider: false;
+                        // Show/Hide Password Eye Button
+                        Rectangle {
+                            width: 36px;
+                            height: 36px;
+                            border-radius: 18px;
+                            y: (parent.height - self.height) / 2;
+                            background: pw-eye-touch.pressed ? #323038 : transparent;
+
+                            Icon {
+                                name: "shield";
+                                icon-size: 18px;
+                                icon-color: root.show-password-text ? #7dd8fc : #938f99;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            pw-eye-touch := TouchArea {
+                                clicked => {
+                                    root.show-password-text = !root.show-password-text;
+                                }
+                            }
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            pw-input.focus();
+                            root.password-input-focused();
+                        }
+                    }
+                }
+
+                // Action Buttons
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: end;
+
+                    Rectangle {
+                        height: 40px;
+                        min-width: 80px;
+                        border-radius: 20px;
+                        background: cancel-btn-touch.pressed ? #323038 : transparent;
+
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            font-weight: 500;
+                            color: #a8c7fa;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        cancel-btn-touch := TouchArea {
+                            clicked => {
+                                root.show-password-dialog = false;
+                                root.entered-password = "";
+                                root.password-input-dismissed();
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 40px;
+                        min-width: 96px;
+                        border-radius: 20px;
+                        background: root.entered-password != "" ? (conn-btn-touch.pressed ? #92dcfc : #7dd8fc) : #323038;
+
+                        Text {
+                            text: "Connect";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: root.entered-password != "" ? #00354e : #726f78;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        conn-btn-touch := TouchArea {
+                            enabled: root.entered-password != "";
+                            clicked => {
+                                root.connect-ap-with-password(root.selected-ap-ssid, root.entered-password);
+                                root.show-password-dialog = false;
+                                root.password-input-dismissed();
+                            }
                         }
                     }
                 }
