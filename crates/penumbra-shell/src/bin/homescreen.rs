@@ -503,9 +503,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let app_id = app_id_slint.as_str().to_string();
             let mut cfg = layout_config.borrow_mut();
 
-            let origin_y = if page == 0 { 152.0 } else { 96.0 };
-            let col = (((sx - 26.0) / 93.0).floor() as i32).clamp(0, 3);
-            let row = (((sy - origin_y) / 105.0).floor() as i32).clamp(0, 3);
+            let min_row = if page == 0 { 1 } else { 0 };
+            let col = (((sx - 20.0) / 93.0).round() as i32).clamp(0, 3);
+            let row = (((sy - 52.0) / 99.0).round() as i32).clamp(min_row, 6);
 
             let existing_folder = cfg
                 .folders

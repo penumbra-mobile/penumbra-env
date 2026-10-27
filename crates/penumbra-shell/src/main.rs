@@ -1421,10 +1421,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let app_id = app_id_slint.as_str().to_string();
             let mut cfg = layout_config.borrow_mut();
 
-            // Calculate target cell (4 columns, 4 rows)
+            // Calculate target cell (4 columns, up to 7 rows; row 0 reserved on page 0 for clock)
+            let min_row = if page == 0 { 1 } else { 0 };
             let col = (((sx - 20.0) / 93.0).round() as i32).clamp(0, 3);
-            let origin_y = if page == 0 { 152.0 } else { 86.0 };
-            let row = (((sy - origin_y) / 105.0).round() as i32).clamp(0, 3);
+            let row = (((sy - 52.0) / 99.0).round() as i32).clamp(min_row, 6);
 
             let existing_folder = cfg
                 .folders

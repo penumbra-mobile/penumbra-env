@@ -385,12 +385,15 @@ export component AppSurface inherits Rectangle {
 
         // Drop Snap Target Preview Box on Homescreen Grid
         if root.is-dragging-app && !root.is-folder-open && root.drag-y < 760px: Rectangle {
-            property <float> origin-y-f: root.current-page == 0 ? 152.0 : 96.0;
             property <int> snap-col: Math.clamp(Math.round(((root.drag-x / 1px) - 20.0) / 93.0), 0, 3);
-            property <int> snap-row: Math.clamp(Math.round(((root.drag-y / 1px) - self.origin-y-f) / 105.0), 0, 3);
+            property <int> raw-row: Math.round(((root.drag-y / 1px) - 52.0) / 99.0);
+            property <int> min-row: root.current-page == 0 ? 1 : 0;
+            property <int> snap-row: Math.clamp(self.raw-row, self.min-row, 6);
+            property <bool> is-over-clock: root.current-page == 0 && (root.drag-y / 1px) < 145.0;
 
+            visible: !self.is-over-clock;
             x: 20px + (self.snap-col * 93px) + 6px + (72px - 58px) / 2;
-            y: (self.origin-y-f * 1px) + (self.snap-row * 105px) + 4px;
+            y: 52px + (self.snap-row * 99px) + 4px;
             width: 58px;
             height: 58px;
             border-radius: Theme.radius-squircle;
@@ -402,16 +405,16 @@ export component AppSurface inherits Rectangle {
         // Drop Snap Target Preview Box on Bottom Dock
         if root.is-dragging-app && !root.is-folder-open && root.drag-y >= 760px: Rectangle {
             x: (parent.width - 240px) / 2;
-            y: 770px;
+            y: 786px;
             width: 240px;
-            height: 64px;
+            height: 68px;
             border-radius: Theme.radius-card;
             background: #ADC6FF22;
             border-width: 2px;
             border-color: Theme.primary;
         }
 
-        // Dynamic 4x4 Grid Shortcuts with Continuous Multi-Page Sliding Animation
+        // Dynamic Grid Shortcuts with Continuous Multi-Page Sliding Animation
         for item[idx] in root.homescreen-items: Rectangle {
             property <float> page-diff: (item.page * 1.0) - root.page-scroll;
             property <bool> is-drag-hovered: root.is-dragging-app && !root.is-folder-open && root.dragging-app-item.id != item.id && item.page == root.current-page && Math.abs(root.drag-x - (self.x + 36px)) < 40px && Math.abs(root.drag-y - (self.y + 44px)) < 44px;
@@ -420,7 +423,7 @@ export component AppSurface inherits Rectangle {
             opacity: (root.is-dragging-app && root.dragging-app-item.id == item.id) ? 0.0 : 1.0;
 
             x: 20px + (self.page-diff * 412px) + (item.x * 93px) + 6px;
-            y: (item.page == 0 ? 152px : 96px) + (item.y * 105px);
+            y: 52px + (item.y * 99px);
             width: 72px;
             height: 88px;
 
@@ -502,20 +505,22 @@ export component AppSurface inherits Rectangle {
                     if (drop-y >= 760.0) {
                         root.app-pinned-to-dock(id);
                     } else if (drop-y < 760.0) {
-                        root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                        if (root.current-page == 0 && drop-y < 145.0) {
+                            root.app-dropped-on-homescreen(id, root.current-page, sx, 151px);
+                        } else {
+                            root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                        }
                     }
                 }
             }
         }
 
-
-
-        // Material 3 Expressive Worm Page Indicator (Slides smoothly with page-scroll)
+        // Material 3 Expressive Worm Page Indicator (Positioned directly above dock)
         if root.num-pages > 1: Rectangle {
             x: 0px;
-            y: 696px;
+            y: 756px;
             width: parent.width;
-            height: 14px;
+            height: 16px;
 
             // Dot track
             HorizontalLayout {
@@ -541,7 +546,7 @@ export component AppSurface inherits Rectangle {
             Rectangle {
                 property <float> total-track-w: ((root.num-pages - 1) * 20.0);
                 x: ((parent.width / 1px - 20.0 - self.total-track-w) / 2.0 * 1px) + (root.page-scroll * 20px);
-                y: 3px;
+                y: 4px;
                 width: 20px;
                 height: 8px;
                 border-radius: Theme.radius-pill;
@@ -549,135 +554,6 @@ export component AppSurface inherits Rectangle {
             }
         }
 
-        // Bottom Google Pixel Search Bar (Material 3 Expressive floating capsule)
-        Rectangle {
-            x: search-ta.pressed ? 23px : 20px;
-            y: 720px;
-            width: search-ta.pressed ? parent.width - 46px : parent.width - 40px;
-            height: 52px;
-            border-radius: Theme.radius-pill;
-            background: search-ta.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
-            border-width: 1px;
-            border-color: search-ta.pressed ? Theme.specular-rim-active : Theme.specular-rim;
-
-            animate x, width, background, border-color {
-                duration: Theme.duration-short;
-                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
-            }
-
-            search-ta := TouchArea {
-                property <float> last-y: 0.0;
-                property <float> velocity: 0.0;
-                property <float> total-pull: 0.0;
-                property <bool> is-active: false;
-
-                pointer-event(event) => {
-                    if (event.kind == PointerEventKind.down) {
-                        self.last-y = search-ta.mouse-y / 1px;
-                        self.velocity = 0.0;
-                        self.total-pull = 0.0;
-                        self.is-active = true;
-                    } else if (event.kind == PointerEventKind.move) {
-                        if (self.is-active) {
-                            let cur-y = search-ta.mouse-y / 1px;
-                            let delta = cur-y - self.last-y;
-                            self.total-pull = self.total-pull - delta;
-                            self.velocity = self.velocity * 0.6 + ((-delta / 873.0) / 0.016) * 0.4;
-                            self.last-y = cur-y;
-                            root.drawer-drag-delta(-delta / 873.0);
-                        }
-                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
-                        if (self.is-active) {
-                            self.is-active = false;
-                            if (self.total-pull < 12.0) {
-                                root.drawer-open-requested();
-                            } else {
-                                root.drawer-drag-released(self.velocity);
-                            }
-                        }
-                    }
-                }
-            }
-
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                alignment: space-between;
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: center;
-
-                    // Google "G" Badge Pill
-                    Rectangle {
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 16px;
-                        background: Theme.primary-container;
-                        border-width: 1px;
-                        border-color: Theme.specular-rim;
-
-                        Text {
-                            text: "G";
-                            font-size: 16px;
-                            font-weight: 800;
-                            color: Theme.on-primary-container;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-                    }
-
-                    Text {
-                        text: "Search";
-                        font-size: Theme.font-body;
-                        font-weight: 500;
-                        color: Theme.on-surface-variant;
-                        vertical-alignment: center;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 8px;
-                    alignment: center;
-
-                    // Assistant Microphone Pill Chip
-                    Rectangle {
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 16px;
-                        background: Theme.surface-container;
-                        border-width: 1px;
-                        border-color: Theme.specular-rim;
-
-                        Icon {
-                            name: "mic";
-                            icon-size: 16px;
-                            icon-color: Theme.primary;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-
-                    // Google Lens Camera Search Chip
-                    Rectangle {
-                        width: 32px;
-                        height: 32px;
-                        border-radius: 16px;
-                        background: Theme.surface-container;
-                        border-width: 1px;
-                        border-color: Theme.specular-rim;
-
-                        Icon {
-                            name: "lens";
-                            icon-size: 16px;
-                            icon-color: Theme.secondary;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-                }
-            }
-        }
 
         // Persistent Mobile Bottom Dock (Fixed at bottom above nav bar)
         BottomDock {
@@ -858,7 +734,11 @@ export component AppSurface inherits Rectangle {
                                             if (drop-y >= 760.0) {
                                                 root.app-pinned-to-dock(id);
                                             } else if (drop-y < 760.0) {
-                                                root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                                                if (root.current-page == 0 && drop-y < 145.0) {
+                                                    root.app-dropped-on-homescreen(id, root.current-page, sx, 151px);
+                                                } else {
+                                                    root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                                                }
                                             }
                                         } else {
                                             // Dropped inside folder: reorder items inside folder!
@@ -950,7 +830,11 @@ export component AppSurface inherits Rectangle {
                 if (drop-y >= 760.0) {
                     root.app-pinned-to-dock(id);
                 } else if (drop-y < 760.0) {
-                    root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                    if (root.current-page == 0 && drop-y < 145.0) {
+                        root.app-dropped-on-homescreen(id, root.current-page, sx, 151px);
+                    } else {
+                        root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
+                    }
                 }
             }
         }

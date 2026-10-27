@@ -105,8 +105,6 @@ impl Default for ShellLayoutConfig {
 impl ShellLayoutConfig {
     /// Adds an app or moves it to a specific cell (page, x, y).
     /// If it was already on the homescreen, its position is updated.
-    /// Adds an app or moves it to a specific cell (page, x, y).
-    /// If it was already on the homescreen, its position is updated.
     /// If it was inside any folder, it is removed from that folder.
     pub fn place_or_move_app(&mut self, app_id: &str, page: i32, x: i32, y: i32) {
         // Remove from any folders it was inside
@@ -115,16 +113,19 @@ impl ShellLayoutConfig {
         }
         self.folders.retain(|f| !f.app_ids.is_empty());
 
+        let clamped_y = if page == 0 { y.max(1) } else { y.max(0) }.min(6);
+        let clamped_x = x.clamp(0, 3);
+
         if let Some(entry) = self.homescreen_apps.iter_mut().find(|e| e.id == app_id) {
             entry.page = page;
-            entry.x = x;
-            entry.y = y;
+            entry.x = clamped_x;
+            entry.y = clamped_y;
         } else {
             self.homescreen_apps.push(HomescreenAppEntry {
                 id: app_id.to_string(),
                 page,
-                x,
-                y,
+                x: clamped_x,
+                y: clamped_y,
             });
         }
         if page >= self.num_pages {
@@ -160,12 +161,15 @@ impl ShellLayoutConfig {
                 .as_millis()
         );
 
+        let clamped_y = if page == 0 { y.max(1) } else { y.max(0) }.min(6);
+        let clamped_x = x.clamp(0, 3);
+
         let folder = FolderEntry {
             id: folder_id.clone(),
             name: "Folder".to_string(),
             page,
-            x,
-            y,
+            x: clamped_x,
+            y: clamped_y,
             app_ids: vec![target_app_id.to_string(), new_app_id.to_string()],
         };
         self.folders.push(folder);
@@ -232,10 +236,12 @@ impl ShellLayoutConfig {
 
     /// Moves an existing folder to a specific cell (page, x, y).
     pub fn place_or_move_folder(&mut self, folder_id: &str, page: i32, x: i32, y: i32) {
+        let clamped_y = if page == 0 { y.max(1) } else { y.max(0) }.min(6);
+        let clamped_x = x.clamp(0, 3);
         if let Some(folder) = self.folders.iter_mut().find(|f| f.id == folder_id) {
             folder.page = page;
-            folder.x = x;
-            folder.y = y;
+            folder.x = clamped_x;
+            folder.y = clamped_y;
         }
         if page >= self.num_pages {
             self.num_pages = page + 1;
@@ -246,10 +252,21 @@ impl ShellLayoutConfig {
     /// - Removes duplicate entries between homescreen_apps and folders.
     /// - Ensures folder IDs are not present in homescreen_apps.
     /// - Dissolves/removes empty folders.
+    /// - Enforces coordinate limits (0..=3 for x, 0..=6 for y, min 1 for page 0).
     pub fn sanitize(&mut self) {
         let folder_ids: Vec<String> = self.folders.iter().map(|f| f.id.clone()).collect();
         self.homescreen_apps.retain(|e| !folder_ids.contains(&e.id));
         self.folders.retain(|f| !f.app_ids.is_empty());
+        for entry in &mut self.homescreen_apps {
+            entry.x = entry.x.clamp(0, 3);
+            let min_y = if entry.page == 0 { 1 } else { 0 };
+            entry.y = entry.y.clamp(min_y, 6);
+        }
+        for folder in &mut self.folders {
+            folder.x = folder.x.clamp(0, 3);
+            let min_y = if folder.page == 0 { 1 } else { 0 };
+            folder.y = folder.y.clamp(min_y, 6);
+        }
     }
 
     pub fn set_wallpaper(&mut self, path: &str) {
@@ -474,12 +491,12 @@ mod tests {
     #[test]
     fn test_folder_creation_and_reorder() {
         let mut cfg = ShellLayoutConfig::default();
-        cfg.place_or_move_app("firefox", 0, 0, 0);
-        cfg.place_or_move_app("foot", 0, 1, 0);
+        cfg.place_or_move_app("firefox", 0, 0, 1);
+        cfg.place_or_move_app("foot", 0, 1, 1);
         assert_eq!(cfg.homescreen_apps.len(), 2);
 
         // Drag foot over firefox to merge into folder
-        let folder_id = cfg.merge_into_folder("firefox", "foot", 0, 0, 0);
+        let folder_id = cfg.merge_into_folder("firefox", "foot", 0, 0, 1);
         assert_eq!(cfg.homescreen_apps.len(), 0);
         assert_eq!(cfg.folders.len(), 1);
         assert_eq!(cfg.folders[0].id, folder_id);
@@ -496,7 +513,7 @@ mod tests {
         assert_eq!(cfg.folders[0].app_ids, vec!["alacritty", "firefox", "foot"]);
 
         // Test dragging foot out of folder onto homescreen
-        cfg.place_or_move_app("foot", 0, 2, 0);
+        cfg.place_or_move_app("foot", 0, 2, 1);
         assert_eq!(cfg.folders[0].app_ids, vec!["alacritty", "firefox"]);
         assert_eq!(cfg.homescreen_apps.len(), 1); // foot
         assert!(cfg.homescreen_apps.iter().any(|e| e.id == "foot"));
