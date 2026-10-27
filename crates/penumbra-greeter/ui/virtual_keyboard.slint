@@ -1,0 +1,333 @@
+import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
+
+component DialpadButton inherits Rectangle {
+    in property <string> number: "1";
+    in property <string> letters: "";
+    in property <bool> is-action: false;
+    in property <string> action-icon: "";
+    in property <color> action-color: Theme.primary;
+    callback clicked();
+
+    width: 68px;
+    height: 68px;
+    border-radius: 34px;
+    background: touch.pressed ? #3b3a42 : (root.is-action && root.action-icon == "check" ? #a8c7fa : #201f26);
+
+    animate background { duration: 100ms; easing: ease-out; }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    if root.action-icon != "": Icon {
+        name: root.action-icon;
+        icon-size: 24px;
+        icon-color: root.is-action && root.action-icon == "check" ? #042b59 : Theme.on-surface;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+
+    if root.action-icon == "": VerticalLayout {
+        alignment: center;
+        spacing: 1px;
+
+        Text {
+            text: root.number;
+            font-size: 26px;
+            font-weight: 500;
+            color: Theme.on-surface;
+            horizontal-alignment: center;
+        }
+
+        if root.letters != "": Text {
+            text: root.letters;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            color: #938f99;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+component QwertyKey inherits Rectangle {
+    in property <string> label: "";
+    in property <string> icon-name: "";
+    in property <bool> is-accent: false;
+    in property <length> key-width: 32px;
+    callback clicked();
+
+    width: root.key-width;
+    height: 42px;
+    border-radius: 8px;
+    background: touch.pressed ? #48464f : (root.is-accent ? Theme.primary : #2a2831);
+
+    animate background { duration: 90ms; easing: ease-out; }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    if root.icon-name != "": Icon {
+        name: root.icon-name;
+        icon-size: 18px;
+        icon-color: root.is-accent ? Theme.on-primary : Theme.on-surface;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+    }
+
+    if root.label != "": Text {
+        text: root.label;
+        font-size: 16px;
+        font-weight: 500;
+        color: root.is-accent ? Theme.on-primary : Theme.on-surface;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component VirtualKeyboard inherits Rectangle {
+    in-out property <string> mode: "pin"; // "pin" or "qwerty"
+    in-out property <bool> shift-active: false;
+
+    callback key-pressed(string);
+    callback backspace-pressed();
+    callback enter-pressed();
+    callback close-requested();
+
+    background: #141218;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border-width: 1px;
+    border-color: #2e2b36;
+
+    VerticalLayout {
+        padding-top: 12px;
+        padding-bottom: 16px;
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+
+        // Top Keyboard Bar (Mode switcher & Close)
+        HorizontalLayout {
+            height: 32px;
+            alignment: space-between;
+            padding-left: 8px;
+            padding-right: 8px;
+
+            // Switch between PIN dialer and QWERTY
+            Rectangle {
+                width: 90px;
+                height: 30px;
+                border-radius: 15px;
+                background: switch-touch.pressed ? #32303a : #22202a;
+
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: center;
+
+                    Icon {
+                        name: root.mode == "pin" ? "keyboard" : "dialpad";
+                        icon-size: 14px;
+                        icon-color: Theme.primary;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    Text {
+                        text: root.mode == "pin" ? "QWERTY" : "PIN (123)";
+                        font-size: 12px;
+                        font-weight: 500;
+                        color: Theme.primary;
+                        vertical-alignment: center;
+                    }
+                }
+
+                switch-touch := TouchArea {
+                    clicked => {
+                        root.mode = root.mode == "pin" ? "qwerty" : "pin";
+                    }
+                }
+            }
+
+            // Dismiss Keyboard button
+            Rectangle {
+                width: 32px;
+                height: 30px;
+                border-radius: 15px;
+                background: close-touch.pressed ? #32303a : transparent;
+
+                Icon {
+                    name: "chevron-down";
+                    icon-size: 18px;
+                    icon-color: #c4c6d0;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                close-touch := TouchArea {
+                    clicked => {
+                        root.close-requested();
+                    }
+                }
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // MODE A: Numeric PIN Dialer (3x4)
+        // ---------------------------------------------------------------------
+        if root.mode == "pin": VerticalLayout {
+            alignment: center;
+            spacing: 10px;
+
+            // Row 1
+            HorizontalLayout {
+                spacing: 20px;
+                alignment: center;
+                DialpadButton { number: "1"; letters: ""; clicked => { root.key-pressed("1"); } }
+                DialpadButton { number: "2"; letters: "ABC"; clicked => { root.key-pressed("2"); } }
+                DialpadButton { number: "3"; letters: "DEF"; clicked => { root.key-pressed("3"); } }
+            }
+
+            // Row 2
+            HorizontalLayout {
+                spacing: 20px;
+                alignment: center;
+                DialpadButton { number: "4"; letters: "GHI"; clicked => { root.key-pressed("4"); } }
+                DialpadButton { number: "5"; letters: "JKL"; clicked => { root.key-pressed("5"); } }
+                DialpadButton { number: "6"; letters: "MNO"; clicked => { root.key-pressed("6"); } }
+            }
+
+            // Row 3
+            HorizontalLayout {
+                spacing: 20px;
+                alignment: center;
+                DialpadButton { number: "7"; letters: "PQRS"; clicked => { root.key-pressed("7"); } }
+                DialpadButton { number: "8"; letters: "TUV"; clicked => { root.key-pressed("8"); } }
+                DialpadButton { number: "9"; letters: "WXYZ"; clicked => { root.key-pressed("9"); } }
+            }
+
+            // Row 4
+            HorizontalLayout {
+                spacing: 20px;
+                alignment: center;
+                DialpadButton { is-action: true; action-icon: "backspace"; clicked => { root.backspace-pressed(); } }
+                DialpadButton { number: "0"; letters: "+"; clicked => { root.key-pressed("0"); } }
+                DialpadButton { is-action: true; action-icon: "arrow-right"; action-color: Theme.primary; clicked => { root.enter-pressed(); } }
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // MODE B: Full Compact QWERTY
+        // ---------------------------------------------------------------------
+        if root.mode == "qwerty": VerticalLayout {
+            spacing: 6px;
+            alignment: center;
+
+            // Row 1: Numbers
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: "1"; clicked => { root.key-pressed("1"); } }
+                QwertyKey { label: "2"; clicked => { root.key-pressed("2"); } }
+                QwertyKey { label: "3"; clicked => { root.key-pressed("3"); } }
+                QwertyKey { label: "4"; clicked => { root.key-pressed("4"); } }
+                QwertyKey { label: "5"; clicked => { root.key-pressed("5"); } }
+                QwertyKey { label: "6"; clicked => { root.key-pressed("6"); } }
+                QwertyKey { label: "7"; clicked => { root.key-pressed("7"); } }
+                QwertyKey { label: "8"; clicked => { root.key-pressed("8"); } }
+                QwertyKey { label: "9"; clicked => { root.key-pressed("9"); } }
+                QwertyKey { label: "0"; clicked => { root.key-pressed("0"); } }
+            }
+
+            // Row 2: QWERTYUIOP
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: root.shift-active ? "Q" : "q"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "W" : "w"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "E" : "e"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "R" : "r"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "T" : "t"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "Y" : "y"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "U" : "u"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "I" : "i"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "O" : "o"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "P" : "p"; clicked => { root.key-pressed(self.label); } }
+            }
+
+            // Row 3: ASDFGHJKL
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: root.shift-active ? "A" : "a"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "S" : "s"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "D" : "d"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "F" : "f"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "G" : "g"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "H" : "h"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "J" : "j"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "K" : "k"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "L" : "l"; clicked => { root.key-pressed(self.label); } }
+            }
+
+            // Row 4: Shift, ZXCVBNM, Backspace
+            HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey {
+                    icon-name: "shift";
+                    key-width: 44px;
+                    is-accent: root.shift-active;
+                    clicked => { root.shift-active = !root.shift-active; }
+                }
+                QwertyKey { label: root.shift-active ? "Z" : "z"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "X" : "x"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "C" : "c"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "V" : "v"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "B" : "b"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "N" : "n"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey { label: root.shift-active ? "M" : "m"; clicked => { root.key-pressed(self.label); } }
+                QwertyKey {
+                    icon-name: "backspace";
+                    key-width: 44px;
+                    clicked => { root.backspace-pressed(); }
+                }
+            }
+
+            // Row 5: Symbols, Space, Enter
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: center;
+                QwertyKey {
+                    label: "@";
+                    key-width: 36px;
+                    clicked => { root.key-pressed("@"); }
+                }
+                QwertyKey {
+                    label: ".";
+                    key-width: 36px;
+                    clicked => { root.key-pressed("."); }
+                }
+                QwertyKey {
+                    label: "Space";
+                    key-width: 170px;
+                    clicked => { root.key-pressed(" "); }
+                }
+                QwertyKey {
+                    label: "-";
+                    key-width: 36px;
+                    clicked => { root.key-pressed("-"); }
+                }
+                QwertyKey {
+                    icon-name: "arrow-right";
+                    key-width: 52px;
+                    is-accent: true;
+                    clicked => { root.enter-pressed(); }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,44 @@
+export global Theme {
+    // =========================================================================
+    // Material 3 Expressive (M3E) Tonal Surface Hierarchy
+    // Pure OLED Pitch-Black to High-Contrast Elevated Containers
+    // =========================================================================
+    in-out property <color> surface: #141218;                  // Standard baseline dark surface
+    in-out property <color> surface-dim: #110f15;              // Dimmed / recessed background
+    in-out property <color> surface-bright: #38353d;           // Luminous high-contrast surface
+    in-out property <color> surface-container-lowest: #0b0a0e; // Deepest OLED pitch black container
+    in-out property <color> surface-container-low: #17151d;    // Low-elevation card container
+    in-out property <color> surface-container: #1e1b24;        // Resting sheet container
+    in-out property <color> surface-container-high: #27232e;   // Elevated tile / chassis
+    in-out property <color> surface-container-highest: #36343b;// High-emphasis floating capsule
+    in-out property <color> surface-variant: #44474f;          // Subtle separator stroke
+
+    // =========================================================================
+    // Dynamic Tonal Accent Roles (Pixel Monet Palette)
+    // =========================================================================
+    in-out property <color> primary: #ADC6FF;
+    in-out property <color> on-primary: #002E69;
+    in-out property <color> primary-container: #254070;
+    in-out property <color> on-primary-container: #D8E2FF;
+
+    in-out property <color> secondary: #BFC6DC;
+    in-out property <color> on-secondary: #283141;
+    in-out property <color> secondary-container: #3E4758;
+    in-out property <color> on-secondary-container: #DBE2F9;
+
+    in-out property <color> tertiary: #EFB8C8;
+    in-out property <color> on-tertiary: #492532;
+    in-out property <color> tertiary-container: #633B48;
+
+    // Error / Alert
+    in-out property <color> error: #FFB4AB;
+    in-out property <color> on-error: #690005;
+    in-out property <color> error-container: #93000A;
+    in-out property <color> on-error-container: #FFDAD6;
+
+    // Content & Boundary
+    in-out property <color> on-surface: #E3E2E6;               // High-emphasis primary text
+    in-out property <color> on-surface-variant: #C4C6D0;       // Secondary text & captions
+    in-out property <color> outline: #8E9099;                  // Unselected boundary strokes
+    in-out property <color> outline-variant: #44474F;          // Recessed borders & dividers
+}

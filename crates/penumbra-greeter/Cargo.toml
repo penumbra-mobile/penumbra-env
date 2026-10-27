@@ -12,4 +12,18 @@ path = "src/main.rs"
 
 [dependencies]
 greetd_ipc = { version = "0.10.3", features = ["sync-codec"] }
+slint = { version = "1.18", default-features = false, features = ["backend-winit", "compat-1-2", "image-default-formats", "renderer-software", "std"] }
+i-slint-core = { version = "1.18", features = ["image-decoders", "image-default-formats", "svg"] }
+i-slint-common = { version = "1.18", features = ["fontconfig-dlopen"] }
+penumbra-services = { path = "../penumbra-services" }
+chrono = "0.4"
+tokio = { version = "1.38", features = ["rt", "rt-multi-thread", "sync", "time", "macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 libc = "0.2"
+
+[build-dependencies]
+slint-build = "1.18"

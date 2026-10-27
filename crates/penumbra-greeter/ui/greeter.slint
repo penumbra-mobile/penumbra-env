@@ -1,0 +1,915 @@
+import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
+import { VirtualKeyboard } from "virtual_keyboard.slint";
+import { PowerDialog } from "power_dialog.slint";
+
+export struct UserInfo {
+    username: string,
+    display_name: string,
+    uid: int,
+}
+
+export struct SessionInfo {
+    id: string,
+    name: string,
+    comment: string,
+}
+
+export component GreeterWindow inherits Window {
+    title: "Penumbra Greeter";
+    preferred-width: 412px;
+    preferred-height: 915px;
+    background: #0b0910;
+
+    // Assets & theming
+    in-out property <image> background-image: @image-url("../assets/wallpaper.jpg");
+
+    // State properties
+    in-out property <string> time-text: "";
+    in-out property <string> date-text: "";
+    in-out property <string> battery-text: "";
+    in-out property <string> wifi-text: "";
+    in-out property <bool> has-wifi: false;
+    in-out property <bool> has-battery: false;
+
+    in-out property <string> current-username: "";
+    in-out property <string> current-display-name: "";
+    in-out property <[UserInfo]> users: [];
+    in-out property <int> selected-user-index: 0;
+
+    in-out property <string> current-session-name: "";
+    in-out property <[SessionInfo]> sessions: [];
+    in-out property <int> selected-session-index: 0;
+
+    in-out property <string> password-input: "";
+    in-out property <bool> password-masked: true;
+    in-out property <string> error-message: "";
+    in-out property <bool> is-authenticating: false;
+
+    in-out property <bool> is-keyboard-visible: false;
+    in-out property <bool> is-power-dialog-visible: false;
+    in-out property <bool> is-user-picker-visible: false;
+    in-out property <bool> is-session-picker-visible: false;
+    in-out property <bool> is-custom-user-input: false;
+
+    // Callbacks
+    callback login-requested(string, string); // (username, password)
+    callback backspace-requested();
+    callback user-selected(int);
+    callback session-selected(int);
+    callback suspend-requested();
+    callback reboot-requested();
+    callback poweroff-requested();
+
+    // Hardware keyboard forward focus
+    forward-focus: pw-input;
+
+    // -------------------------------------------------------------------------
+    // 1. Wallpaper & Atmospheric Scrim Layers (Full Window Canvas)
+    // -------------------------------------------------------------------------
+    Image {
+        width: 100%;
+        height: 100%;
+        source: root.background-image;
+        image-fit: cover;
+    }
+
+    // High-contrast atmospheric gradient scrim for legibility
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(180deg, #09070f77 0%, #09070faa 60%, #09070fee 100%);
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. Main Interface Layout Stack
+    // -------------------------------------------------------------------------
+    VerticalLayout {
+        padding: 0px;
+        spacing: 0px;
+
+        // TOP SYSTEM BAR
+        HorizontalLayout {
+            height: 60px;
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 10px;
+            alignment: space-between;
+
+            // Brand Badge Pill
+            Rectangle {
+                height: 34px;
+                border-radius: 17px;
+                background: #14111dd0;
+                border-width: 1px;
+                border-color: #3b354d66;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    alignment: center;
+
+                    Text {
+                        text: "PENUMBRA";
+                        font-size: 11px;
+                        font-weight: 800;
+                        letter-spacing: 2.2px;
+                        color: #c4bece;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Right Status & Actions Cluster
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+
+                // Status Capsule (WiFi + Battery)
+                if (root.has-wifi || root.has-battery): Rectangle {
+                    height: 34px;
+                    border-radius: 17px;
+                    background: #14111dd0;
+                    border-width: 1px;
+                    border-color: #3b354d66;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 10px;
+                        alignment: center;
+
+                        if root.has-wifi: HorizontalLayout {
+                            alignment: center;
+                            Icon {
+                                name: "wifi";
+                                icon-size: 15px;
+                                icon-color: #e2dded;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        if root.has-battery: HorizontalLayout {
+                            spacing: 5px;
+                            alignment: center;
+                            Icon {
+                                name: "battery";
+                                icon-size: 15px;
+                                icon-color: #e2dded;
+                                y: (parent.height - self.height) / 2;
+                            }
+                            Text {
+                                text: root.battery-text;
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: #e2dded;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Power Dialog Button
+                Rectangle {
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 17px;
+                    background: pwr-touch.pressed ? #3d354f : #14111dd0;
+                    border-width: 1px;
+                    border-color: #3b354d66;
+
+                    animate background { duration: 100ms; }
+
+                    Icon {
+                        name: "power";
+                        icon-size: 16px;
+                        icon-color: #f0ecf7;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    pwr-touch := TouchArea {
+                        clicked => {
+                            root.is-power-dialog-visible = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // FLEXIBLE TOP SPACER (expands to balance vertical layout)
+        Rectangle {
+            vertical-stretch: root.is-keyboard-visible ? 1 : 2;
+        }
+
+        // GLANCE CLOCK & DATE
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+
+            Text {
+                text: root.time-text;
+                font-size: root.is-keyboard-visible ? 44px : 68px;
+                font-weight: 300;
+                letter-spacing: -2px;
+                color: #ffffff;
+                horizontal-alignment: center;
+                animate font-size { duration: 150ms; }
+            }
+
+            Text {
+                text: root.date-text;
+                font-size: root.is-keyboard-visible ? 13px : 16px;
+                font-weight: 500;
+                letter-spacing: 0.2px;
+                color: #d1cbdc;
+                horizontal-alignment: center;
+            }
+        }
+
+        // MIDDLE SPACER
+        Rectangle {
+            height: root.is-keyboard-visible ? 12px : 32px;
+        }
+
+        // AUTHENTICATION CARD CLUSTER (Centered horizontally with 320px width)
+        HorizontalLayout {
+            alignment: center;
+            padding-left: 20px;
+            padding-right: 20px;
+
+            Rectangle {
+                width: 320px;
+                background: transparent;
+
+                VerticalLayout {
+                    spacing: root.is-keyboard-visible ? 10px : 16px;
+                    alignment: center;
+
+                    // User Avatar Circle
+                    HorizontalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: root.is-keyboard-visible ? 56px : 80px;
+                            height: root.is-keyboard-visible ? 56px : 80px;
+                            border-radius: self.width / 2;
+                            background: #1c1827dd;
+                            border-width: 2px;
+                            border-color: #4b4462;
+
+                            animate width { duration: 150ms; }
+                            animate height { duration: 150ms; }
+
+                            Icon {
+                                name: "person";
+                                icon-size: root.is-keyboard-visible ? 28px : 42px;
+                                icon-color: Theme.primary;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    root.is-user-picker-visible = !root.is-user-picker-visible;
+                                }
+                            }
+                        }
+                    }
+
+                    // User Name & Session Chips
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 6px;
+
+                        // Display Name (Tap to switch user)
+                        HorizontalLayout {
+                            alignment: center;
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 14px;
+                                background: user-btn-touch.pressed ? #2f283e : #1f1b29cc;
+                                border-width: 1px;
+                                border-color: #3b344e;
+
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Text {
+                                        text: root.current-display-name != "" ? root.current-display-name : (root.current-username != "" ? root.current-username : "Select User");
+                                        font-size: 16px;
+                                        font-weight: 700;
+                                        color: #ffffff;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Icon {
+                                        name: "chevron-down";
+                                        icon-size: 14px;
+                                        icon-color: #b8b2c4;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                user-btn-touch := TouchArea {
+                                    clicked => {
+                                        root.is-user-picker-visible = !root.is-user-picker-visible;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Session Selector Pill
+                        HorizontalLayout {
+                            alignment: center;
+                            Rectangle {
+                                height: 26px;
+                                border-radius: 13px;
+                                background: sess-touch.pressed ? #322b42 : #1b1725cc;
+                                border-width: 1px;
+                                border-color: #3b344e;
+
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 6px;
+                                    alignment: center;
+
+                                    Icon {
+                                        name: "check";
+                                        icon-size: 12px;
+                                        icon-color: Theme.primary;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    Text {
+                                        text: root.current-session-name;
+                                        font-size: 12px;
+                                        font-weight: 500;
+                                        color: #c9c3d4;
+                                        vertical-alignment: center;
+                                    }
+
+                                    if root.sessions.length > 1: Icon {
+                                        name: "chevron-down";
+                                        icon-size: 12px;
+                                        icon-color: #8c8599;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+                                }
+
+                                sess-touch := TouchArea {
+                                    clicked => {
+                                        if root.sessions.length > 1 {
+                                            root.is-session-picker-visible = !root.is-session-picker-visible;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Optional Custom Username Input Field
+                    if root.is-custom-user-input: Rectangle {
+                        width: 320px;
+                        height: 50px;
+                        border-radius: 25px;
+                        background: #181423ee;
+                        border-width: 1.5px;
+                        border-color: Theme.primary;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 10px;
+                            spacing: 10px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Icon {
+                                    name: "person";
+                                    icon-size: 18px;
+                                    icon-color: Theme.primary;
+                                }
+                            }
+
+                            Rectangle {
+                                horizontal-stretch: 1;
+
+                                if root.current-username == "": Text {
+                                    text: "Enter username";
+                                    font-size: 15px;
+                                    color: #7b7489;
+                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+
+                                custom-u-input := TextInput {
+                                    width: 100%;
+                                    height: 100%;
+                                    font-size: 15px;
+                                    color: #ffffff;
+                                    vertical-alignment: center;
+                                    text <=> root.current-username;
+                                    accepted => {
+                                        pw-input.focus();
+                                    }
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 32px;
+                                    height: 32px;
+                                    border-radius: 16px;
+                                    background: revert-u-btn.pressed ? #3b344e : transparent;
+
+                                    Icon {
+                                        name: "close";
+                                        icon-size: 16px;
+                                        icon-color: #b8b2c4;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    revert-u-btn := TouchArea {
+                                        clicked => {
+                                            root.is-custom-user-input = false;
+                                            if root.users.length > 0 {
+                                                root.current-username = root.users[0].username;
+                                                root.current-display-name = root.users[0].display_name;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Password Input Pill Capsule
+                    Rectangle {
+                        width: 320px;
+                        height: 54px;
+                        border-radius: 27px;
+                        background: #181423ee;
+                        border-width: 1.5px;
+                        border-color: root.error-message != "" ? Theme.error : (root.password-input != "" ? Theme.primary : #463e5b);
+
+                        animate border-color { duration: 120ms; }
+
+                        HorizontalLayout {
+                            padding-left: 18px;
+                            padding-right: 8px;
+                            spacing: 10px;
+
+                            // Leading Lock Icon (Vertically Centered)
+                            VerticalLayout {
+                                alignment: center;
+                                Icon {
+                                    name: "lock";
+                                    icon-size: 18px;
+                                    icon-color: root.password-input != "" ? Theme.primary : #827b91;
+                                }
+                            }
+
+                            // Text Input Area with Dynamic Placeholder
+                            Rectangle {
+                                horizontal-stretch: 1;
+
+                                if root.password-input == "": Text {
+                                    text: "Password";
+                                    font-size: 15px;
+                                    color: #7b7489;
+                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+
+                                pw-input := TextInput {
+                                    width: 100%;
+                                    height: 100%;
+                                    font-size: 16px;
+                                    color: #ffffff;
+                                    vertical-alignment: center;
+                                    text <=> root.password-input;
+                                    input-type: root.password-masked ? password : text;
+                                    enabled: !root.is-authenticating;
+
+                                    accepted => {
+                                        if root.password-input != "" && !root.is-authenticating {
+                                            root.login-requested(root.current-username, root.password-input);
+                                        }
+                                    }
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.is-keyboard-visible = true;
+                                        pw-input.focus();
+                                    }
+                                }
+                            }
+
+                            // Password Reveal Toggle Button (Vertically Centered)
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 36px;
+                                    height: 36px;
+                                    border-radius: 18px;
+                                    background: mask-touch.pressed ? #3b344e : transparent;
+
+                                    Icon {
+                                        name: root.password-masked ? "eye" : "eye-off";
+                                        icon-size: 18px;
+                                        icon-color: #b8b2c4;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    mask-touch := TouchArea {
+                                        clicked => {
+                                            root.password-masked = !root.password-masked;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Submit Action Button (Vertically Centered)
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 38px;
+                                    height: 38px;
+                                    border-radius: 19px;
+                                    background: submit-touch.pressed ? #d8e2ff : (root.password-input != "" ? Theme.primary : #262134);
+
+                                    animate background { duration: 100ms; }
+
+                                    Icon {
+                                        name: "arrow-right";
+                                        icon-size: 20px;
+                                        icon-color: root.password-input != "" ? Theme.on-primary : #625c70;
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                    }
+
+                                    submit-touch := TouchArea {
+                                        clicked => {
+                                            if root.password-input != "" && !root.is-authenticating {
+                                                root.login-requested(root.current-username, root.password-input);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Touch Keyboard Toggle Button
+                    HorizontalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 36px;
+                            border-radius: 18px;
+                            background: kb-btn-touch.pressed ? #322b40 : (root.is-keyboard-visible ? #262033 : #191524cc);
+                            border-width: 1px;
+                            border-color: root.is-keyboard-visible ? Theme.primary : #3b344e;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 8px;
+                                alignment: center;
+
+                                Icon {
+                                    name: root.is-keyboard-visible ? "chevron-down" : "keyboard";
+                                    icon-size: 15px;
+                                    icon-color: Theme.primary;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: root.is-keyboard-visible ? "Hide Keyboard" : "Touch Keyboard";
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            kb-btn-touch := TouchArea {
+                                clicked => {
+                                    root.is-keyboard-visible = !root.is-keyboard-visible;
+                                }
+                            }
+                        }
+                    }
+
+                    // Error Message Banner
+                    if root.error-message != "": Rectangle {
+                        height: 42px;
+                        border-radius: 14px;
+                        background: #3c1214ee;
+                        border-width: 1px;
+                        border-color: #7b1d24;
+
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 8px;
+                            alignment: center;
+
+                            Icon {
+                                name: "alert-circle";
+                                icon-size: 16px;
+                                icon-color: Theme.error;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: root.error-message;
+                                font-size: 13px;
+                                font-weight: 500;
+                                color: Theme.on-error-container;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // Authenticating Status
+                    if root.is-authenticating: HorizontalLayout {
+                        spacing: 8px;
+                        alignment: center;
+
+                        Text {
+                            text: "Authenticating...";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: Theme.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // FLEXIBLE BOTTOM SPACER
+        Rectangle {
+            vertical-stretch: root.is-keyboard-visible ? 1 : 3;
+        }
+
+        // ---------------------------------------------------------------------
+        // 3. Bottom Keyboard Drawer
+        // ---------------------------------------------------------------------
+        if root.is-keyboard-visible: VirtualKeyboard {
+            key-pressed(char) => {
+                root.password-input += char;
+                root.error-message = "";
+            }
+            backspace-pressed => {
+                root.backspace-requested();
+            }
+            enter-pressed => {
+                if root.password-input != "" && !root.is-authenticating {
+                    root.login-requested(root.current-username, root.password-input);
+                }
+            }
+            close-requested => {
+                root.is-keyboard-visible = false;
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Modal: User Picker
+    // -------------------------------------------------------------------------
+    if root.is-user-picker-visible: Rectangle {
+        background: #000000b0;
+        TouchArea { clicked => { root.is-user-picker-visible = false; } }
+
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: 320px;
+                    background: #1c1827;
+                    border-radius: 24px;
+                    border-width: 1px;
+                    border-color: #3f3852;
+
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 12px;
+
+                        Text {
+                            text: "Select User";
+                            font-size: 16px;
+                            font-weight: 600;
+                            color: #ffffff;
+                        }
+
+                        for user[idx] in root.users: Rectangle {
+                            height: 52px;
+                            border-radius: 12px;
+                            background: u-touch.pressed ? #352e46 : (root.selected-user-index == idx ? #2d263c : #221d2e);
+                            border-width: 1px;
+                            border-color: root.selected-user-index == idx ? Theme.primary : transparent;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 12px;
+                                alignment: start;
+
+                                Icon {
+                                    name: "person";
+                                    icon-size: 20px;
+                                    icon-color: root.selected-user-index == idx ? Theme.primary : #a49eb2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 1px;
+                                    Text {
+                                        text: user.display_name != "" ? user.display_name : user.username;
+                                        font-size: 14px;
+                                        font-weight: 600;
+                                        color: #ffffff;
+                                    }
+                                    if user.display_name != "": Text {
+                                        text: user.username;
+                                        font-size: 11px;
+                                        color: #878096;
+                                    }
+                                }
+                            }
+
+                            u-touch := TouchArea {
+                                clicked => {
+                                    root.user-selected(idx);
+                                    root.is-user-picker-visible = false;
+                            }
+                        }
+
+                        // Option to enter other user
+                        Rectangle {
+                            height: 48px;
+                            border-radius: 12px;
+                            background: other-touch.pressed ? #352e46 : #221d2e;
+                            border-width: 1px;
+                            border-color: #3f3852;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 12px;
+                                alignment: start;
+
+                                Icon {
+                                    name: "person";
+                                    icon-size: 18px;
+                                    icon-color: Theme.primary;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                Text {
+                                    text: "Log in as other user...";
+                                    font-size: 13px;
+                                    font-weight: 500;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            other-touch := TouchArea {
+                                clicked => {
+                                    root.is-user-picker-visible = false;
+                                    root.is-custom-user-input = true;
+                                    root.current-username = "";
+                                    root.current-display-name = "";
+                                    root.password-input = "";
+                                    root.is-keyboard-visible = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+    // -------------------------------------------------------------------------
+    // Modal: Session Picker
+    // -------------------------------------------------------------------------
+    if root.is-session-picker-visible: Rectangle {
+        background: #000000b0;
+        TouchArea { clicked => { root.is-session-picker-visible = false; } }
+
+        VerticalLayout {
+            alignment: center;
+
+            HorizontalLayout {
+                alignment: center;
+
+                Rectangle {
+                    width: 320px;
+                    background: #1c1827;
+                    border-radius: 24px;
+                    border-width: 1px;
+                    border-color: #3f3852;
+
+                    VerticalLayout {
+                        padding: 20px;
+                        spacing: 12px;
+
+                        Text {
+                            text: "Select Desktop Session";
+                            font-size: 16px;
+                            font-weight: 600;
+                            color: #ffffff;
+                        }
+
+                        for sess[idx] in root.sessions: Rectangle {
+                            height: 52px;
+                            border-radius: 12px;
+                            background: s-touch.pressed ? #352e46 : (root.selected-session-index == idx ? #2d263c : #221d2e);
+                            border-width: 1px;
+                            border-color: root.selected-session-index == idx ? Theme.primary : transparent;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                spacing: 12px;
+                                alignment: start;
+
+                                Icon {
+                                    name: "check";
+                                    icon-size: 18px;
+                                    icon-color: root.selected-session-index == idx ? Theme.primary : #645e72;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 1px;
+                                    Text {
+                                        text: sess.name;
+                                        font-size: 14px;
+                                        font-weight: 600;
+                                        color: #ffffff;
+                                    }
+                                    if sess.comment != "": Text {
+                                        text: sess.comment;
+                                        font-size: 11px;
+                                        color: #878096;
+                                    }
+                                }
+                            }
+
+                            s-touch := TouchArea {
+                                clicked => {
+                                    root.session-selected(idx);
+                                    root.is-session-picker-visible = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Modal: Power Dialog
+    // -------------------------------------------------------------------------
+    if root.is-power-dialog-visible: PowerDialog {
+        suspend-requested => {
+            root.is-power-dialog-visible = false;
+            root.suspend-requested();
+        }
+        reboot-requested => {
+            root.is-power-dialog-visible = false;
+            root.reboot-requested();
+        }
+        poweroff-requested => {
+            root.is-power-dialog-visible = false;
+            root.poweroff-requested();
+        }
+        close-requested => {
+            root.is-power-dialog-visible = false;
+        }
+    }
+}

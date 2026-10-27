@@ -4,11 +4,12 @@ set -eu
 # The phrog greeter owns the DRM seat until greetd hands off the session.
 # Release its compositor before Penumbra claims the device natively.
 if command -v pkill >/dev/null 2>&1; then
+    pkill -TERM -x cage 2>/dev/null || true
     pkill -TERM -u "$(id -u)" -x phoc 2>/dev/null || true
 fi
 
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if ! pgrep -u "$(id -u)" -x phoc >/dev/null 2>&1; then
+    if ! pgrep -x cage >/dev/null 2>&1 && ! pgrep -u "$(id -u)" -x phoc >/dev/null 2>&1; then
         break
     fi
     sleep 0.2

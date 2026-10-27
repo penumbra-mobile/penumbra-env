@@ -3825,8 +3825,20 @@ version = "0.1.0"
 name = "penumbra-greeter"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "clap",
  "greetd_ipc",
+ "i-slint-common",
+ "i-slint-core",
  "libc",
+ "penumbra-services",
+ "serde",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

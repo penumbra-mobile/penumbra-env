@@ -1,0 +1,46 @@
+// Font-independent stroke icons on a 24x24 grid.
+export component Icon inherits Rectangle {
+    in property <string> name;
+    in property <color> icon-color: #ffffff;
+    in property <length> icon-size: 20px;
+
+    property <string> d: root.name == "close" ? "M6 6 L18 18 M18 6 L6 18"
+        : root.name == "check" ? "M4 12 L9 17 L20 6"
+        : root.name == "arrow-right" ? "M5 12 L19 12 M13 6 L19 12 L13 18"
+        : root.name == "chevron-down" ? "M6 9 L12 15 L18 9"
+        : root.name == "chevron-up" ? "M18 15 L12 9 L6 15"
+        : root.name == "chevron-left" ? "M15 5 L8 12 L15 19"
+        : root.name == "chevron-right" ? "M9 5 L16 12 L9 19"
+        : root.name == "power" ? "M6.34 6.34 A 8 8 0 1 0 17.66 6.34 M12 3 L12 12"
+        : root.name == "restart" ? "M21 12 A 9 9 0 1 1 12 3 M21 3 L21 9 L15 9"
+        : root.name == "suspend" || root.name == "moon" ? "M14 3 A 9 9 0 1 0 21 14 A 7 7 0 0 1 14 3 Z"
+        : root.name == "wifi" ? "M2 9 Q12 -1 22 9 M5 12.5 Q12 6 19 12.5 M8.5 16 Q12 12.5 15.5 16 M11.5 19 A 0.5 0.5 0 1 0 12.5 19 A 0.5 0.5 0 1 0 11.5 19 Z"
+        : root.name == "battery" ? "M3 8 L19 8 L19 16 L3 16 Z M21 11 L21 13 M6 11 L13 11 L13 13 L6 13 Z"
+        : root.name == "person" || root.name == "account" ? "M12 4 A 4 4 0 1 0 12 12 A 4 4 0 1 0 12 4 Z M6 20 A 6 6 0 0 1 18 20"
+        : root.name == "lock" ? "M12 2 A 4 4 0 0 0 8 6 L8 10 L6 10 A 2 2 0 0 0 4 12 L4 20 A 2 2 0 0 0 6 22 L18 22 A 2 2 0 0 0 20 20 L20 12 A 2 2 0 0 0 18 10 L16 10 L16 6 A 4 4 0 0 0 12 2 Z M10 6 A 2 2 0 0 1 14 6 L14 10 L10 10 Z"
+        : root.name == "lock-open" ? "M12 2 A 4 4 0 0 0 8 6 L8 10 L18 10 A 2 2 0 0 1 20 12 L20 20 A 2 2 0 0 1 18 22 L6 22 A 2 2 0 0 1 4 20 L4 12 A 2 2 0 0 1 6 10 L6 6 A 6 6 0 0 1 18 6"
+        : root.name == "backspace" ? "M22 6 L9 6 L3 12 L9 18 L22 18 Z M16 9 L12 15 M12 9 L16 15"
+        : root.name == "eye" ? "M2 12 S5 5 12 5 S22 12 22 12 S19 19 12 19 S2 12 2 12 Z M12 9 A 3 3 0 1 0 12 15 A 3 3 0 1 0 12 9 Z"
+        : root.name == "eye-off" ? "M2 12 S5 5 12 5 S22 12 22 12 S19 19 12 19 S2 12 2 12 Z M3 3 L21 21"
+        : root.name == "keyboard" ? "M3 6 L21 6 A 2 2 0 0 1 23 8 L23 16 A 2 2 0 0 1 21 18 L3 18 A 2 2 0 0 1 1 16 L1 8 A 2 2 0 0 1 3 6 Z M6 10 L8 10 M11 10 L13 10 M16 10 L18 10 M8 14 L16 14"
+        : root.name == "dialpad" ? "M5 5 L7 5 L7 7 L5 7 Z M11 5 L13 5 L13 7 L11 7 Z M17 5 L19 5 L19 7 L17 7 Z M5 11 L7 11 L7 13 L5 13 Z M11 11 L13 11 L13 13 L11 13 Z M17 11 L19 11 L19 13 L17 13 Z M5 17 L7 17 L7 19 L5 19 Z M11 17 L13 17 L13 19 L11 19 Z M17 17 L19 17 L19 19 L17 19 Z"
+        : root.name == "alert-circle" ? "M12 2 A 10 10 0 1 0 22 12 A 10 10 0 0 0 12 2 Z M12 8 L12 12 M12 16 L12.01 16"
+        : root.name == "shift" ? "M12 4 L5 12 L9 12 L9 20 L15 20 L15 12 L19 12 Z"
+        : "";
+
+    width: root.icon-size;
+    height: root.icon-size;
+    background: transparent;
+
+    Path {
+        width: 100%;
+        height: 100%;
+        stroke: root.icon-color;
+        stroke-width: 1.8px;
+        commands: root.d;
+        viewbox-x: 0;
+        viewbox-y: 0;
+        viewbox-width: 24;
+        viewbox-height: 24;
+    }
+}

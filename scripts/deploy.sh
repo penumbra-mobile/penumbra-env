@@ -275,17 +275,36 @@ addgroup "${PENUMBRA_LOGIN_USER}" video 2>/dev/null || usermod -aG video "${PENU
 addgroup "${PENUMBRA_LOGIN_USER}" input 2>/dev/null || usermod -aG input "${PENUMBRA_LOGIN_USER}" 2>/dev/null || true
 addgroup "${PENUMBRA_LOGIN_USER}" audio 2>/dev/null || usermod -aG audio "${PENUMBRA_LOGIN_USER}" 2>/dev/null || true
 
+# Ensure local timezone is synchronized (EET/Europe/Bucharest)
+timedatectl set-timezone Europe/Bucharest 2>/dev/null || true
+
+# Ensure greetd user and configuration
+if id greetd >/dev/null 2>&1; then
+    addgroup greetd video 2>/dev/null || usermod -aG video greetd 2>/dev/null || true
+    addgroup greetd input 2>/dev/null || usermod -aG input greetd 2>/dev/null || true
+    mkdir -p /etc/greetd
+    cat > /etc/greetd/config.toml <<'GREETD_CONF'
+[terminal]
+vt = 1
+
+[default_session]
+command = "env SLINT_SCALE_FACTOR=2.62 cage -s -d -- /usr/local/bin/penumbra-greeter"
+user = "greetd"
+GREETD_CONF
+    chmod 0644 /etc/greetd/config.toml
+fi
+
 # Clean up staging directory
 rm -rf "$STAGING_DIR"
 
 # 6. Session restart if requested
 if [[ "$RESTART_SESSION" == true ]]; then
-    if systemctl is-active gdm >/dev/null 2>&1; then
-        echo "[DEVICE] Restarting GDM service..."
-        systemctl restart gdm
-    elif systemctl is-active greetd >/dev/null 2>&1; then
+    if systemctl is-active greetd >/dev/null 2>&1; then
         echo "[DEVICE] Restarting greetd service..."
         systemctl restart greetd
+    elif systemctl is-active gdm >/dev/null 2>&1; then
+        echo "[DEVICE] Restarting GDM service..."
+        systemctl restart gdm
     elif systemctl is-active tinydm >/dev/null 2>&1; then
         echo "[DEVICE] Restarting tinydm service..."
         systemctl restart tinydm

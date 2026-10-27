@@ -1,0 +1,182 @@
+import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
+
+component ActionTile inherits Rectangle {
+    in property <string> icon-name;
+    in property <string> title;
+    in property <string> subtitle;
+    in property <color> icon-color: Theme.primary;
+    callback clicked();
+
+    height: 64px;
+    border-radius: 16px;
+    background: touch.pressed ? #32303a : #22202a;
+    border-width: 1px;
+    border-color: #353340;
+
+    animate background { duration: 100ms; easing: ease-out; }
+
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 16px;
+        alignment: start;
+
+        Rectangle {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: #2b2835;
+            y: (parent.height - self.height) / 2;
+
+            Icon {
+                name: root.icon-name;
+                icon-size: 20px;
+                icon-color: root.icon-color;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 2px;
+
+            Text {
+                text: root.title;
+                font-size: 15px;
+                font-weight: 600;
+                color: Theme.on-surface;
+            }
+
+            if root.subtitle != "": Text {
+                text: root.subtitle;
+                font-size: 12px;
+                color: Theme.on-surface-variant;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+export component PowerDialog inherits Rectangle {
+    callback suspend-requested();
+    callback reboot-requested();
+    callback poweroff-requested();
+    callback close-requested();
+
+    // Semi-transparent scrim
+    background: #000000cc;
+
+    TouchArea {
+        // Tap outside to close
+        clicked => { root.close-requested(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+
+        HorizontalLayout {
+            alignment: center;
+
+            // Modal Card
+            Rectangle {
+                width: 320px;
+                background: #1c1a22;
+                border-radius: 28px;
+                border-width: 1px;
+                border-color: #383442;
+                drop-shadow-blur: 32px;
+                drop-shadow-color: #00000099;
+
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+
+                    // Header
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: "Power Options";
+                            font-size: 18px;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                            vertical-alignment: center;
+                        }
+
+                        Rectangle {
+                            width: 32px;
+                            height: 32px;
+                            border-radius: 16px;
+                            background: close-btn.pressed ? #35323e : transparent;
+
+                            Icon {
+                                name: "close";
+                                icon-size: 16px;
+                                icon-color: Theme.on-surface-variant;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            close-btn := TouchArea {
+                                clicked => { root.close-requested(); }
+                            }
+                        }
+                    }
+
+                    // Power Actions
+                    VerticalLayout {
+                        spacing: 10px;
+
+                        ActionTile {
+                            icon-name: "suspend";
+                            title: "Suspend";
+                            subtitle: "Sleep and conserve power";
+                            icon-color: Theme.secondary;
+                            clicked => { root.suspend-requested(); }
+                        }
+
+                        ActionTile {
+                            icon-name: "restart";
+                            title: "Restart";
+                            subtitle: "Reboot the system";
+                            icon-color: Theme.primary;
+                            clicked => { root.reboot-requested(); }
+                        }
+
+                        ActionTile {
+                            icon-name: "power";
+                            title: "Power Off";
+                            subtitle: "Shut down completely";
+                            icon-color: Theme.error;
+                            clicked => { root.poweroff-requested(); }
+                        }
+                    }
+
+                    // Cancel Button
+                    Rectangle {
+                        height: 44px;
+                        border-radius: 22px;
+                        background: cancel-touch.pressed ? #32303a : #26242e;
+
+                        Text {
+                            text: "Cancel";
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        cancel-touch := TouchArea {
+                            clicked => { root.close-requested(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
