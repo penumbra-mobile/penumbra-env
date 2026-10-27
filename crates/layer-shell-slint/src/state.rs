@@ -6,14 +6,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use log::{debug, info, trace};
+use slint::platform::WindowAdapter;
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
+    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer, delegate_registry,
     delegate_seat, delegate_shm, delegate_subcompositor, delegate_touch,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
+        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
         pointer::{PointerEvent, PointerHandler},
         touch::TouchHandler,
         Capability, SeatHandler, SeatState,
@@ -23,6 +25,7 @@ use smithay_client_toolkit::{
     shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use wayland_client::protocol::{
+    wl_keyboard::WlKeyboard,
     wl_output::{self, WlOutput},
     wl_pointer::WlPointer,
     wl_seat::WlSeat,
@@ -54,6 +57,10 @@ pub struct AppState {
     pub pointer: Option<WlPointer>,
     /// Currently bound touchscreen device, if available on seat.
     pub touch: Option<WlTouch>,
+    /// Currently bound keyboard device, if available on seat.
+    pub keyboard: Option<WlKeyboard>,
+    /// Window currently holding keyboard focus.
+    pub keyboard_focus: Option<Weak<LayerWindow>>,
 
     /// Weak references to all active Slint layer window adapters.
     pub windows: Vec<Weak<LayerWindow>>,
@@ -194,6 +201,17 @@ impl SeatHandler for AppState {
                     .expect("Failed to get touch");
                 self.touch = Some(touch);
             }
+            Capability::Keyboard if self.keyboard.is_none() => {
+                debug!("Acquiring wl_keyboard capability on seat");
+                match self.seat_state.get_keyboard(qh, &seat, None) {
+                    Ok(keyboard) => {
+                        self.keyboard = Some(keyboard);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to get keyboard from seat: {:?}", e);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -217,6 +235,13 @@ impl SeatHandler for AppState {
                 if let Some(touch) = self.touch.take() {
                     touch.release();
                 }
+            }
+            Capability::Keyboard => {
+                debug!("Releasing wl_keyboard capability");
+                if let Some(keyboard) = self.keyboard.take() {
+                    keyboard.release();
+                }
+                self.keyboard_focus = None;
             }
             _ => {}
         }
@@ -374,6 +399,116 @@ impl LayerShellHandler for AppState {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Keyboard Handler
+// ---------------------------------------------------------------------------
+impl KeyboardHandler for AppState {
+    fn enter(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _keyboard: &WlKeyboard,
+        surface: &WlSurface,
+        _serial: u32,
+        _raw: &[u32],
+        _keysyms: &[Keysym],
+    ) {
+        debug!("Keyboard entered surface {:?}", surface);
+        self.keyboard_focus = self.find_window_by_surface(surface).map(|w| Rc::downgrade(&w));
+    }
+
+    fn leave(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _keyboard: &WlKeyboard,
+        _surface: &WlSurface,
+        _serial: u32,
+    ) {
+        debug!("Keyboard left surface");
+        self.keyboard_focus = None;
+    }
+
+    fn press_key(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _keyboard: &WlKeyboard,
+        _serial: u32,
+        event: KeyEvent,
+    ) {
+        if let Some(window) = self.keyboard_focus.as_ref().and_then(|w| w.upgrade()) {
+            let text: slint::SharedString = if event.keysym == Keysym::BackSpace {
+                slint::SharedString::from(slint::platform::Key::Backspace)
+            } else if event.keysym == Keysym::Return {
+                slint::SharedString::from(slint::platform::Key::Return)
+            } else if event.keysym == Keysym::Tab {
+                slint::SharedString::from(slint::platform::Key::Tab)
+            } else if event.keysym == Keysym::Escape {
+                slint::SharedString::from(slint::platform::Key::Escape)
+            } else if event.keysym == Keysym::Delete {
+                slint::SharedString::from(slint::platform::Key::Delete)
+            } else if event.keysym == Keysym::Left {
+                slint::SharedString::from(slint::platform::Key::LeftArrow)
+            } else if event.keysym == Keysym::Right {
+                slint::SharedString::from(slint::platform::Key::RightArrow)
+            } else if let Some(ref s) = event.utf8 {
+                slint::SharedString::from(s.as_str())
+            } else if let Some(ch) = event.keysym.key_char() {
+                slint::SharedString::from(ch.to_string())
+            } else {
+                return;
+            };
+            window.window().dispatch_event(slint::platform::WindowEvent::KeyPressed { text });
+        }
+    }
+
+    fn release_key(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _keyboard: &WlKeyboard,
+        _serial: u32,
+        event: KeyEvent,
+    ) {
+        if let Some(window) = self.keyboard_focus.as_ref().and_then(|w| w.upgrade()) {
+            let text: slint::SharedString = if event.keysym == Keysym::BackSpace {
+                slint::SharedString::from(slint::platform::Key::Backspace)
+            } else if event.keysym == Keysym::Return {
+                slint::SharedString::from(slint::platform::Key::Return)
+            } else if event.keysym == Keysym::Tab {
+                slint::SharedString::from(slint::platform::Key::Tab)
+            } else if event.keysym == Keysym::Escape {
+                slint::SharedString::from(slint::platform::Key::Escape)
+            } else if event.keysym == Keysym::Delete {
+                slint::SharedString::from(slint::platform::Key::Delete)
+            } else if event.keysym == Keysym::Left {
+                slint::SharedString::from(slint::platform::Key::LeftArrow)
+            } else if event.keysym == Keysym::Right {
+                slint::SharedString::from(slint::platform::Key::RightArrow)
+            } else if let Some(ref s) = event.utf8 {
+                slint::SharedString::from(s.as_str())
+            } else if let Some(ch) = event.keysym.key_char() {
+                slint::SharedString::from(ch.to_string())
+            } else {
+                return;
+            };
+            window.window().dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
+        }
+    }
+
+    fn update_modifiers(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _keyboard: &WlKeyboard,
+        _serial: u32,
+        _modifiers: Modifiers,
+        _layout: u32,
+    ) {
+    }
+}
+
 // Registry handling
 impl ProvidesRegistryState for AppState {
     fn registry(&mut self) -> &mut RegistryState {
@@ -390,6 +525,7 @@ delegate_shm!(AppState);
 delegate_seat!(AppState);
 delegate_pointer!(AppState);
 delegate_touch!(AppState);
+delegate_keyboard!(AppState);
 delegate_layer!(AppState);
 
 impl wayland_client::Dispatch<wayland_client::protocol::wl_region::WlRegion, ()> for AppState {

@@ -118,6 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let uinput = Arc::clone(&uinput);
         keyboard_window.on_key_clicked(move |text| {
+            info!("Virtual key clicked: '{}'", text);
             uinput.send_text(text.as_str());
         });
     }
@@ -125,6 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let uinput = Arc::clone(&uinput);
         keyboard_window.on_backspace_clicked(move || {
+            info!("Virtual backspace clicked");
             uinput.click_key(KEY_BACKSPACE);
         });
     }
@@ -132,6 +134,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let uinput = Arc::clone(&uinput);
         keyboard_window.on_space_clicked(move || {
+            info!("Virtual space clicked");
             uinput.click_key(KEY_SPACE);
         });
     }
@@ -139,6 +142,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let uinput = Arc::clone(&uinput);
         keyboard_window.on_enter_clicked(move || {
+            info!("Virtual enter clicked");
             uinput.click_key(KEY_ENTER);
         });
     }

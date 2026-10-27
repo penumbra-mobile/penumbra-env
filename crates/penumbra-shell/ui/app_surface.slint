@@ -120,6 +120,7 @@ export component AppSurface inherits Rectangle {
     callback drawer-drag-released(float);
     callback drawer-open-requested();
     callback drawer-close-requested();
+    callback drawer-dismiss-keyboard();
 
     callback select-wallpaper(string);
     callback clear-wallpaper();
@@ -385,18 +386,18 @@ export component AppSurface inherits Rectangle {
 
         // Drop Snap Target Preview Box on Homescreen Grid
         if root.is-dragging-app && !root.is-folder-open && root.drag-y < 760px: Rectangle {
-            property <int> snap-col: Math.clamp(Math.round(((root.drag-x / 1px) - 20.0) / 93.0), 0, 3);
+            property <int> snap-col: Math.clamp(Math.round(((root.drag-x / 1px) - 16.0) / 95.0), 0, 3);
             property <int> raw-row: Math.round(((root.drag-y / 1px) - 52.0) / 99.0);
             property <int> min-row: root.current-page == 0 ? 1 : 0;
             property <int> snap-row: Math.clamp(self.raw-row, self.min-row, 6);
             property <bool> is-over-clock: root.current-page == 0 && (root.drag-y / 1px) < 145.0;
 
             visible: !self.is-over-clock;
-            x: 20px + (self.snap-col * 93px) + 6px + (72px - 58px) / 2;
-            y: 52px + (self.snap-row * 99px) + 4px;
-            width: 58px;
-            height: 58px;
-            border-radius: Theme.radius-squircle;
+            x: 16px + (self.snap-col * 95px) + (95px - 64px) / 2;
+            y: 52px + (self.snap-row * 99px);
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
             background: #ADC6FF22;
             border-width: 2px;
             border-color: Theme.primary;
@@ -404,10 +405,10 @@ export component AppSurface inherits Rectangle {
 
         // Drop Snap Target Preview Box on Bottom Dock
         if root.is-dragging-app && !root.is-folder-open && root.drag-y >= 760px: Rectangle {
-            x: (parent.width - 240px) / 2;
-            y: 786px;
-            width: 240px;
-            height: 68px;
+            x: (parent.width - 380px) / 2;
+            y: 780px;
+            width: 380px;
+            height: 76px;
             border-radius: Theme.radius-card;
             background: #ADC6FF22;
             border-width: 2px;
@@ -417,22 +418,22 @@ export component AppSurface inherits Rectangle {
         // Dynamic Grid Shortcuts with Continuous Multi-Page Sliding Animation
         for item[idx] in root.homescreen-items: Rectangle {
             property <float> page-diff: (item.page * 1.0) - root.page-scroll;
-            property <bool> is-drag-hovered: root.is-dragging-app && !root.is-folder-open && root.dragging-app-item.id != item.id && item.page == root.current-page && Math.abs(root.drag-x - (self.x + 36px)) < 40px && Math.abs(root.drag-y - (self.y + 44px)) < 44px;
+            property <bool> is-drag-hovered: root.is-dragging-app && !root.is-folder-open && root.dragging-app-item.id != item.id && item.page == root.current-page && Math.abs(root.drag-x - (self.x + 41px)) < 42px && Math.abs(root.drag-y - (self.y + 44px)) < 44px;
             // Render when within visible viewport or adjacent transitioning range
             visible: Math.abs(self.page-diff) < 1.25;
             opacity: (root.is-dragging-app && root.dragging-app-item.id == item.id) ? 0.0 : 1.0;
 
-            x: 20px + (self.page-diff * 412px) + (item.x * 93px) + 6px;
+            x: 16px + (self.page-diff * 412px) + (item.x * 95px) + (95px - 82px) / 2;
             y: 52px + (item.y * 99px);
-            width: 72px;
-            height: 88px;
+            width: 82px;
+            height: 104px;
 
             if self.is-drag-hovered: Rectangle {
-                x: 4px;
+                x: (parent.width - 64px) / 2;
                 y: 0px;
                 width: 64px;
                 height: 64px;
-                border-radius: 22px;
+                border-radius: 18px;
                 border-width: 3px;
                 border-color: item.is-folder ? #7CDB8A : #D0BCFF;
                 background: item.is-folder ? #7CDB8A33 : #D0BCFF33;
@@ -558,9 +559,9 @@ export component AppSurface inherits Rectangle {
         // Persistent Mobile Bottom Dock (Fixed at bottom above nav bar)
         BottomDock {
             x: (parent.width - 380px) / 2;
-            y: 786px;
+            y: 780px;
             width: 380px;
-            height: 68px;
+            height: 76px;
             dock-apps: root.dock-apps;
             is-editing: root.is-editing;
             reject-drop: root.reject-dock-drop;
@@ -803,6 +804,9 @@ export component AppSurface inherits Rectangle {
             drawer-drag-released(vel) => {
                 root.drawer-drag-released(vel);
             }
+            dismiss-keyboard => {
+                root.drawer-dismiss-keyboard();
+            }
             close-requested => {
                 root.app-search-query = "";
                 root.app-search-query-changed("");
@@ -850,32 +854,33 @@ export component AppSurface inherits Rectangle {
 
         // Floating App/Folder Icon under pointer
         Rectangle {
-            x: Math.clamp(root.drag-x - 30px, 0px, parent.width - 60px);
-            y: Math.clamp(root.drag-y - 30px, 0px, parent.height - 60px);
-            width: 60px;
-            height: 60px;
-            border-radius: Theme.radius-squircle;
+            x: Math.clamp(root.drag-x - 32px, 0px, parent.width - 64px);
+            y: Math.clamp(root.drag-y - 32px, 0px, parent.height - 64px);
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
             background: root.dragging-is-folder ? Theme.surface-container-high : Theme.surface-bright;
             border-width: 2px;
             border-color: Theme.primary;
 
             if root.dragging-is-folder: Icon {
                 name: "folder";
-                icon-size: 28px;
+                icon-size: 32px;
                 icon-color: Theme.on-surface;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
             }
             if !root.dragging-is-folder && root.dragging-app-item.has-icon: Image {
                 source: root.dragging-app-item.icon;
-                width: 44px;
-                height: 44px;
-                x: 8px;
-                y: 8px;
+                width: parent.width * 0.84;
+                height: parent.height * 0.84;
+                image-fit: contain;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
             if !root.dragging-is-folder && !root.dragging-app-item.has-icon: Icon {
                 name: "app";
-                icon-size: 26px;
+                icon-size: 30px;
                 icon-color: Theme.on-surface;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;

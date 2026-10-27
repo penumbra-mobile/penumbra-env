@@ -12,7 +12,7 @@ export component BottomDock inherits Rectangle {
     callback request-edit-mode();
 
     width: 380px;
-    height: 68px;
+    height: 76px;
     border-radius: Theme.radius-pill;
     background: root.reject-drop ? Theme.error-container : Theme.surface-container-high;
     border-width: 1px;
@@ -79,11 +79,11 @@ export component BottomDock inherits Rectangle {
         z: 1;
         x: root.shake-offset;
         alignment: space-around;
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: 2px;
-        padding-bottom: 2px;
-        spacing: 12px;
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 8px;
 
         for app[idx] in root.dock-apps: ShortcutTile {
             app: app;

@@ -93,6 +93,7 @@ export component HomescreenWindow inherits Window {
     callback drawer-drag-released(float);
     callback drawer-open-requested();
     callback drawer-close-requested();
+    callback drawer-dismiss-keyboard();
 
     callback homescreen-pulled-down(float);
     callback homescreen-pull-released();
@@ -105,6 +106,7 @@ export component HomescreenWindow inherits Window {
         drawer-drag-released(v) => { root.drawer-drag-released(v); }
         drawer-open-requested => { root.drawer-open-requested(); }
         drawer-close-requested => { root.drawer-close-requested(); }
+        drawer-dismiss-keyboard => { root.drawer-dismiss-keyboard(); }
         active-mode <=> root.active-mode;
         active-app <=> root.active-app;
         time-text: root.time-str;

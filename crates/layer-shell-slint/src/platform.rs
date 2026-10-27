@@ -206,6 +206,8 @@ impl LayerShellPlatform {
             layer_shell,
             pointer: None,
             touch: None,
+            keyboard: None,
+            keyboard_focus: None,
             windows: Vec::new(),
             touch_targets: std::collections::HashMap::new(),
             exit_flag: exit_flag.clone(),

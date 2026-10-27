@@ -5,6 +5,7 @@ export component Icon inherits Rectangle {
     in property <length> icon-size: 20px;
 
     property <string> d: root.name == "close" ? "M6 6 L18 18 M18 6 L6 18"
+        : root.name == "search" ? "M11 4 A 7 7 0 1 0 11 18 A 7 7 0 1 0 11 4 Z M16 16 L21 21"
         : root.name == "check" ? "M4 12 L9 17 L20 6"
         : root.name == "minus" ? "M5 12 L19 12"
         : root.name == "plus" ? "M12 5 L12 19 M5 12 L19 12"

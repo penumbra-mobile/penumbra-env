@@ -289,8 +289,8 @@ impl PenumbraServerState {
                     let path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-state");
                     std::fs::read_to_string(path).map(|c| c.contains("open=1")).unwrap_or(false)
                 };
-                if self.shell_state.drawer_open || !keyboard_open {
-                    // Do not focus keyboard when drawer is open or keyboard is hidden
+                if !keyboard_open {
+                    // Do not focus keyboard when keyboard is hidden
                 } else {
                     let geo = map_a.layer_geometry(l).unwrap_or_default();
                     return Some((

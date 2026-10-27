@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right)
         .with_size(logical_w, logical_h)
         .with_exclusive_zone(-1)
-        .with_keyboard_interactivity(KeyboardInteractivity::None);
+        .with_keyboard_interactivity(KeyboardInteractivity::OnDemand);
 
     layer_shell_slint::init(config)?;
 
@@ -431,6 +431,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let apps_list = Arc::clone(&apps_list);
         ui.on_app_clicked(move |app_id_slint| {
+            let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+            let _ = std::fs::write(path, "hide");
             let app_id = app_id_slint.as_str();
             info!("Launching application from homescreen: '{}'", app_id);
             let app_opt = {
@@ -504,7 +506,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut cfg = layout_config.borrow_mut();
 
             let min_row = if page == 0 { 1 } else { 0 };
-            let col = (((sx - 20.0) / 93.0).round() as i32).clamp(0, 3);
+            let col = (((sx - 16.0) / 95.0).round() as i32).clamp(0, 3);
             let row = (((sy - 52.0) / 99.0).round() as i32).clamp(min_row, 6);
 
             let existing_folder = cfg
@@ -724,15 +726,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _ = std::fs::write(path, "show");
             let query = query_slint.as_str().trim().to_lowercase();
             if let Some(ui) = ui_weak.upgrade() {
-                let filtered: Vec<AppItem> = cached_all_apps
-                    .iter()
-                    .filter(|a| {
-                        query.is_empty()
-                            || a.name.to_lowercase().contains(&query)
-                            || a.id.to_lowercase().contains(&query)
-                    })
-                    .cloned()
-                    .collect();
+                let filtered: Vec<AppItem> = if query.is_empty() {
+                    cached_all_apps.as_ref().clone()
+                } else {
+                    cached_all_apps
+                        .iter()
+                        .filter(|a| {
+                            a.name.to_lowercase().contains(&query)
+                                || a.id.to_lowercase().contains(&query)
+                        })
+                        .cloned()
+                        .collect()
+                };
                 ui.set_installed_apps(ModelRc::from(Rc::new(VecModel::from(filtered))));
             }
         });
@@ -1069,6 +1074,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ui_weak = ui_weak.clone();
 
         move |target: f64, initial_vel: f64| {
+            if target < 0.5 {
+                let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+                let _ = std::fs::write(path, "hide");
+            }
             {
                 let mut sp = drawer_spring.borrow_mut();
                 sp.target = target;
@@ -1127,6 +1136,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut sp = drawer_spring.borrow_mut();
                 sp.position = new_prog;
                 sp.velocity = 0.0;
+                if new_prog < 0.85 {
+                    let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+                    let _ = std::fs::write(path, "hide");
+                }
             }
         });
     }
@@ -1153,8 +1166,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let animate_drawer_to = Rc::clone(&animate_drawer_to);
         ui.on_drawer_open_requested(move || {
-            let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
-            let _ = std::fs::write(path, "show");
             animate_drawer_to(1.0, 1.5);
         });
     }
@@ -1167,6 +1178,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             animate_drawer_to(0.0, -1.5);
         });
     }
+
+    ui.on_drawer_dismiss_keyboard(|| {
+        let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+        let _ = std::fs::write(path, "hide");
+    });
 
     // 13. Periodic Task List & ShellState synchronization
     let task_timer = Timer::default();

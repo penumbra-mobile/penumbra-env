@@ -1,30 +1,43 @@
 import { Theme } from "theme.slint";
 import { AppItem } from "app_item.slint";
+import { Icon } from "icon.slint";
 
 export component DrawerAppTile inherits Rectangle {
     in property <AppItem> app;
     in property <length> base-x: 0px;
     in property <length> base-y: 0px;
+    in property <length> scroll-y: 0px;
+    in property <float> drawer-progress: 1.0;
 
     callback clicked();
     callback drag-started(string, AppItem, length, length); // id, app, screen_x, screen_y
     callback drag-moved(length, length);
     callback drag-ended(string, length, length);
+    callback drawer-drag-delta(float);
+    callback drawer-drag-released(float);
+    callback list-scrolled(length);
+    callback scroll-released(float);
+    callback scroll-interrupted();
 
     property <float> touch-x: 0.0;
     property <float> touch-y: 0.0;
+    property <float> last-y: 0.0;
+    property <float> last-screen-y: 0.0;
+    property <float> velocity: 0.0;
     property <bool> is-down: false;
     property <bool> is-dragging: false;
+    property <bool> is-drawer-grabbing: false;
+    property <bool> is-scrolling-list: false;
 
-    width: 80px;
-    height: 96px;
+    width: 90px;
+    height: 104px;
 
     lp-timer := Timer {
         interval: 400ms;
         running: false;
         triggered => {
             self.running = false;
-            if (root.is-down) {
+            if (root.is-down && !root.is-drawer-grabbing && !root.is-scrolling-list) {
                 root.is-dragging = true;
                 let sx = root.base-x + (root.touch-x * 1px);
                 let sy = root.base-y + (root.touch-y * 1px);
@@ -35,14 +48,14 @@ export component DrawerAppTile inherits Rectangle {
 
     VerticalLayout {
         alignment: center;
-        spacing: 6px;
+        spacing: 7px;
 
-        // Material 3 Expressive Squircle Container
+        // Material 3 Expressive Continuous Squircle Container (Matches Android 1:1)
         Rectangle {
-            width: (root.is-down && !root.is-dragging) ? 52px : 56px;
-            height: (root.is-down && !root.is-dragging) ? 52px : 56px;
-            border-radius: Theme.radius-squircle;
-            background: (root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container;
+            width: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px;
+            height: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px;
+            border-radius: 18px;
+            background: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container;
             border-width: 1px;
             border-color: Theme.specular-rim;
             clip: true;
@@ -53,15 +66,16 @@ export component DrawerAppTile inherits Rectangle {
 
             if root.app.has-icon: Image {
                 source: root.app.icon;
-                width: parent.width * 0.72;
-                height: parent.height * 0.72;
+                width: parent.width * 0.84;
+                height: parent.height * 0.84;
+                image-fit: contain;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
             }
 
             if !root.app.has-icon: Text {
                 text: "📦";
-                font-size: 24px;
+                font-size: 30px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -69,32 +83,71 @@ export component DrawerAppTile inherits Rectangle {
 
         Text {
             text: root.app.name;
-            color: #e6e0e9;
-            font-size: 11.5px;
+            color: #f2edf7;
+            font-size: 13px;
             font-weight: 500;
             horizontal-alignment: center;
             overflow: elide;
+            width: 100%;
         }
     }
 
     tile-ta := TouchArea {
         pointer-event(event) => {
+            let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + (root.base-y / 1px) + (tile-ta.mouse-y / 1px);
             if (event.kind == PointerEventKind.down) {
                 root.touch-x = tile-ta.mouse-x / 1px;
                 root.touch-y = tile-ta.mouse-y / 1px;
+                root.last-y = tile-ta.mouse-y / 1px;
+                root.last-screen-y = cur-screen-y;
+                root.velocity = 0.0;
                 root.is-down = true;
                 root.is-dragging = false;
+                root.is-drawer-grabbing = false;
+                root.is-scrolling-list = false;
                 lp-timer.running = true;
+                root.scroll-interrupted();
             } else if (event.kind == PointerEventKind.move) {
+                let step-screen-dy = cur-screen-y - root.last-screen-y;
+                root.last-screen-y = cur-screen-y;
+                let cur-y = tile-ta.mouse-y / 1px;
+                let step-tile-dy = cur-y - root.last-y;
+                let total-dy = cur-y - root.touch-y;
+                let total-dx = (tile-ta.mouse-x / 1px) - root.touch-x;
+
                 if (root.is-dragging) {
                     let sx = root.base-x + tile-ta.mouse-x;
                     let sy = root.base-y + tile-ta.mouse-y;
                     root.drag-moved(sx, sy);
+                } else if (root.is-drawer-grabbing) {
+                    root.velocity = root.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
+                    root.drawer-drag-delta(-step-screen-dy / 873.0);
+                } else if (root.is-scrolling-list) {
+                    root.velocity = root.velocity * 0.6 + (step-tile-dy / 0.016) * 0.4;
+                    root.last-y = cur-y;
+                    // Check if scrolling up hits the top: seamlessly transitions to grabbing the drawer down!
+                    if (root.scroll-y >= 0px && step-tile-dy > 0.0) {
+                        root.is-scrolling-list = false;
+                        root.is-drawer-grabbing = true;
+                        root.drawer-drag-delta(-step-screen-dy / 873.0);
+                    } else {
+                        root.list-scrolled(step-tile-dy * 1px);
+                    }
                 } else if (root.is-down) {
-                    let dx = Math.abs((tile-ta.mouse-x / 1px) - root.touch-x);
-                    let dy = Math.abs((tile-ta.mouse-y / 1px) - root.touch-y);
-                    if (dx > 12.0 || dy > 12.0) {
+                    let abs-dy = Math.abs(total-dy);
+                    let abs-dx = Math.abs(total-dx);
+                    if (abs-dy > 8.0 || abs-dx > 8.0) {
                         lp-timer.running = false;
+                        if (abs-dy > abs-dx * 0.8) {
+                            if (root.scroll-y >= 0px && total-dy > 0.0) {
+                                root.is-drawer-grabbing = true;
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            } else {
+                                root.is-scrolling-list = true;
+                                root.last-y = cur-y;
+                                root.list-scrolled(step-tile-dy * 1px);
+                            }
+                        }
                     }
                 }
             } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
@@ -105,11 +158,19 @@ export component DrawerAppTile inherits Rectangle {
                     let sx = root.base-x + tile-ta.mouse-x;
                     let sy = root.base-y + tile-ta.mouse-y;
                     root.drag-ended(root.app.id, sx, sy);
+                } else if (root.is-drawer-grabbing) {
+                    root.is-drawer-grabbing = false;
+                    root.is-down = false;
+                    root.drawer-drag-released(root.velocity);
+                } else if (root.is-scrolling-list) {
+                    root.is-scrolling-list = false;
+                    root.is-down = false;
+                    root.scroll-released(root.velocity);
                 } else if (root.is-down) {
                     root.is-down = false;
                     let dx = Math.abs((tile-ta.mouse-x / 1px) - root.touch-x);
                     let dy = Math.abs((tile-ta.mouse-y / 1px) - root.touch-y);
-                    if (dx < 12.0 && dy < 12.0) {
+                    if (dx < 10.0 && dy < 10.0) {
                         root.clicked();
                     }
                 }
@@ -134,191 +195,289 @@ export component AppDrawer inherits Rectangle {
     callback close-requested();
     callback drawer-drag-delta(float);
     callback drawer-drag-released(float);
+    callback dismiss-keyboard();
+
+    // Android 1:1 kinetic scrolling state
+    property <length> scroll-y: 0px;
+    property <float> scroll-velocity: 0.0;
+    property <length> content-height: Math.max(1, (root.installed-apps.length + 3) / 4) * 116px + 84px;
+
+    pure function compute-min-y() -> length {
+        let vh = root.height - 124px;
+        if (root.content-height > vh) {
+            return -(root.content-height - vh);
+        }
+        return 0px;
+    }
+
+    function manual-scroll(dy: length) {
+        scroll-timer.running = false;
+        root.scroll-velocity = 0.0;
+        let min-y = root.compute-min-y();
+        let next-y = root.scroll-y + dy;
+        if (next-y > 0px) {
+            root.scroll-y = 0px;
+        } else if (next-y < min-y) {
+            root.scroll-y = min-y;
+        } else {
+            root.scroll-y = next-y;
+        }
+    }
+
+    function start-kinetic-scroll(vel: float) {
+        root.scroll-velocity = vel;
+        if (Math.abs(vel) > 30.0) {
+            scroll-timer.running = true;
+        }
+    }
+
+    function stop-kinetic-scroll() {
+        scroll-timer.running = false;
+        root.scroll-velocity = 0.0;
+    }
+
+    scroll-timer := Timer {
+        interval: 16ms;
+        running: false;
+        triggered => {
+            root.scroll-velocity = root.scroll-velocity * 0.92;
+            let min-y = root.compute-min-y();
+            let next-y = root.scroll-y + (root.scroll-velocity * 0.016 * 1px);
+            if (next-y > 0px) {
+                root.scroll-y = 0px;
+                root.scroll-velocity = 0.0;
+                self.running = false;
+            } else if (next-y < min-y) {
+                root.scroll-y = min-y;
+                root.scroll-velocity = 0.0;
+                self.running = false;
+            } else {
+                root.scroll-y = next-y;
+                if (Math.abs(root.scroll-velocity) < 15.0) {
+                    root.scroll-velocity = 0.0;
+                    self.running = false;
+                }
+            }
+        }
+    }
 
     changed search-query => {
+        root.scroll-y = 0px;
+        root.scroll-velocity = 0.0;
+        scroll-timer.running = false;
         root.search-query-changed(self.search-query);
+    }
+
+    changed drawer-progress => {
+        if (self.drawer-progress < 0.05) {
+            root.scroll-y = 0px;
+            root.scroll-velocity = 0.0;
+            scroll-timer.running = false;
+        }
     }
 
     width: 100%;
     height: 100%;
-    background: #131118;
-    border-top-left-radius: 28px;
-    border-top-right-radius: 28px;
+    // Translucent obsidian frosted glass
+    background: #14121be8;
+    border-top-left-radius: 32px;
+    border-top-right-radius: 32px;
+    border-width: 1.5px;
+    border-color: #ffffff22;
     clip: true;
+
+    // Top specular accent sheen (glass refraction line)
+    Rectangle {
+        x: 32px;
+        y: 1.5px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #ffffff1f;
+    }
 
     VerticalLayout {
         padding-top: 8px;
-        padding-bottom: 40px;
-        padding-left: 20px;
-        padding-right: 20px;
-        spacing: 12px;
+        padding-bottom: 0px;
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 10px;
         alignment: start;
 
-        // Top Material 3 Expressive Drag / Dismiss Handle (Touch enabled for smooth 1:1 pull down)
-        Rectangle {
-            height: 38px;
+        // Unified Header Container (Drag Handle + Search Bar Pill + Margins)
+        header-box := Rectangle {
+            height: 106px;
             background: transparent;
 
+            // Centered Drag Pill Handle
             Rectangle {
                 width: 48px;
                 height: 5px;
                 border-radius: 2.5px;
-                background: #79747e;
+                background: #938f99;
                 x: (parent.width - self.width) / 2;
-                y: 12px;
+                y: 6px;
             }
 
-            handle-touch := TouchArea {
+            // Top Search Bar Pill (Material 3 Expressive - translucent glass pill)
+            search-pill := Rectangle {
+                y: 26px;
+                x: 0px;
+                width: parent.width;
+                height: 52px;
+                border-radius: 26px;
+                background: #23202be0;
+                border-width: 1.5px;
+                border-color: search-input.has-focus ? Theme.primary : #ffffff18;
+
+                animate border-color { duration: 150ms; }
+
+                // Search Icon on the left
+                Icon {
+                    name: "search";
+                    icon-size: 20px;
+                    icon-color: search-input.has-focus ? Theme.primary : #a09cb0;
+                    x: 18px;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                // Input Container with overlay placeholder
+                Rectangle {
+                    x: 48px;
+                    y: 6px;
+                    width: parent.width - 48px - (root.search-query != "" ? 44px : 16px);
+                    height: 40px;
+                    clip: true;
+
+                    if root.search-query == "": Text {
+                        x: 0px;
+                        y: 0px;
+                        width: 100%;
+                        height: 100%;
+                        text: "Search apps...";
+                        font-size: 15px;
+                        color: #8e8a9f;
+                        vertical-alignment: center;
+                    }
+
+                    search-input := TextInput {
+                        x: 0px;
+                        y: 0px;
+                        width: 100%;
+                        height: 100%;
+                        text <=> root.search-query;
+                        font-size: 15px;
+                        color: #e6e0e9;
+                        vertical-alignment: center;
+                        single-line: true;
+
+                        edited => {
+                            root.search-query-changed(self.text);
+                            root.search-focused();
+                        }
+                        accepted => {
+                            root.search-accepted(self.text);
+                        }
+                    }
+                }
+
+                // Clear button "✕" when search query is not empty
+                if root.search-query != "": Rectangle {
+                    x: parent.width - 42px;
+                    y: (parent.height - self.height) / 2;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: 15px;
+                    background: #ffffff18;
+
+                    Icon {
+                        name: "close";
+                        icon-size: 14px;
+                        icon-color: #e6e0e9;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            // Header Gesture TouchArea:
+            // Intercepts dragging down from the text area / header without breaking tapping on search box!
+            header-touch := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+
+                property <float> touch-x: 0.0;
+                property <float> touch-y: 0.0;
                 property <float> last-screen-y: 0.0;
                 property <float> velocity: 0.0;
-                property <float> total-drag: 0.0;
                 property <bool> is-down: false;
+                property <bool> is-dragging-drawer: false;
 
                 pointer-event(event) => {
-                    // Absolute screen Y accounting for parent drawer sheet vertical position
-                    let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + (handle-touch.mouse-y / 1px);
+                    let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + 8.0 + (header-touch.mouse-y / 1px);
                     if (event.kind == PointerEventKind.down) {
+                        self.touch-x = header-touch.mouse-x / 1px;
+                        self.touch-y = header-touch.mouse-y / 1px;
                         self.last-screen-y = cur-screen-y;
                         self.velocity = 0.0;
-                        self.total-drag = 0.0;
                         self.is-down = true;
+                        self.is-dragging-drawer = false;
+                    } else if (event.kind == PointerEventKind.move) {
+                        if (self.is-down) {
+                            let step-screen-dy = cur-screen-y - self.last-screen-y;
+                            self.last-screen-y = cur-screen-y;
+                            let cur-y = header-touch.mouse-y / 1px;
+                            let total-dy = cur-y - self.touch-y;
+                            let total-dx = (header-touch.mouse-x / 1px) - self.touch-x;
+                            let abs-dy = Math.abs(total-dy);
+                            let abs-dx = Math.abs(total-dx);
+
+                            if (self.is-dragging-drawer) {
+                                self.velocity = self.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            } else if (abs-dy > 6.0 && abs-dy > abs-dx * 0.8) {
+                                self.is-dragging-drawer = true;
+                                self.velocity = ((-step-screen-dy / 873.0) / 0.016);
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            }
+                        }
                     } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                         if (self.is-down) {
                             self.is-down = false;
-                            if (self.total-drag < 12.0) {
-                                root.close-requested();
-                            } else {
+                            if (self.is-dragging-drawer) {
                                 root.drawer-drag-released(self.velocity);
+                            } else {
+                                let dx = Math.abs((header-touch.mouse-x / 1px) - self.touch-x);
+                                let dy = Math.abs((header-touch.mouse-y / 1px) - self.touch-y);
+                                if (dx < 10.0 && dy < 10.0) {
+                                    // Tap check:
+                                    if (header-touch.mouse-y >= 26px && header-touch.mouse-y <= 78px) {
+                                        if (root.search-query != "" && header-touch.mouse-x >= parent.width - 48px) {
+                                            // Clear button tapped
+                                            search-input.text = "";
+                                            root.search-query = "";
+                                            root.search-query-changed("");
+                                        } else {
+                                            search-input.focus();
+                                            root.search-focused();
+                                        }
+                                    } else if (header-touch.mouse-y < 24px && header-touch.mouse-x >= (parent.width - 70px) / 2 && header-touch.mouse-x <= (parent.width + 70px) / 2) {
+                                        root.close-requested();
+                                    } else {
+                                        root.dismiss-keyboard();
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-
-                moved => {
-                    if (self.is-down) {
-                        let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + (handle-touch.mouse-y / 1px);
-                        let delta = cur-screen-y - self.last-screen-y;
-                        self.total-drag = self.total-drag + Math.abs(delta);
-                        self.velocity = self.velocity * 0.6 + ((-delta / 873.0) / 0.016) * 0.4;
-                        self.last-screen-y = cur-screen-y;
-                        root.drawer-drag-delta(-delta / 873.0);
                     }
                 }
             }
         }
 
-        // Top Search Bar Pill (Material 3 Expressive - no G, live app filter)
-        Rectangle {
-            height: 52px;
-            border-radius: 26px;
-            background: #201d26;
-            border-width: 1px;
-            border-color: search-input.has-focus ? Theme.primary : #2e2a36;
-
-            animate border-color { duration: 150ms; }
-
-            HorizontalLayout {
-                padding-left: 18px;
-                padding-right: 14px;
-                spacing: 12px;
-                alignment: space-between;
-
-                // Left: Search Icon + Text Input
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: center;
-                    horizontal-stretch: 1;
-
-                    Text {
-                        text: "🔍";
-                        font-size: 16px;
-                        color: #a09cb0;
-                        vertical-alignment: center;
-                    }
-
-                    // Input Container with overlay placeholder
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        height: 40px;
-                        clip: true;
-
-                        if search-input.text == "": Text {
-                            x: 0px;
-                            y: 0px;
-                            width: 100%;
-                            height: 100%;
-                            text: "Search apps...";
-                            font-size: Theme.font-label;
-                            color: #a09cb0;
-                            vertical-alignment: center;
-                        }
-
-                        search-input := TextInput {
-                            x: 0px;
-                            y: 0px;
-                            width: 100%;
-                            height: 100%;
-                            text <=> root.search-query;
-                            font-size: Theme.font-label;
-                            color: #e6e0e9;
-                            vertical-alignment: center;
-                            single-line: true;
-
-                            edited => {
-                                root.search-query-changed(self.text);
-                                root.search-focused();
-                            }
-                            accepted => {
-                                root.search-accepted(self.text);
-                            }
-                        }
-
-                        TouchArea {
-                            clicked => {
-                                search-input.focus();
-                                root.search-focused();
-                            }
-                        }
-                    }
-                }
-
-                // Right Action: Clear "✕" button when typing, or "🎙" microphone when empty
-                if search-input.text != "": Rectangle {
-                    width: 28px;
-                    height: 28px;
-                    border-radius: 14px;
-                    background: #ffffff18;
-
-                    Text {
-                        text: "✕";
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: Theme.on-surface-variant;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-
-                    TouchArea {
-                        clicked => {
-                            search-input.text = "";
-                            root.search-query = "";
-                            root.search-query-changed("");
-                        }
-                    }
-                }
-
-                if search-input.text == "": Text {
-                    text: "🎙";
-                    font-size: 16px;
-                    color: Theme.primary;
-                    vertical-alignment: center;
-                }
-            }
-        }
-
-        // Section: Real Installed Applications Grid (Dynamic FreeDesktop XDG Apps)
+        // Section: Real Installed Applications Grid
         if root.installed-apps.length == 0: Rectangle {
-            height: 320px;
+            vertical-stretch: 1;
 
             VerticalLayout {
                 alignment: center;
@@ -338,47 +497,168 @@ export component AppDrawer inherits Rectangle {
                 }
                 Text {
                     text: root.search-query != "" ? "No applications match \"" + root.search-query + "\"" : "No applications installed";
-                    font-size: 12px;
+                    font-size: 13px;
                     color: Theme.on-surface-variant;
                     horizontal-alignment: center;
                 }
             }
         }
 
-        if root.installed-apps.length > 0: flick := Flickable {
-            height: 640px;
-            content-height: (root.installed-apps.length / 4 + 1) * 105px;
+        if root.installed-apps.length > 0: list-viewport := Rectangle {
+            height: root.height - 124px;
+            clip: true;
 
-            VerticalLayout {
-                spacing: 8px;
-                alignment: start;
+            // Background touch listener (for empty space taps & drags)
+            list-bg-touch := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
 
-                for row in (root.installed-apps.length / 4 + 1): HorizontalLayout {
-                    alignment: space-around;
-                    for col in 4: Rectangle {
-                        width: 80px;
-                        height: 96px;
-                        property <int> idx: row * 4 + col;
-                        property <length> tile-base-x: 26.5px + col * 93px;
-                        property <length> tile-base-y: 139px + flick.content-y + row * 104px;
+                property <float> touch-x: 0.0;
+                property <float> touch-y: 0.0;
+                property <float> last-y: 0.0;
+                property <float> last-screen-y: 0.0;
+                property <float> velocity: 0.0;
+                property <bool> is-down: false;
+                property <bool> is-drawer-grabbing: false;
+                property <bool> is-scrolling-list: false;
 
-                        if self.idx < root.installed-apps.length: DrawerAppTile {
-                            app: root.installed-apps[parent.idx];
-                            base-x: parent.tile-base-x;
-                            base-y: parent.tile-base-y;
-                            clicked => {
-                                root.app-clicked(root.installed-apps[parent.idx].id);
-                            }
-                            drag-started(id, item, sx, sy) => {
-                                root.start-drag(id, item, sx, sy);
-                            }
-                            drag-moved(sx, sy) => {
-                                root.drag-moved(sx, sy);
-                            }
-                            drag-ended(id, sx, sy) => {
-                                root.drag-ended(id, sx, sy);
+                pointer-event(event) => {
+                    let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + 124.0 + (list-bg-touch.mouse-y / 1px);
+                    if (event.kind == PointerEventKind.down) {
+                        self.touch-x = list-bg-touch.mouse-x / 1px;
+                        self.touch-y = list-bg-touch.mouse-y / 1px;
+                        self.last-y = list-bg-touch.mouse-y / 1px;
+                        self.last-screen-y = cur-screen-y;
+                        self.velocity = 0.0;
+                        self.is-down = true;
+                        self.is-drawer-grabbing = false;
+                        self.is-scrolling-list = false;
+                        root.stop-kinetic-scroll();
+                    } else if (event.kind == PointerEventKind.move) {
+                        if (self.is-down) {
+                            let step-screen-dy = cur-screen-y - self.last-screen-y;
+                            self.last-screen-y = cur-screen-y;
+                            let cur-y = list-bg-touch.mouse-y / 1px;
+                            let step-y = cur-y - self.last-y;
+                            let total-dy = cur-y - self.touch-y;
+                            let total-dx = (list-bg-touch.mouse-x / 1px) - self.touch-x;
+
+                            if (self.is-drawer-grabbing) {
+                                self.velocity = self.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            } else if (self.is-scrolling-list) {
+                                self.velocity = self.velocity * 0.6 + (step-y / 0.016) * 0.4;
+                                self.last-y = cur-y;
+                                if (root.scroll-y >= 0px && step-y > 0.0) {
+                                    self.is-scrolling-list = false;
+                                    self.is-drawer-grabbing = true;
+                                    root.drawer-drag-delta(-step-screen-dy / 873.0);
+                                } else {
+                                    root.manual-scroll(step-y * 1px);
+                                }
+                            } else {
+                                let abs-dy = Math.abs(total-dy);
+                                let abs-dx = Math.abs(total-dx);
+                                if (abs-dy > 8.0 || abs-dx > 8.0) {
+                                    if (abs-dy > abs-dx * 0.8) {
+                                        if (root.scroll-y >= 0px && total-dy > 0.0) {
+                                            self.is-drawer-grabbing = true;
+                                            root.drawer-drag-delta(-step-screen-dy / 873.0);
+                                        } else {
+                                            self.is-scrolling-list = true;
+                                            self.last-y = cur-y;
+                                            root.manual-scroll(step-y * 1px);
+                                        }
+                                    }
+                                }
                             }
                         }
+                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                        if (self.is-down) {
+                            self.is-down = false;
+                            if (self.is-drawer-grabbing) {
+                                self.is-drawer-grabbing = false;
+                                root.drawer-drag-released(self.velocity);
+                            } else if (self.is-scrolling-list) {
+                                self.is-scrolling-list = false;
+                                root.start-kinetic-scroll(self.velocity);
+                            } else {
+                                let dx = Math.abs((list-bg-touch.mouse-x / 1px) - self.touch-x);
+                                let dy = Math.abs((list-bg-touch.mouse-y / 1px) - self.touch-y);
+                                if (dx < 10.0 && dy < 10.0) {
+                                    // Tap on empty space: dismiss keyboard!
+                                    root.dismiss-keyboard();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Scrollable app content
+            list-content := Rectangle {
+                x: 0px;
+                y: root.scroll-y;
+                width: parent.width;
+                height: root.content-height;
+
+                VerticalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    for row in Math.max(1, (root.installed-apps.length + 3) / 4): HorizontalLayout {
+                        spacing: 0px;
+                        for col in 4: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 104px;
+                            property <int> idx: row * 4 + col;
+                            property <length> tile-base-x: 16px + (col * (parent.width / 4)) + ((parent.width / 4) - 90px) / 2;
+                            property <length> tile-base-y: 124px + root.scroll-y + row * 116px;
+
+                            if self.idx < root.installed-apps.length: DrawerAppTile {
+                                app: root.installed-apps[parent.idx];
+                                base-x: parent.tile-base-x;
+                                base-y: parent.tile-base-y;
+                                scroll-y: root.scroll-y;
+                                drawer-progress: root.drawer-progress;
+                                x: (parent.width - self.width) / 2;
+                                clicked => {
+                                    root.app-clicked(root.installed-apps[parent.idx].id);
+                                }
+                                drawer-drag-delta(d) => {
+                                    root.drawer-drag-delta(d);
+                                }
+                                drawer-drag-released(v) => {
+                                    root.drawer-drag-released(v);
+                                }
+                                list-scrolled(dy) => {
+                                    root.manual-scroll(dy);
+                                }
+                                scroll-released(v) => {
+                                    root.start-kinetic-scroll(v);
+                                }
+                                scroll-interrupted => {
+                                    root.stop-kinetic-scroll();
+                                }
+                                drag-started(id, item, sx, sy) => {
+                                    root.start-drag(id, item, sx, sy);
+                                }
+                                drag-moved(sx, sy) => {
+                                    root.drag-moved(sx, sy);
+                                }
+                                drag-ended(id, sx, sy) => {
+                                    root.drag-ended(id, sx, sy);
+                                }
+                            }
+                        }
+                    }
+
+                    // Padding between bottom edge and last app row: navbar (~48-54px) + clearance (~30px) = 84px
+                    Rectangle {
+                        height: 84px;
+                        background: transparent;
                     }
                 }
             }

@@ -1423,7 +1423,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Calculate target cell (4 columns, up to 7 rows; row 0 reserved on page 0 for clock)
             let min_row = if page == 0 { 1 } else { 0 };
-            let col = (((sx - 20.0) / 93.0).round() as i32).clamp(0, 3);
+            let col = (((sx - 16.0) / 95.0).round() as i32).clamp(0, 3);
             let row = (((sy - 52.0) / 99.0).round() as i32).clamp(min_row, 6);
 
             let existing_folder = cfg

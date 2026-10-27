@@ -16,7 +16,7 @@ slint = { version = "1.8", default-features = false, features = ["compat-1-2", "
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop"] }
+smithay-client-toolkit = { version = "0.19", default-features = false, features = ["calloop", "xkbcommon"] }
 
 # Event loop & utilities
 calloop = "0.13"

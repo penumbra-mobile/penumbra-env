@@ -24,8 +24,8 @@ export component ShortcutTile inherits Rectangle {
     callback drag-moved(length, length);
     callback drag-ended(string, length, length);
 
-    width: 72px;
-    height: root.show-label ? 88px : 64px;
+    width: 82px;
+    height: root.show-label ? 104px : 64px;
     background: transparent;
 
     // iOS Jiggle animation continuous offset
@@ -73,14 +73,14 @@ export component ShortcutTile inherits Rectangle {
 
         VerticalLayout {
             alignment: center;
-            spacing: 5px;
+            spacing: 6px;
 
             // Material 3 Expressive Squircle Icon Container
             icon-box := Rectangle {
-                width: (root.is-down && !root.is-dragging) ? 52px : 56px;
-                height: (root.is-down && !root.is-dragging) ? 52px : 56px;
+                width: (root.is-down && !root.is-dragging) ? 58px : 64px;
+                height: (root.is-down && !root.is-dragging) ? 58px : 64px;
                 x: (parent.width - self.width) / 2;
-                border-radius: Theme.radius-squircle;
+                border-radius: 18px;
                 background: root.tile-is-folder ? Theme.surface-container-high : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container);
                 border-width: root.is-editing ? 2px : 1px;
                 border-color: root.is-editing ? Theme.primary : Theme.specular-rim;
@@ -94,19 +94,20 @@ export component ShortcutTile inherits Rectangle {
                     width: 100%;
                     height: 100%;
                     clip: true;
-                    border-radius: Theme.radius-squircle;
+                    border-radius: 18px;
 
                     if root.tile-has-icon: Image {
                         source: root.tile-icon;
-                        width: parent.width * 0.72;
-                        height: parent.height * 0.72;
+                        width: parent.width * 0.84;
+                        height: parent.height * 0.84;
+                        image-fit: contain;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
 
                     if !root.tile-has-icon: Icon {
                         name: "app";
-                        icon-size: parent.width * 0.52;
+                        icon-size: parent.width * 0.58;
                         icon-color: Theme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
@@ -115,80 +116,84 @@ export component ShortcutTile inherits Rectangle {
 
                 // 2x2 Mini Folder Previews
                 if root.item.is-folder: Rectangle {
-                    width: 44px;
-                    height: 44px;
-                    x: 6px;
-                    y: 6px;
+                    width: 50px;
+                    height: 50px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
 
                     // Slot 1 (top-left)
                     Rectangle {
                         x: 2px;
                         y: 2px;
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 5px;
+                        width: 21px;
+                        height: 21px;
+                        border-radius: 6px;
                         background: #2C2836;
                         clip: true;
                         if root.item.has-prev-1: Image {
                             source: root.item.preview-1;
-                            width: 14px;
-                            height: 14px;
-                            x: 2px;
-                            y: 2px;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                            x: 2.5px;
+                            y: 2.5px;
                         }
                     }
 
                     // Slot 2 (top-right)
                     Rectangle {
-                        x: 24px;
+                        x: 27px;
                         y: 2px;
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 5px;
+                        width: 21px;
+                        height: 21px;
+                        border-radius: 6px;
                         background: #2C2836;
                         clip: true;
                         if root.item.has-prev-2: Image {
                             source: root.item.preview-2;
-                            width: 14px;
-                            height: 14px;
-                            x: 2px;
-                            y: 2px;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                            x: 2.5px;
+                            y: 2.5px;
                         }
                     }
 
                     // Slot 3 (bottom-left)
                     Rectangle {
                         x: 2px;
-                        y: 24px;
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 5px;
+                        y: 27px;
+                        width: 21px;
+                        height: 21px;
+                        border-radius: 6px;
                         background: #2C2836;
                         clip: true;
                         if root.item.has-prev-3: Image {
                             source: root.item.preview-3;
-                            width: 14px;
-                            height: 14px;
-                            x: 2px;
-                            y: 2px;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                            x: 2.5px;
+                            y: 2.5px;
                         }
                     }
 
                     // Slot 4 (bottom-right)
                     Rectangle {
-                        x: 24px;
-                        y: 24px;
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 5px;
+                        x: 27px;
+                        y: 27px;
+                        width: 21px;
+                        height: 21px;
+                        border-radius: 6px;
                         background: #2C2836;
                         clip: true;
                         if root.item.has-prev-4: Image {
                             source: root.item.preview-4;
-                            width: 14px;
-                            height: 14px;
-                            x: 2px;
-                            y: 2px;
+                            width: 16px;
+                            height: 16px;
+                            image-fit: contain;
+                            x: 2.5px;
+                            y: 2.5px;
                         }
                     }
                 }
@@ -197,12 +202,12 @@ export component ShortcutTile inherits Rectangle {
 
             if root.show-label: Text {
                 text: root.tile-name;
-                font-size: 11px;
+                font-size: 13px;
                 font-weight: 500;
-                color: Theme.on-surface;
+                color: #ffffff;
                 horizontal-alignment: center;
                 overflow: elide;
-                max-width: 72px;
+                max-width: 82px;
             }
         }
     }
@@ -251,7 +256,7 @@ export component ShortcutTile inherits Rectangle {
     // Delete badge in top-right corner during edit mode
     // Declared AFTER tile-ta so it takes event priority over the tile TouchArea
     if root.is-editing: delete-badge := Rectangle {
-        x: 48px + root.jiggle-x;
+        x: 61px + root.jiggle-x;
         y: (root.show-label ? 1px : -2px) + root.jiggle-y;
         width: 24px;
         height: 24px;
