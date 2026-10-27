@@ -409,6 +409,21 @@ pub fn setup_app(
     // Security & Privacy Callbacks
     {
         let weak = ui_weak.clone();
+        window.on_set_lock_swipe(move || {
+            let mut sec_cfg = SecurityConfig::load();
+            sec_cfg.set_secret("", LockType::Swipe);
+            if let Err(e) = sec_cfg.save() {
+                warn!("Failed to save security.json: {e}");
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.set_active_lock_type("swipe".into());
+            }
+            info!("Settings: Screen lock set to Swipe to unlock");
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
         window.on_set_lock_none(move || {
             let mut sec_cfg = SecurityConfig::load();
             sec_cfg.set_secret("", LockType::None);
@@ -418,7 +433,7 @@ pub fn setup_app(
             if let Some(ui) = weak.upgrade() {
                 ui.set_active_lock_type("none".into());
             }
-            info!("Settings: Screen lock set to None (Swipe)");
+            info!("Settings: Screen lock set to None (No lock screen)");
         });
     }
 

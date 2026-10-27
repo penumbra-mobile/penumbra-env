@@ -197,6 +197,7 @@ export component SettingsWindow inherits Window {
     in-out property <int> auto-lock-timeout: 300;
     in-out property <bool> hide-sensitive-notifications: false;
 
+    callback set-lock-swipe();
     callback set-lock-none();
     callback set-lock-pin(string);
     callback set-lock-password(string);
@@ -389,6 +390,7 @@ export component SettingsWindow inherits Window {
                         root.active-page = "main";
                         root.subpage-slide = 0.0;
                     }
+                    set-lock-swipe => { root.set-lock-swipe(); }
                     set-lock-none => { root.set-lock-none(); }
                     set-lock-pin(p) => { root.set-lock-pin(p); }
                     set-lock-password(pw) => { root.set-lock-password(pw); }

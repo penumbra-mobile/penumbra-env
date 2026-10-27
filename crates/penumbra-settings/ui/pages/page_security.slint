@@ -12,6 +12,7 @@ export component PageSecurity inherits Rectangle {
     in property <string> error-message: "";
 
     callback back();
+    callback set-lock-swipe();
     callback set-lock-none();
     callback set-lock-pin(string);
     callback set-lock-password(string);
@@ -41,8 +42,8 @@ export component PageSecurity inherits Rectangle {
             padding-bottom: 48px;
             spacing: 20px;
 
-            // Top Header with Back Button
-            HorizontalLayout {
+            // Sub-view Header with Back/Cancel Button (Only shown during PIN/Password setup)
+            if (root.show-pin-setup || root.show-password-setup): HorizontalLayout {
                 height: 48px;
                 spacing: 12px;
                 alignment: start;
@@ -51,7 +52,7 @@ export component PageSecurity inherits Rectangle {
                     width: 44px;
                     height: 44px;
                     border-radius: 22px;
-                    background: back-touch.pressed ? Theme.surface-high : transparent;
+                    background: back-setup-touch.pressed ? Theme.surface-high : transparent;
                     y: (parent.height - self.height) / 2;
 
                     Icon {
@@ -62,20 +63,16 @@ export component PageSecurity inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                     }
 
-                    back-touch := TouchArea {
+                    back-setup-touch := TouchArea {
                         clicked => {
-                            if (root.show-pin-setup || root.show-password-setup) {
-                                root.show-pin-setup = false;
-                                root.show-password-setup = false;
-                            } else {
-                                root.back();
-                            }
+                            root.show-pin-setup = false;
+                            root.show-password-setup = false;
                         }
                     }
                 }
 
                 Text {
-                    text: root.show-pin-setup ? "Set Screen PIN" : (root.show-password-setup ? "Set Screen Password" : "Security & privacy");
+                    text: root.show-pin-setup ? "Set Screen PIN" : "Set Screen Password";
                     font-size: 22px;
                     font-weight: 500;
                     color: Theme.on-surface;
@@ -97,13 +94,13 @@ export component PageSecurity inherits Rectangle {
                         SettingsTile {
                             icon-name: "lock";
                             icon-tint: #a8c7fa;
-                            title: "None";
+                            title: "Swipe";
                             subtitle: "Swipe to unlock, no credential required";
-                            trailing-text: root.active-lock-type == "none" ? "Active" : "";
+                            trailing-text: root.active-lock-type == "swipe" ? "Active" : "";
                             is-first: true;
                             show-divider: true;
                             clicked => {
-                                root.set-lock-none();
+                                root.set-lock-swipe();
                             }
                         }
 
@@ -128,13 +125,25 @@ export component PageSecurity inherits Rectangle {
                             title: "Password";
                             subtitle: "Alphanumeric password with on-screen keyboard";
                             trailing-text: root.active-lock-type == "password" ? "Active" : "";
-                            is-last: true;
-                            show-divider: false;
+                            show-divider: true;
                             clicked => {
                                 root.new-password = "";
                                 root.confirm-password = "";
                                 root.setup-error = "";
                                 root.show-password-setup = true;
+                            }
+                        }
+
+                        SettingsTile {
+                            icon-name: "lock-open";
+                            icon-tint: #80cbc4;
+                            title: "None";
+                            subtitle: "No lock screen, wakes directly to home";
+                            trailing-text: root.active-lock-type == "none" ? "Active" : "";
+                            is-last: true;
+                            show-divider: false;
+                            clicked => {
+                                root.set-lock-none();
                             }
                         }
                     }

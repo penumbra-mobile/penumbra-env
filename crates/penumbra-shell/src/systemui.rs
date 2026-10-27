@@ -836,6 +836,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         Rc::new(move || {
             let sec_cfg = SecurityConfig::load();
             if sec_cfg.lock_type == LockType::None {
+                info!("Mobile lockscreen: lock_type is None (no lockscreen), skipping lock.");
                 return;
             }
             info!("Mobile lockscreen: activated (mode={:?}).", sec_cfg.lock_type);

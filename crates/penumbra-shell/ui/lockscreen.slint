@@ -105,6 +105,7 @@ export component Lockscreen inherits Rectangle {
     property <length> drag-offset-y: 0px;
     property <bool> is-dragging: false;
     property <length> touch-start-y: 0px;
+    property <bool> em-pressed: false;
 
     // Password mode internal state
     property <bool> password-obscured: true;
@@ -442,7 +443,7 @@ export component Lockscreen inherits Rectangle {
         y: root.in-challenge ? -915px : root.drag-offset-y;
         background: #0d0e15;
 
-        animate y { duration: 250ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate y { duration: root.is-dragging ? 0ms : 250ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
 
         VerticalLayout {
             padding-top: 50px;
@@ -589,7 +590,7 @@ export component Lockscreen inherits Rectangle {
                     height: 38px;
                     width: 110px;
                     border-radius: 19px;
-                    background: cover-em-touch.pressed ? #321616 : #1e1f26;
+                    background: root.em-pressed ? #321616 : #1e1f26;
 
                     Text {
                         text: "Emergency";
@@ -599,61 +600,77 @@ export component Lockscreen inherits Rectangle {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
+                }
+            }
+        }
+    }
 
-                    cover-em-touch := TouchArea {
-                        clicked => {
-                            root.emergency-clicked();
+    // Fullscreen gesture TouchArea for Cover Page
+    // Placed at Lockscreen root level so its coordinate space never shifts during drag!
+    if !root.in-challenge: cover-touch := TouchArea {
+        width: 100%;
+        height: 100%;
+
+        pointer-event(event) => {
+            if event.kind == PointerEventKind.down {
+                root.touch-start-y = self.mouse-y;
+                root.is-dragging = true;
+            } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                root.is-dragging = false;
+                let dy = root.touch-start-y - self.mouse-y;
+                if dy > 50px {
+                    // Swipe up gesture triggered!
+                    if root.lock-type == "none" || root.lock-type == "swipe" {
+                        root.is-locked = false;
+                        root.unlock-succeeded();
+                    } else {
+                        root.in-challenge = true;
+                        if root.lock-type == "password" {
+                            root.keyboard-show-requested();
                         }
                     }
+                }
+                root.drag-offset-y = 0px;
+            }
+        }
+
+        moved => {
+            if root.is-dragging {
+                let dy = self.mouse-y - root.touch-start-y;
+                if dy < 0px {
+                    root.drag-offset-y = dy;
                 }
             }
         }
 
-        // Gesture handling for Cover Page
-        cover-touch := TouchArea {
+        clicked => {
+            // Tapping cover screen also moves to challenge or unlocks
+            if root.lock-type == "none" || root.lock-type == "swipe" {
+                root.is-locked = false;
+                root.unlock-succeeded();
+            } else {
+                root.in-challenge = true;
+                if root.lock-type == "password" {
+                    root.keyboard-show-requested();
+                }
+            }
+        }
+
+        // Emergency button on Cover Page
+        cover-em-touch := TouchArea {
+            x: 24px;
+            y: parent.height - 72px;
+            width: 110px;
+            height: 38px;
             pointer-event(event) => {
                 if event.kind == PointerEventKind.down {
-                    root.touch-start-y = self.mouse-y;
-                    root.is-dragging = true;
+                    root.em-pressed = true;
                 } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
-                    root.is-dragging = false;
-                    let dy = root.touch-start-y - self.mouse-y;
-                    if dy > 60px {
-                        // Swipe up gesture triggered!
-                        if root.lock-type == "none" {
-                            root.is-locked = false;
-                            root.unlock-succeeded();
-                        } else {
-                            root.in-challenge = true;
-                            if root.lock-type == "password" {
-                                root.keyboard-show-requested();
-                            }
-                        }
-                    }
-                    root.drag-offset-y = 0px;
+                    root.em-pressed = false;
                 }
             }
-
-            moved => {
-                if root.is-dragging {
-                    let dy = self.mouse-y - root.touch-start-y;
-                    if dy < 0px {
-                        root.drag-offset-y = dy;
-                    }
-                }
-            }
-
             clicked => {
-                // Tapping cover screen also moves to challenge or unlocks
-                if root.lock-type == "none" {
-                    root.is-locked = false;
-                    root.unlock-succeeded();
-                } else {
-                    root.in-challenge = true;
-                    if root.lock-type == "password" {
-                        root.keyboard-show-requested();
-                    }
-                }
+                root.emergency-clicked();
             }
         }
     }

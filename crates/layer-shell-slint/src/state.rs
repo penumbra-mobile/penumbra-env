@@ -278,6 +278,13 @@ impl TouchHandler for AppState {
             if let Some(w) = weak.upgrade() {
                 w.process_touch_up(id);
             }
+        } else {
+            for weak in self.touch_targets.values() {
+                if let Some(w) = weak.upgrade() {
+                    w.process_touch_up(id);
+                }
+            }
+            self.touch_targets.clear();
         }
     }
 

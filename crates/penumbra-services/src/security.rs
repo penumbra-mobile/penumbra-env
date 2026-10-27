@@ -16,6 +16,7 @@ use tracing::info;
 #[serde(rename_all = "lowercase")]
 pub enum LockType {
     #[default]
+    Swipe,
     None,
     Pin,
     Password,
@@ -24,6 +25,7 @@ pub enum LockType {
 impl LockType {
     pub fn as_str(&self) -> &'static str {
         match self {
+            LockType::Swipe => "swipe",
             LockType::None => "none",
             LockType::Pin => "pin",
             LockType::Password => "password",
@@ -32,6 +34,7 @@ impl LockType {
 
     pub fn from_str_name(s: &str) -> Self {
         match s.to_lowercase().trim() {
+            "swipe" => LockType::Swipe,
             "pin" => LockType::Pin,
             "password" => LockType::Password,
             _ => LockType::None,
@@ -61,7 +64,7 @@ pub struct SecurityConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            lock_type: LockType::None,
+            lock_type: LockType::Swipe,
             secret_hash: String::new(),
             salt: String::new(),
             fingerprint_enabled: false,
@@ -128,8 +131,8 @@ impl SecurityConfig {
 
     /// Sets a new secret (PIN or password) and updates configuration.
     pub fn set_secret(&mut self, secret: &str, lock_type: LockType) {
-        if lock_type == LockType::None || secret.is_empty() {
-            self.lock_type = LockType::None;
+        if lock_type == LockType::None || lock_type == LockType::Swipe || secret.is_empty() {
+            self.lock_type = lock_type;
             self.secret_hash.clear();
             self.salt.clear();
             return;
@@ -164,7 +167,7 @@ impl SecurityConfig {
 
     /// Verifies an entered secret against the stored credential in constant time.
     pub fn verify_secret(&self, entered_secret: &str) -> bool {
-        if self.lock_type == LockType::None {
+        if self.lock_type == LockType::None || self.lock_type == LockType::Swipe {
             return true;
         }
 
@@ -261,9 +264,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_config_is_none() {
+    fn test_default_config_is_swipe() {
         let cfg = SecurityConfig::default();
-        assert_eq!(cfg.lock_type, LockType::None);
+        assert_eq!(cfg.lock_type, LockType::Swipe);
+        assert!(cfg.verify_secret("anything"));
+    }
+
+    #[test]
+    fn test_reset_to_swipe() {
+        let mut cfg = SecurityConfig::default();
+        cfg.set_secret("1234", LockType::Pin);
+        assert_eq!(cfg.lock_type, LockType::Pin);
+        cfg.set_secret("", LockType::Swipe);
+        assert_eq!(cfg.lock_type, LockType::Swipe);
         assert!(cfg.verify_secret("anything"));
     }
 

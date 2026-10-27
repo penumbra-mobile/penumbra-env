@@ -257,19 +257,26 @@ impl PenumbraServerState {
         }
 
         // 1. Overlay layer (highest priority - active when drawer is actually expanded/pulled down, or dialogs open)
-        let overlay_active = (self.shell_state.drawer_open
-            && (self.shell_state.drawer_pull_dy > 42.0 || self.shell_state.drawer_progress > 0.05))
+        let overlay_active = self.shell_state.drawer_open
+            || (self.shell_state.drawer_dragging && (self.shell_state.drawer_pull_dy > 42.0 || self.shell_state.drawer_progress > 0.05))
             || self.shell_state.power_dialog_open
             || self.shell_state.volume_modal_open;
         if overlay_active {
-            if let Some(l) = map_a.layer_under(Layer::Overlay, pos) {
-                if l.namespace() != "penumbra-lockscreen" {
-                    let geo = map_a.layer_geometry(l).unwrap_or_default();
-                    return Some((
-                        l.wl_surface().clone(),
-                        (geo.loc.x as f64, geo.loc.y as f64).into(),
-                    ));
+            if let Some(l) = map_a.layers_on(Layer::Overlay).rev().find(|l| {
+                if l.namespace() == "penumbra-lockscreen" {
+                    return false;
                 }
+                if let Some(geo) = map_a.layer_geometry(l) {
+                    geo.to_f64().contains(pos)
+                } else {
+                    false
+                }
+            }) {
+                let geo = map_a.layer_geometry(l).unwrap_or_default();
+                return Some((
+                    l.wl_surface().clone(),
+                    (geo.loc.x as f64, geo.loc.y as f64).into(),
+                ));
             }
         }
 
@@ -823,18 +830,22 @@ impl PenumbraServerState {
             info!("Blanking screen (turning off backlight)");
             let _ = std::fs::write(backlight_file, "0");
             self.screen_blanked = true;
+            if let Some(touch) = self.seat.get_touch() {
+                touch.cancel(self);
+            }
 
-            // Only lock if user has explicitly enabled PIN or Password in security settings
+            // Lock device on screen blank unless user explicitly chose "none" (no lock screen)
             let home = std::env::var("HOME").unwrap_or_else(|_| "/home/user".to_string());
             let sec_file = std::path::PathBuf::from(home).join(".config/penumbra/security.json");
-            let has_lock = if let Ok(s) = std::fs::read_to_string(&sec_file) {
+            let should_lock = if let Ok(s) = std::fs::read_to_string(&sec_file) {
                 let compact: String = s.chars().filter(|c| !c.is_whitespace()).collect();
-                compact.contains("\"lock_type\":\"pin\"") || compact.contains("\"lock_type\":\"password\"")
+                !compact.contains("\"lock_type\":\"none\"")
             } else {
-                false
+                // Default is Swipe to unlock
+                true
             };
-            if has_lock {
-                info!("Screen blanked and security lock configured -> locking device");
+            if should_lock {
+                info!("Screen blanked and lock enabled -> locking device");
                 self.shell_state.is_locked = true;
                 let _ = self.shell_state.save();
                 let _ = std::fs::write("/tmp/penumbra-lock.cmd", "lock\n");

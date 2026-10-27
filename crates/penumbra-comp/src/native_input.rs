@@ -231,6 +231,10 @@ fn handle_keyboard(
                             "Power button short-press -> Toggle Screen Blanking"
                         );
                         server.toggle_screen_blanking();
+                        input.touches.clear();
+                        input.nav_tracker = None;
+                        input.shade_tracker = None;
+                        input.edge_gesture = None;
                     }
                 }
             }
@@ -645,10 +649,11 @@ pub(crate) fn handle(
             }
         }
         InputEvent::TouchUp { event } => {
+            let slot: i32 = event.slot().into();
             if server.screen_blanked {
+                end_touch(server, input, slot);
                 return;
             }
-            let slot: i32 = event.slot().into();
             if let Some(nav) = input.nav_tracker.take() {
                 if nav.slot == slot {
                     let vx = nav.tracker.velocity_x();
@@ -927,10 +932,12 @@ pub(crate) fn handle(
             end_touch(server, input, slot);
         }
         InputEvent::TouchCancel { event } => {
+            let slot: i32 = event.slot().into();
+            end_touch(server, input, slot);
+            input.touch_handle.cancel(server);
             if server.screen_blanked {
                 return;
             }
-            let slot: i32 = event.slot().into();
             if let Some(shade) = input.shade_tracker.take() {
                 if shade.slot == slot {
                     server.shell_state.drawer_dragging = false;
