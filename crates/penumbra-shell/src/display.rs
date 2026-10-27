@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_BACKLIGHT_DIR: &str = "/sys/class/backlight";
 
 pub fn brightness_ratio_to_raw(value: f64, max_brightness: u32) -> u32 {
-    let ratio = value.clamp(0.0, 1.0);
-    ((ratio * max_brightness as f64).round()) as u32
+    let ratio = value.clamp(0.05, 1.0);
+    (((ratio * max_brightness as f64).round()) as u32).max(1)
 }
 
 fn read_first_line(path: &Path) -> io::Result<String> {
@@ -53,10 +53,10 @@ mod tests {
 
     #[test]
     fn brightness_map_clamps_and_scales() {
-        assert_eq!(brightness_ratio_to_raw(0.0, 255), 0);
+        assert_eq!(brightness_ratio_to_raw(0.0, 255), 13);
         assert_eq!(brightness_ratio_to_raw(1.0, 255), 255);
         assert_eq!(brightness_ratio_to_raw(0.5, 255), 128);
         assert_eq!(brightness_ratio_to_raw(1.5, 255), 255);
-        assert_eq!(brightness_ratio_to_raw(-0.5, 255), 0);
+        assert_eq!(brightness_ratio_to_raw(-0.5, 255), 13);
     }
 }

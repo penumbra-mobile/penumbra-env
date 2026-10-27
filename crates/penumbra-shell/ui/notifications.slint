@@ -131,11 +131,19 @@ export component NotificationCard inherits Rectangle {
                     }
                 }
 
-                // Options / dismiss chevron icon
-                Icon {
-                    name: "chevron-right";
-                    icon-size: 14px;
-                    icon-color: Theme.on-surface-variant;
+                // Dismiss button
+                TouchArea {
+                    width: 24px;
+                    height: 24px;
+                    clicked => { root.dismiss(root.index); }
+
+                    Icon {
+                        name: "close";
+                        icon-size: 14px;
+                        icon-color: Theme.on-surface-variant;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
                 }
             }
 
@@ -156,31 +164,6 @@ export component NotificationCard inherits Rectangle {
                 color: Theme.on-surface-variant;
                 overflow: elide;
             }
-
-            // Reply Action Pill Button
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: start;
-                Rectangle {
-                    height: 24px;
-                    border-radius: 12px;
-                    background: #2a3441;
-                    border-width: 1px;
-                    border-color: #38bdf840;
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        alignment: center;
-                        Text {
-                            text: "Reply";
-                            font-size: 11px;
-                            font-weight: 700;
-                            color: #a8c7fa;
-                            vertical-alignment: center;
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -188,42 +171,61 @@ export component NotificationCard inherits Rectangle {
 // =========================================================================
 // Material 3 Expressive Notification Empty State
 // =========================================================================
-export component NotificationEmptyState inherits VerticalLayout {
-    spacing: 12px;
-    alignment: center;
+export component NotificationEmptyState inherits Rectangle {
+    callback swipe-up();
 
-    Rectangle {
-        width: 56px;
-        height: 56px;
-        border-radius: 28px;
-        background: #23282e;
-        border-width: 1px;
-        border-color: Theme.specular-rim;
-        x: (parent.width - self.width) / 2;
-
-        Icon {
-            name: "bell";
-            icon-size: 26px;
-            icon-color: #938f99;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        property <length> press-y: 0px;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) {
+                self.press-y = self.mouse-y;
+            } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                if (self.mouse-y - self.press-y < -15px) {
+                    root.swipe-up();
+                }
+            }
         }
     }
 
-    Text {
-        text: "No notifications";
-        font-size: 16px;
-        font-weight: 700;
-        color: Theme.on-surface;
-        horizontal-alignment: center;
-    }
+    VerticalLayout {
+        spacing: 12px;
+        alignment: center;
 
-    Text {
-        text: "You're all caught up!";
-        font-size: 12px;
-        font-weight: 400;
-        color: Theme.on-surface-variant;
-        horizontal-alignment: center;
+        Rectangle {
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #23282e;
+            border-width: 1px;
+            border-color: Theme.specular-rim;
+            x: (parent.width - self.width) / 2;
+
+            Icon {
+                name: "bell";
+                icon-size: 26px;
+                icon-color: #938f99;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        Text {
+            text: "No notifications";
+            font-size: 16px;
+            font-weight: 700;
+            color: Theme.on-surface;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "You're all caught up!";
+            font-size: 12px;
+            font-weight: 400;
+            color: Theme.on-surface-variant;
+            horizontal-alignment: center;
+        }
     }
 }
 
@@ -235,6 +237,7 @@ export component NotificationStack inherits Rectangle {
     callback dismiss-notification(int);
     callback clear-all();
     callback open-settings();
+    callback swipe-up();
 
     border-radius: 28px;
     background: #181c20bb;
@@ -287,6 +290,7 @@ export component NotificationStack inherits Rectangle {
             // Empty state
             if root.notifications.length == 0: NotificationEmptyState {
                 height: 200px;
+                swipe-up => { root.swipe-up(); }
             }
 
             // Notification cards list

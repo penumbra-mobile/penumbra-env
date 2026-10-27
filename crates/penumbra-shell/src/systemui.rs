@@ -53,6 +53,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing Penumbra Consolidated SystemUI (Phase 6C)...");
 
     let (logical_w, logical_h, _scale) = layer_shell_slint::mobile_output_geometry();
+    let lw = logical_w as i32;
+    let lh = logical_h as i32;
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
 
     // -----------------------------------------------------------------------
     // 1. Layer-Shell Configurations
@@ -211,7 +217,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             is_animating.set(true);
             if target > -900.0 {
                 // Expanding or opened: capture fullscreen touch events
-                layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
+                layer_shell_slint::sync_input_region("penumbra-quick-settings", lw, lh, 42, true);
             }
             {
                 let mut sp = spring_state.borrow_mut();
@@ -271,7 +277,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
                         // When settled retracted, collapse input region to 0 so top bar receives gestures
                         if target <= -900.0 {
-                            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 0, false);
+                            layer_shell_slint::sync_input_region("penumbra-quick-settings", lw, lh, 0, false);
                         }
                     } else {
                         state.drawer_open = true;
@@ -307,7 +313,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             spring_timer.borrow().stop();
 
             // Expand input region fullscreen to capture drag gesture
-            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
+            layer_shell_slint::sync_input_region("penumbra-quick-settings", lw, lh, 42, true);
 
             let pull = dy as f64;
             let dt = last_top_pull_time
@@ -394,7 +400,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         qs.on_drag_delta(move |dy| {
             spring_timer.borrow().stop();
-            layer_shell_slint::sync_input_region("penumbra-quick-settings", 412, 915, 42, true);
+            layer_shell_slint::sync_input_region("penumbra-quick-settings", lw, lh, 42, true);
             if let Some(ui) = qs_weak.upgrade() {
                 let cur_offset = ui.get_slide_offset_y() as f64;
                 let delta = dy as f64;
@@ -515,13 +521,37 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         let registry = Rc::clone(&registry);
         let refresh = Rc::clone(&refresh_tiles);
+        let top_bar_weak_tile = top_bar_weak.clone();
         qs.on_tile_clicked(move |id| {
+            let mut is_active = false;
             if let Some(t) = registry
                 .borrow_mut()
                 .iter_mut()
                 .find(|t| t.id == id.as_str())
             {
                 t.toggle();
+                is_active = t.state == TileState::Active;
+            }
+            match id.as_str() {
+                "internet" => tile::set_wifi(is_active),
+                "bluetooth" => tile::set_bluetooth(is_active),
+                "flashlight" => tile::set_torch(is_active),
+                "battery_saver" => tile::set_battery_saver(is_active),
+                "dnd" => {
+                    let mut s = ShellState::load();
+                    s.dnd_active = is_active;
+                    let _ = s.save();
+                    if let Some(tb) = top_bar_weak_tile.upgrade() {
+                        tb.set_dnd_active(is_active);
+                    }
+                }
+                "rotation" => {
+                    let mut s = ShellState::load();
+                    s.auto_rotate = is_active;
+                    let _ = s.save();
+                }
+                "airplane" => tile::set_airplane(is_active),
+                _ => {}
             }
             refresh();
         });
@@ -536,6 +566,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 "bluetooth" => "bluetooth",
                 "flashlight" | "brightness" => "display",
                 "battery_saver" => "battery",
+                "dnd" => "sound",
+                "rotation" => "display",
+                "airplane" => "wifi",
                 _ => "main",
             };
             animate_to(-915.0, 0.0);
@@ -621,6 +654,36 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }).collect::<Vec<_>>();
     let notifs_model = Rc::new(VecModel::from(notifs_items));
     qs.set_notifications(ModelRc::from(Rc::clone(&notifs_model)));
+
+    // Connect real org.freedesktop.Notifications service
+    let (notif_sync_tx, notif_sync_rx) = std::sync::mpsc::channel::<penumbra_shell::notifications::NotificationItem>();
+    let (async_tx, mut async_rx) = tokio::sync::mpsc::unbounded_channel::<penumbra_shell::notifications::NotificationItem>();
+    rt.spawn(async move {
+        let _conn = penumbra_shell::notifications::start_notification_service(async_tx).await;
+        while let Some(item) = async_rx.recv().await {
+            let _ = notif_sync_tx.send(item);
+        }
+    });
+
+    let _notif_timer = Timer::default();
+    {
+        let notifs = Rc::clone(&notifs_model);
+        let store = Rc::clone(&notifs_store);
+        _notif_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
+            while let Ok(item) = notif_sync_rx.try_recv() {
+                let data = NotificationData {
+                    id: item.id.clone().into(),
+                    app: item.app.clone().into(),
+                    title: item.title.clone().into(),
+                    body: item.body.clone().into(),
+                    time_text: item.time_text.clone().into(),
+                };
+                notifs.insert(0, data);
+                store.borrow_mut().items.insert(0, item);
+                let _ = store.borrow().save();
+            }
+        });
+    }
 
     {
         let notifs = Rc::clone(&notifs_model);
@@ -1021,10 +1084,6 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         clock_timer.start(TimerMode::Repeated, Duration::from_millis(1000), update_time);
     }
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()?;
-
     let (battery_service, network_service) = rt.block_on(async {
         let bat = BatteryService::new().await;
         let net = NetworkService::new().await;
@@ -1041,6 +1100,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         top_bar.set_wifi_connected(net_info.is_connected);
         top_bar.set_wifi_signal(net_info.signal_strength as i32);
         top_bar.set_carrier_text(net_info.ssid.clone().into());
+        top_bar.set_dnd_active(ShellState::load().dnd_active);
 
         qs.set_battery_pct(bat_info.percentage as i32);
         qs.set_carrier_text(net_info.ssid.clone().into());

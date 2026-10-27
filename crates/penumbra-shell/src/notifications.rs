@@ -44,32 +44,7 @@ pub struct NotificationStore {
 impl Default for NotificationStore {
     fn default() -> Self {
         Self {
-            items: vec![
-                NotificationItem {
-                    id: "notif-1".to_string(),
-                    app: "Messages".to_string(),
-                    title: "Antigravity Team".to_string(),
-                    body: "Android 17 Material 3 Expressive SystemUI is ready!".to_string(),
-                    time_text: "now".to_string(),
-                    timestamp_secs: 0,
-                },
-                NotificationItem {
-                    id: "notif-2".to_string(),
-                    app: "Penumbra Shell".to_string(),
-                    title: "Display Server".to_string(),
-                    body: "Dual Kawase blur pipeline active at 60 FPS".to_string(),
-                    time_text: "2m ago".to_string(),
-                    timestamp_secs: 0,
-                },
-                NotificationItem {
-                    id: "notif-3".to_string(),
-                    app: "System".to_string(),
-                    title: "Battery Full".to_string(),
-                    body: "Device is 100% charged and ready".to_string(),
-                    time_text: "15m ago".to_string(),
-                    timestamp_secs: 0,
-                },
-            ],
+            items: Vec::new(),
         }
     }
 }
@@ -137,5 +112,93 @@ impl NotificationStore {
     pub fn clear(&mut self) {
         self.items.clear();
         let _ = self.save();
+    }
+}
+
+/// Server object implementing `org.freedesktop.Notifications`.
+pub struct NotificationServer {
+    tx: tokio::sync::mpsc::UnboundedSender<NotificationItem>,
+}
+
+#[zbus::interface(name = "org.freedesktop.Notifications")]
+impl NotificationServer {
+    #[allow(clippy::too_many_arguments)]
+    async fn notify(
+        &self,
+        app_name: String,
+        _replaces_id: u32,
+        _app_icon: String,
+        summary: String,
+        body: String,
+        _actions: Vec<String>,
+        _hints: std::collections::HashMap<String, zbus::zvariant::OwnedValue>,
+        _expire_timeout: i32,
+    ) -> zbus::fdo::Result<u32> {
+        let app = if app_name.trim().is_empty() {
+            "Application".to_string()
+        } else {
+            app_name
+        };
+        let item = NotificationItem::new(app, summary, body);
+        let id_num = NOTIFICATION_COUNTER.load(Ordering::Relaxed) as u32;
+        let _ = self.tx.send(item);
+        Ok(id_num)
+    }
+
+    async fn close_notification(&self, _id: u32) -> zbus::fdo::Result<()> {
+        Ok(())
+    }
+
+    async fn get_capabilities(&self) -> zbus::fdo::Result<Vec<String>> {
+        Ok(vec![
+            "body".to_string(),
+            "actions".to_string(),
+            "persistence".to_string(),
+        ])
+    }
+
+    async fn get_server_information(
+        &self,
+    ) -> zbus::fdo::Result<(String, String, String, String)> {
+        Ok((
+            "Penumbra Notification Daemon".to_string(),
+            "Penumbra DE".to_string(),
+            "1.0".to_string(),
+            "1.2".to_string(),
+        ))
+    }
+}
+
+/// Registers the `org.freedesktop.Notifications` service on the session D-Bus.
+pub async fn start_notification_service(
+    tx: tokio::sync::mpsc::UnboundedSender<NotificationItem>,
+) -> Option<zbus::connection::Connection> {
+    match zbus::connection::Builder::session() {
+        Ok(builder) => {
+            let server = NotificationServer { tx };
+            match builder
+                .name("org.freedesktop.Notifications")
+                .and_then(|b| b.serve_at("/org/freedesktop/Notifications", server))
+            {
+                Ok(b) => match b.build().await {
+                    Ok(conn) => {
+                        tracing::info!("Registered org.freedesktop.Notifications D-Bus service");
+                        Some(conn)
+                    }
+                    Err(err) => {
+                        tracing::warn!("Could not bind org.freedesktop.Notifications: {err}");
+                        None
+                    }
+                },
+                Err(err) => {
+                    tracing::warn!("Could not configure Notifications D-Bus server: {err}");
+                    None
+                }
+            }
+        }
+        Err(err) => {
+            tracing::warn!("Session D-Bus unavailable: {err}");
+            None
+        }
     }
 }

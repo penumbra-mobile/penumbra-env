@@ -66,10 +66,8 @@ export component QSTile inherits Rectangle {
     in property <image> icon;
     in property <string> icon-name: "";
     in property <bool> is-active: false;
-    in property <bool> has-chevron: true;
 
     callback clicked();
-    callback chevron-clicked();
     callback long-pressed();
 
     property <bool> is-down: false;
@@ -98,7 +96,7 @@ export component QSTile inherits Rectangle {
 
         HorizontalLayout {
             padding-left: 16px;
-            padding-right: 12px;
+            padding-right: 16px;
             spacing: 12px;
 
             VerticalLayout {
@@ -145,23 +143,6 @@ export component QSTile inherits Rectangle {
                     font-size: 12px;
                     font-weight: 500;
                     text-color: root.is-active ? #04324a : #cac4d0;
-                }
-            }
-
-            if root.has-chevron: VerticalLayout {
-                alignment: center;
-                TouchArea {
-                    width: 28px;
-                    height: 28px;
-                    clicked => { root.chevron-clicked(); }
-                    Icon {
-                        name: "chevron-right";
-                        icon-size: 16px;
-                        icon-color: root.is-active ? #04324a : #cac4d0;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        animate icon-color { duration: 180ms; }
-                    }
                 }
             }
         }
@@ -604,7 +585,7 @@ component SliderPill inherits Rectangle {
         fill-bar := Rectangle {
             x: 0px;
             y: 0px;
-            width: Math.clamp(parent.width * Math.clamp(root.value, 0.0, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), 0px, parent.width);
+            width: Math.clamp(parent.width * Math.clamp(root.value, 0.05, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), parent.width * 0.05, parent.width);
             height: parent.height;
             background: #a8c7fa;
             border-radius: 22px;
@@ -613,16 +594,6 @@ component SliderPill inherits Rectangle {
                 duration: root.is-dragging ? 0ms : Theme.duration-short;
                 easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
             }
-        }
-
-        // Vertical thumb separator
-        Rectangle {
-            x: Math.clamp(fill-bar.width - 2px, 0px, parent.width - 4px);
-            y: 8px;
-            width: 4px;
-            height: parent.height - 16px;
-            border-radius: 2px;
-            background: #04324a88;
         }
 
         HorizontalLayout {
@@ -639,7 +610,7 @@ component SliderPill inherits Rectangle {
                     Icon {
                         name: "brightness";
                         icon-size: 18px;
-                        icon-color: root.value > 0.08 ? #04324a : #e6e0e9;
+                        icon-color: root.value > 0.12 ? #04324a : #e6e0e9;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -653,17 +624,13 @@ component SliderPill inherits Rectangle {
                 }
             }
 
-            // Low brightness / Night icon
-            Rectangle {
-                width: 24px;
-                height: 24px;
-                Icon {
-                    name: "brightness-low";
-                    icon-size: 18px;
-                    icon-color: root.value > 0.90 ? #04324a : #cac4d0;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
-                }
+            // Clean numerical percentage display on right
+            Text {
+                text: "\{Math.round(Math.clamp(root.value, 0.05, 1.0) * 100.0)}%";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.value > 0.88 ? #04324a : #cac4d0;
+                vertical-alignment: center;
             }
         }
     }
@@ -687,7 +654,7 @@ component SliderPill inherits Rectangle {
 
     function update-slider(touch-x: length) {
         if (touch-x < 0px) {
-            root.value = 0.0;
+            root.value = 0.05;
             let dx = Math.abs(touch-x / 1px);
             root.stretch-offset = -Math.sqrt(dx * 1.5) * 1px;
         } else if (touch-x > root.width) {
@@ -695,7 +662,7 @@ component SliderPill inherits Rectangle {
             let dx = (touch-x - root.width) / 1px;
             root.stretch-offset = Math.sqrt(dx * 1.5) * 1px;
         } else {
-            root.value = Math.clamp(touch-x / root.width, 0.0, 1.0);
+            root.value = Math.clamp(touch-x / root.width, 0.05, 1.0);
             root.stretch-offset = 0px;
         }
         root.changed(root.value);
@@ -1104,17 +1071,18 @@ export component QuickSettingsSlider inherits Rectangle {
                     x: root.pad;
                     y: 256px;
                     width: parent.width - 2 * root.pad;
-                    height: parent.height - 256px - 54px;
+                    height: parent.height - 256px - 116px;
                     notifications: root.notifications;
                     dismiss-notification(i) => { root.notification-dismissed(i); }
                     clear-all => { root.clear-notifications(); }
                     open-settings => { root.settings-action(); }
+                    swipe-up => { root.fast-pull-up(); }
                 }
 
                 // Bottom Footer: History (left), Clear all (center), Settings (right)
                 HorizontalLayout {
                     x: root.pad;
-                    y: parent.height - 48px;
+                    y: parent.height - 64px - 44px;
                     width: parent.width - 2 * root.pad;
                     height: 40px;
                     alignment: space-between;
@@ -1249,194 +1217,24 @@ export component QuickSettingsSlider inherits Rectangle {
                     changed(v) => { root.brightness-changed(v); }
                 }
 
-                // Quick Settings Tiles Flickable Grid
+                // Quick Settings Tiles Flickable Grid (Dynamic, real tiles only)
                 Flickable {
                     x: root.pad;
                     y: 288px;
                     width: parent.width - 2 * root.pad;
-                    height: parent.height - 288px - 8px;
-                    content-height: 520px;
+                    height: parent.height - 288px - 64px;
+                    content-height: Math.ceil(root.active-tiles.length / 2) * 72px + 24px;
 
-                    // Row 1: Internet & Bluetooth (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 0px;
+                    for tile[idx] in root.active-tiles: QSTile {
+                        x: Math.mod(idx, 2) == 0 ? 0px : (root.col-w + 12px);
+                        y: Math.floor(idx / 2) * 72px;
                         width: root.col-w;
-                        title: root.tile-at(0, "internet", "Internet", "wifi").title;
-                        subtitle: root.tile-at(0, "internet", "Internet", "wifi").subtitle != "" ? root.tile-at(0, "internet", "Internet", "wifi").subtitle : "Demo SSID";
-                        icon-name: "wifi";
-                        is-active: root.tile-at(0, "internet", "Internet", "wifi").active;
-                        clicked => { root.tile-clicked(root.tile-at(0, "internet", "Internet", "wifi").id); }
-                        chevron-clicked => { root.tile-clicked(root.tile-at(0, "internet", "Internet", "wifi").id); }
-                        long-pressed => { root.tile-long-pressed(root.tile-at(0, "internet", "Internet", "wifi").id); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 0px;
-                        width: root.col-w;
-                        title: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").title;
-                        subtitle: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").subtitle;
-                        icon-name: "bluetooth";
-                        is-active: root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").active;
-                        clicked => { root.tile-clicked(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
-                        chevron-clicked => { root.tile-clicked(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
-                        long-pressed => { root.tile-long-pressed(root.tile-at(1, "bluetooth", "Bluetooth", "bluetooth").id); }
-                    }
-
-                    // Row 2: Flashlight & Modes (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 68px;
-                        width: root.col-w;
-                        title: root.tile-at(2, "flashlight", "Flashlight", "flashlight").title;
-                        subtitle: root.tile-at(2, "flashlight", "Flashlight", "flashlight").subtitle;
-                        icon-name: "flashlight";
-                        is-active: root.tile-at(2, "flashlight", "Flashlight", "flashlight").active;
-                        clicked => { root.tile-clicked(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
-                        chevron-clicked => { root.tile-clicked(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
-                        long-pressed => { root.tile-long-pressed(root.tile-at(2, "flashlight", "Flashlight", "flashlight").id); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 68px;
-                        width: root.col-w;
-                        title: root.tile-at(3, "dnd", "Modes", "dnd").title;
-                        subtitle: root.tile-at(3, "dnd", "Modes", "dnd").subtitle != "" ? root.tile-at(3, "dnd", "Modes", "dnd").subtitle : "No active modes";
-                        icon-name: "dnd";
-                        is-active: root.tile-at(3, "dnd", "Modes", "dnd").active;
-                        clicked => { root.tile-clicked(root.tile-at(3, "dnd", "Modes", "dnd").id); }
-                        chevron-clicked => { root.tile-clicked(root.tile-at(3, "dnd", "Modes", "dnd").id); }
-                        long-pressed => { root.tile-long-pressed(root.tile-at(3, "dnd", "Modes", "dnd").id); }
-                    }
-
-                    // Row 3: 4 Squircle icons (Alarm, Airplane, Wallet, Auto-rotate)
-                    HorizontalLayout {
-                        x: 0px;
-                        y: 136px;
-                        width: parent.width;
-                        height: 52px;
-                        spacing: 8px;
-
-                        QSSquircleTile {
-                            horizontal-stretch: 1;
-                            icon-name: "alarm";
-                            is-active: false;
-                            clicked => { root.tile-clicked("alarm"); }
-                        }
-                        QSSquircleTile {
-                            horizontal-stretch: 1;
-                            icon-name: "airplane";
-                            is-active: root.tile-at(6, "airplane", "Airplane mode", "airplane").active;
-                            clicked => { root.tile-clicked(root.tile-at(6, "airplane", "Airplane mode", "airplane").id); }
-                        }
-                        QSSquircleTile {
-                            horizontal-stretch: 1;
-                            icon-name: "wallet";
-                            is-active: true;
-                            clicked => { root.tile-clicked("wallet"); }
-                        }
-                        QSSquircleTile {
-                            horizontal-stretch: 1;
-                            icon-name: "rotation";
-                            is-active: root.tile-at(4, "rotation", "Auto-rotate", "rotation").active;
-                            clicked => { root.tile-clicked(root.tile-at(4, "rotation", "Auto-rotate", "rotation").id); }
-                        }
-                    }
-
-                    // Row 4: Home & QR code scanner (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 196px;
-                        width: root.col-w;
-                        title: "Home";
-                        subtitle: "";
-                        icon-name: "home";
-                        is-active: true;
-                        clicked => { root.tile-clicked("home"); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 196px;
-                        width: root.col-w;
-                        title: "QR code scanner";
-                        subtitle: "Off";
-                        icon-name: "qr";
-                        is-active: false;
-                        clicked => { root.tile-clicked("qr"); }
-                    }
-
-                    // Row 5: Battery Saver & Cast (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 264px;
-                        width: root.col-w;
-                        title: root.tile-at(5, "battery_saver", "Battery Saver", "battery").title;
-                        subtitle: root.tile-at(5, "battery_saver", "Battery Saver", "battery").subtitle;
-                        icon-name: "battery";
-                        is-active: root.tile-at(5, "battery_saver", "Battery Saver", "battery").active;
-                        clicked => { root.tile-clicked(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
-                        chevron-clicked => { root.tile-clicked(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
-                        long-pressed => { root.tile-long-pressed(root.tile-at(5, "battery_saver", "Battery Saver", "battery").id); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 264px;
-                        width: root.col-w;
-                        title: "Cast";
-                        subtitle: "";
-                        icon-name: "cast";
-                        is-active: false;
-                        clicked => { root.tile-clicked("cast"); }
-                    }
-
-                    // Row 6: Screen record & Quick Share (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 332px;
-                        width: root.col-w;
-                        title: "Screen record";
-                        subtitle: "Start";
-                        icon-name: "recorder";
-                        is-active: false;
-                        clicked => { root.tile-clicked("recorder"); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 332px;
-                        width: root.col-w;
-                        title: "Quick Share";
-                        subtitle: "Contacts";
-                        icon-name: "share";
-                        is-active: true;
-                        clicked => { root.tile-clicked("share"); }
-                    }
-
-                    // Row 7: Security & privacy & Data Saver (2 large tiles)
-                    QSTile {
-                        x: 0px;
-                        y: 400px;
-                        width: root.col-w;
-                        title: "Security & privacy";
-                        subtitle: "Check status";
-                        icon-name: "shield";
-                        is-active: false;
-                        clicked => { root.tile-clicked("security"); }
-                    }
-
-                    QSTile {
-                        x: root.col-w + 12px;
-                        y: 400px;
-                        width: root.col-w;
-                        title: "Data Saver";
-                        subtitle: "Off";
-                        icon-name: "dnd";
-                        is-active: false;
-                        clicked => { root.tile-clicked("datasaver"); }
+                        title: tile.title;
+                        subtitle: tile.subtitle;
+                        icon-name: tile.icon-name;
+                        is-active: tile.active;
+                        clicked => { root.tile-clicked(tile.id); }
+                        long-pressed => { root.tile-long-pressed(tile.id); }
                     }
                 }
             }
@@ -1664,16 +1462,16 @@ export component QuickSettingsSlider inherits Rectangle {
         // ---------------------------------------------------------------------
         bottom-handle-bar := Rectangle {
             x: 0px;
-            y: parent.height - 36px;
+            y: parent.height - 64px;
             width: parent.width;
-            height: 36px;
+            height: 64px;
             background: transparent;
 
             Rectangle {
                 width: 72px;
                 height: 5px;
                 x: (parent.width - self.width) / 2;
-                y: 16px;
+                y: 28px;
                 border-radius: 2.5px;
                 background: Theme.specular-rim-glow;
                 opacity: 0.85;
@@ -1681,13 +1479,28 @@ export component QuickSettingsSlider inherits Rectangle {
 
             TouchArea {
                 property <length> press-y: 0px;
+                property <bool> is-dragging: false;
+
                 pointer-event(event) => {
                     if (event.kind == PointerEventKind.down) {
                         self.press-y = self.mouse-y;
+                        self.is-dragging = false;
                     } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                         let dy = self.mouse-y - self.press-y;
-                        if (dy < -10px) {
+                        if (self.is-dragging || dy < -8px) {
                             root.fast-pull-up();
+                        } else {
+                            root.close-requested();
+                        }
+                        self.is-dragging = false;
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        let dy = self.mouse-y - self.press-y;
+                        if (dy < -6px) {
+                            self.is-dragging = true;
+                            root.drag-delta(dy);
                         }
                     }
                 }

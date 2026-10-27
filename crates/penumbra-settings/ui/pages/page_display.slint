@@ -240,12 +240,13 @@ export component PageDisplay inherits Rectangle {
         TouchArea {}
 
         Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
             width: Math.min(parent.width - 36px, 380px);
             border-radius: 28px;
             background: #25232a;
             border-width: 1px;
             border-color: #383540;
-            y: (parent.height - self.height) / 2;
 
             VerticalLayout {
                 padding: 24px;

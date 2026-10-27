@@ -3897,6 +3897,7 @@ dependencies = [
  "clap",
  "freedesktop-desktop-entry",
  "freedesktop-icons",
+ "futures-util",
  "i-slint-common",
  "i-slint-core",
  "image",
@@ -3912,6 +3913,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "zbus",
 ]
 
 [[package]]

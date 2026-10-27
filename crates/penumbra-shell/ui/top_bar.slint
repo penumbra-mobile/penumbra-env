@@ -1,4 +1,5 @@
 import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
 
 export component TopBarWindow inherits Window {
     title: "Penumbra Top Bar";
@@ -14,6 +15,7 @@ export component TopBarWindow inherits Window {
     in-out property <int> wifi-signal: 100;
     in-out property <string> carrier-text: "Penumbra";
     in-out property <bool> privacy-active: false;
+    in-out property <bool> dnd-active: false;
     in-out property <float> shade-progress: 0.0;
 
     callback top-bar-pulled-down(float /* dy */, bool /* is_qs */);
@@ -86,6 +88,15 @@ export component TopBarWindow inherits Window {
                     font-size: Theme.font-body;
                     font-weight: 700;
                     vertical-alignment: center;
+                }
+            }
+
+            if root.dnd-active: VerticalLayout {
+                alignment: center;
+                Icon {
+                    name: "dnd";
+                    icon-size: 13px;
+                    icon-color: Theme.on-surface-variant;
                 }
             }
 
@@ -201,6 +212,20 @@ export component TopBarWindow inherits Window {
                     font-size: Theme.font-label;
                     font-weight: 600;
                     vertical-alignment: center;
+                }
+            }
+
+            if root.is-charging: VerticalLayout {
+                alignment: center;
+                Path {
+                    width: 9px;
+                    height: 12px;
+                    viewbox-x: 0;
+                    viewbox-y: 0;
+                    viewbox-width: 24;
+                    viewbox-height: 24;
+                    commands: "M 11 1 L 4 13 L 11 13 L 9 23 L 20 10 L 13 10 Z";
+                    fill: #86efac;
                 }
             }
 

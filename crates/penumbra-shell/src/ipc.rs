@@ -51,6 +51,8 @@ pub struct ShellState {
     pub nav_switch_active: bool,
     pub is_full_qs: bool,
     pub is_locked: bool,
+    pub dnd_active: bool,
+    pub auto_rotate: bool,
 }
 
 impl Default for ShellState {
@@ -77,6 +79,8 @@ impl Default for ShellState {
             nav_switch_active: false,
             is_full_qs: false,
             is_locked: false,
+            dnd_active: false,
+            auto_rotate: true,
         }
     }
 }
@@ -116,6 +120,8 @@ impl ShellState {
                 ("active_card_dy", v) => s.active_card_dy = v.parse().unwrap_or(0.0),
                 ("is_full_qs", v) => s.is_full_qs = v == "1" || v == "true",
                 ("is_locked", v) => s.is_locked = v == "1" || v == "true",
+                ("dnd_active", v) => s.dnd_active = v == "1" || v == "true",
+                ("auto_rotate", v) => s.auto_rotate = v == "1" || v == "true",
                 _ => {}
             }
         }
@@ -132,7 +138,7 @@ impl ShellState {
             PhoneMode::Overview => "overview",
         };
         format!(
-            "mode={}\ndrawer={}\ndrawer_pull_dy={:.1}\ndrawer_dragging={}\ndrawer_progress={:.3}\npower_dialog={}\nvolume_modal={}\nvolume_level={:.2}\nnav_gesture_active={}\nnav_gesture_dy={:.1}\nnav_gesture_progress={:.3}\nnav_gesture_vy={:.1}\nnav_gesture_dx={:.1}\nnav_gesture_vx={:.1}\nnav_switch_active={}\noverview_index={}\noverview_scroll={:.3}\nis_dragging={}\nactive_card_dy={:.1}\nis_full_qs={}\nis_locked={}\n",
+            "mode={}\ndrawer={}\ndrawer_pull_dy={:.1}\ndrawer_dragging={}\ndrawer_progress={:.3}\npower_dialog={}\nvolume_modal={}\nvolume_level={:.2}\nnav_gesture_active={}\nnav_gesture_dy={:.1}\nnav_gesture_progress={:.3}\nnav_gesture_vy={:.1}\nnav_gesture_dx={:.1}\nnav_gesture_vx={:.1}\nnav_switch_active={}\noverview_index={}\noverview_scroll={:.3}\nis_dragging={}\nactive_card_dy={:.1}\nis_full_qs={}\nis_locked={}\ndnd_active={}\nauto_rotate={}\n",
             mode,
             if self.drawer_open { 1 } else { 0 },
             self.drawer_pull_dy,
@@ -153,7 +159,9 @@ impl ShellState {
             if self.is_dragging { 1 } else { 0 },
             self.active_card_dy,
             if self.is_full_qs { 1 } else { 0 },
-            if self.is_locked { 1 } else { 0 }
+            if self.is_locked { 1 } else { 0 },
+            if self.dnd_active { 1 } else { 0 },
+            if self.auto_rotate { 1 } else { 0 }
         )
     }
 
@@ -180,7 +188,8 @@ impl ShellState {
         buf[16..20].copy_from_slice(&self.volume_level.to_le_bytes());
         buf[20] = if self.is_full_qs { 1 } else { 0 };
         buf[21] = if self.is_locked { 1 } else { 0 };
-        // 22..24 unused alignment padding
+        buf[22] = if self.dnd_active { 1 } else { 0 };
+        buf[23] = if self.auto_rotate { 1 } else { 0 };
         buf[24..32].copy_from_slice(&self.drawer_pull_dy.to_le_bytes());
         buf[32..40].copy_from_slice(&self.drawer_progress.to_le_bytes());
         buf[40..48].copy_from_slice(&(self.overview_index as u64).to_le_bytes());
@@ -217,6 +226,8 @@ impl ShellState {
             volume_level: f32::from_le_bytes(buf[16..20].try_into().ok()?),
             is_full_qs: buf[20] != 0,
             is_locked: buf[21] != 0,
+            dnd_active: buf[22] != 0,
+            auto_rotate: buf[23] != 0,
             drawer_pull_dy: f64::from_le_bytes(buf[24..32].try_into().ok()?),
             drawer_progress: f64::from_le_bytes(buf[32..40].try_into().ok()?),
             overview_index: u64::from_le_bytes(buf[40..48].try_into().ok()?) as usize,
@@ -384,6 +395,8 @@ mod tests {
             nav_switch_active: true,
             is_full_qs: true,
             is_locked: true,
+            dnd_active: true,
+            auto_rotate: false,
         };
         let bytes = s.to_bytes(42);
         assert_eq!(bytes.len(), ShellState::BINARY_SIZE);

@@ -40,6 +40,8 @@ export component PowerDialog inherits Rectangle {
 
     // Centered Material 3 Expressive Power Card
     Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
         width: 320px;
         height: 380px;
         background: #1c1b26f5;
@@ -90,10 +92,14 @@ export component PowerDialog inherits Rectangle {
                         height: 38px;
                         border-radius: 19px;
                         background: #ef4444;
+                        y: (parent.height - self.height) / 2;
+
                         Icon {
                             name: "power";
                             icon-color: #ffffff;
                             icon-size: 20px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
                     }
                     VerticalLayout {
@@ -133,10 +139,14 @@ export component PowerDialog inherits Rectangle {
                         height: 38px;
                         border-radius: 19px;
                         background: #f59e0b;
+                        y: (parent.height - self.height) / 2;
+
                         Icon {
                             name: "restart";
                             icon-color: #ffffff;
                             icon-size: 20px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
                     }
                     VerticalLayout {
@@ -176,10 +186,14 @@ export component PowerDialog inherits Rectangle {
                         height: 38px;
                         border-radius: 19px;
                         background: #0284c7;
+                        y: (parent.height - self.height) / 2;
+
                         Icon {
                             name: "logout";
                             icon-color: #ffffff;
                             icon-size: 20px;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
                     }
                     VerticalLayout {
@@ -207,14 +221,13 @@ export component PowerDialog inherits Rectangle {
                 cancel-touch := TouchArea {
                     clicked => { root.cancel(); }
                 }
-                HorizontalLayout {
-                    alignment: center;
-                    Text {
-                        text: "Cancel";
-                        color: #e5e7eb;
-                        font-size: 14px;
-                        font-weight: 500;
-                    }
+                Text {
+                    text: "Cancel";
+                    color: #e5e7eb;
+                    font-size: 14px;
+                    font-weight: 500;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
                 }
             }
         }
