@@ -4,6 +4,9 @@
 
 [![Rust](https://img.shields.io/badge/rust-2021_edition-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](#license)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Chat-5865F2?logo=discord&logoColor=white)](https://discord.gg/W6d2ssYN2m)
+[![Matrix](https://img.shields.io/badge/Matrix-%23penumbra--shell-000000?logo=matrix&logoColor=white)](https://matrix.to/#/#penumbra-shell:matrix.org)
+[![Telegram](https://img.shields.io/badge/Telegram-Join%20Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+X4aVNAk9bEM4ZTU0)
 
 Penumbra is an open-source mobile desktop environment for Linux phones. It provides a touch-first home screen, app drawer, status bar, navigation gestures, notifications shade, quick settings panel, on-screen keyboard, display manager greeter, and settings application, running ordinary Linux applications alongside them. It is built in [Rust](https://www.rust-lang.org/) using the [Smithay](https://smithay.github.io/) Wayland compositor library and the [Slint](https://slint.dev/) declarative UI toolkit.
 
@@ -131,8 +134,8 @@ sudo pacman -S --needed base-devel pkgconf wayland libxkbcommon fontconfig mesa 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/nyl/Penumbra-Shell.git
-cd Penumbra-Shell
+git clone https://github.com/penumbra-mobile/penumbra-env.git
+cd penumbra-env
 ```
 
 ### 2. Build the workspace
@@ -183,6 +186,16 @@ Options can be customized via CLI flags (e.g., `--ip 172.16.42.1 --user user`) o
 - Quick settings tile layout and enabled toggles are saved to `~/.config/penumbra/quick_settings.json`.
 - Virtual keyboard preferences are saved to `~/.config/penumbra/keyboard.conf`.
 - Security lock type, PIN, and biometric settings are stored in `~/.config/penumbra/security.json`.
+
+---
+
+## Community & Contact
+
+Join our community to chat about development, report issues, or get help running Penumbra:
+
+- **Discord**: [Join the Discord server](https://discord.gg/W6d2ssYN2m)
+- **Matrix**: [#penumbra-shell:matrix.org](https://matrix.to/#/#penumbra-shell:matrix.org)
+- **Telegram**: [Penumbra Mobile Telegram Group](https://t.me/+X4aVNAk9bEM4ZTU0)
 
 ---
 

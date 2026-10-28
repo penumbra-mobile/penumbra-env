@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 description = "Independent community-driven wlr-layer-shell platform backend for the Slint UI toolkit"
-repository = "https://github.com/nyl/Penumbra-Shell"
+repository = "https://github.com/penumbra-mobile/penumbra-env"
 keywords = ["wayland", "slint", "layer-shell", "desktop", "ui"]
 categories = ["gui", "os::unix-apis"]
 
