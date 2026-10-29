@@ -29,6 +29,8 @@ CLAUDE.md
 .cursor/
 .claude/
 .copilot/
+.third_party/
+.plans/
 .windsurf/
 .windsurfrules
 .clinerules
@@ -53,6 +55,7 @@ Thumbs.db
 # Logs and scratch
 *.log
 scratch/
+third_party/
 
 # Local device rootfs snapshots and patch leftovers
 device rootfs/

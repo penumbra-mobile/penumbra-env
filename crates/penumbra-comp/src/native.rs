@@ -100,11 +100,24 @@ impl Canvas {
     }
 }
 
+pub struct KmsOutputSurface {
+    pub connector: connector::Handle,
+    pub crtc: smithay::reexports::drm::control::crtc::Handle,
+    pub output: Output,
+    pub surface: NativeSurface,
+    pub mode: smithay::reexports::drm::control::Mode,
+}
+
 struct NativeState {
-    surface: NativeSurface,
+    primary: KmsOutputSurface,
+    externals: std::collections::HashMap<smithay::reexports::drm::control::crtc::Handle, KmsOutputSurface>,
+    device: DrmDevice,
+    drm_fd: DrmDeviceFd,
+    allocator: GbmAllocator<DrmDeviceFd>,
+    renderer_formats: Vec<smithay::backend::allocator::Format>,
+    dh: smithay::reexports::wayland_server::DisplayHandle,
     renderer: GlesRenderer,
     canvas: Canvas,
-    crtc: smithay::reexports::drm::control::crtc::Handle,
     listener: ListeningSocket,
     display: Display<PenumbraServerState>,
     server: PenumbraServerState,
@@ -112,6 +125,138 @@ struct NativeState {
     input: InputState,
     started: Instant,
     last_ipc_poll: Instant,
+}
+
+impl NativeState {
+    /// Rescans DRM connectors using cosmic-comp's display configuration algorithm
+    /// to hotplug or unplug an arbitrary number of external desktop monitors.
+    pub fn rescan_external_connector(&mut self) {
+        let Ok(resources) = self.drm_fd.resource_handles() else {
+            return;
+        };
+        let discovered = crate::outputs::enumerate_connectors(&self.drm_fd, &resources);
+
+        // 1. Detect disconnected external displays that are currently active
+        let mut disconnected_crtcs = Vec::new();
+        for (crtc, ext) in &self.externals {
+            let still_connected = discovered
+                .iter()
+                .any(|d| d.handle == ext.connector && d.is_connected);
+            if !still_connected {
+                disconnected_crtcs.push(*crtc);
+            }
+        }
+
+        for crtc in disconnected_crtcs {
+            if let Some(removed_ext) = self.externals.remove(&crtc) {
+                tracing::info!(connector = ?removed_ext.connector, "External display disconnected via DRM/KMS");
+                self.server.space.unmap_output(&removed_ext.output);
+                self.server.external_outputs.retain(|_, o| o != &removed_ext.output);
+                self.server.output_b = self.server.external_outputs.values().next().cloned();
+                self.server.is_convergence_active = !self.server.external_outputs.is_empty();
+                self.server.migrate_desktop_surfaces_from_output(&removed_ext.output);
+            }
+        }
+
+        // 2. Detect newly connected external displays
+        for discovered_conn in discovered.into_iter().filter(|c| !c.is_internal && c.is_connected) {
+            let already_mapped = self.externals.values().any(|e| e.connector == discovered_conn.handle);
+            if already_mapped {
+                continue;
+            }
+
+            tracing::info!(connector = %discovered_conn.name, "External display connected via DRM/KMS");
+            let Ok(conn_info) = self.drm_fd.get_connector(discovered_conn.handle, true) else {
+                continue;
+            };
+
+            let mut occupied = vec![self.primary.crtc];
+            occupied.extend(self.externals.keys().copied());
+
+            let Some(crtc) = crate::outputs::find_compatible_crtc(&self.drm_fd, &conn_info, &resources, &occupied) else {
+                tracing::warn!(connector = %discovered_conn.name, "No compatible CRTC available for external connector");
+                continue;
+            };
+
+            let Some(drm_mode) = conn_info.modes().iter().find(|m| m.mode_type().contains(smithay::reexports::drm::control::ModeTypeFlags::PREFERRED))
+                .or_else(|| conn_info.modes().iter().max_by_key(|m| m.size().0 as u32 * m.size().1 as u32))
+                .cloned() else {
+                tracing::warn!(connector = %discovered_conn.name, "External connector has no usable DRM mode");
+                continue;
+            };
+
+            let drm_surface = match self.device.create_surface(crtc, drm_mode, &[discovered_conn.handle]) {
+                Ok(s) => s,
+                Err(err) => {
+                    tracing::error!(?err, connector = %discovered_conn.name, "Failed to create DRM surface for external display");
+                    continue;
+                }
+            };
+
+            let surface = match GbmBufferedSurface::<_, ()>::new(
+                drm_surface,
+                self.allocator.clone(),
+                &[Fourcc::Abgr8888, Fourcc::Argb8888],
+                self.renderer_formats.clone(),
+            ) {
+                Ok(s) => s,
+                Err(err) => {
+                    tracing::error!(?err, connector = %discovered_conn.name, "Failed to create GBM buffered surface for external display");
+                    continue;
+                }
+            };
+
+            let mode_ext = Mode {
+                size: (drm_mode.size().0 as i32, drm_mode.size().1 as i32).into(),
+                refresh: drm_mode.vrefresh() as i32 * 1000,
+            };
+            let output_ext = Output::new(
+                discovered_conn.name.clone(),
+                discovered_conn.physical,
+            );
+            output_ext.create_global::<PenumbraServerState>(&self.dh);
+            output_ext.set_preferred(mode_ext);
+
+            // Compute continuous multi-display coordinates
+            let mut external_list: Vec<(String, Size<i32, smithay::utils::Logical>)> = self
+                .server
+                .external_outputs
+                .iter()
+                .map(|(name, o)| {
+                    let log_size: Size<i32, smithay::utils::Logical> = o
+                        .current_mode()
+                        .map(|m| (m.size.w, m.size.h).into())
+                        .unwrap_or_else(|| (1920, 1080).into());
+                    (name.clone(), log_size)
+                })
+                .collect();
+            let new_log_size: Size<i32, smithay::utils::Logical> = (mode_ext.size.w, mode_ext.size.h).into();
+            external_list.push((discovered_conn.name.clone(), new_log_size));
+            let layout = crate::outputs::compute_default_multi_display_layout(&external_list);
+            let my_layout = layout.iter().find(|d| d.id == discovered_conn.name);
+            let out_pos = my_layout.map(|l| (l.position.x, l.position.y)).unwrap_or((PHONE_W, 0));
+
+            output_ext.change_current_state(
+                Some(mode_ext),
+                Some(smithay::utils::Transform::Normal),
+                Some(Scale::Integer(1)),
+                Some(out_pos.into()),
+            );
+            self.server.space.map_output(&output_ext, out_pos);
+            self.server.external_outputs.insert(discovered_conn.name.clone(), output_ext.clone());
+            self.server.output_b = self.server.external_outputs.values().next().cloned();
+            self.server.is_convergence_active = true;
+
+            self.externals.insert(crtc, KmsOutputSurface {
+                connector: discovered_conn.handle,
+                crtc,
+                output: output_ext,
+                surface,
+                mode: drm_mode,
+            });
+            tracing::info!(connector = %discovered_conn.name, mode = ?mode_ext, pos = ?out_pos, "External desktop output successfully initialized");
+        }
+    }
 }
 
 /// Layer-shell surfaces on `layer` of Output A, placed on the logical canvas.
@@ -467,7 +612,7 @@ fn overview_elements(
 /// Composes one frame in paint order (bottom to top) and queues it on the panel.
 fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<dyn Error>> {
     let NativeState {
-        surface,
+        primary,
         renderer,
         canvas,
         server,
@@ -475,7 +620,7 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         ..
     } = state;
     let canvas = *canvas;
-    let (width, height) = surface.current_mode().size();
+    let (width, height) = primary.surface.current_mode().size();
     let size: Size<i32, Physical> = (width as i32, height as i32).into();
     let damage = Rectangle::from_size(size);
 
@@ -679,7 +824,135 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         send_frames_surface_tree(layer.wl_surface(), time);
     }
 
-    surface.queue_buffer(None, None, ())?;
+    primary.surface.queue_buffer(None, None, ())?;
+    Ok(())
+}
+
+/// Layer-shell surfaces on `layer` of an output, placed at 1:1 geometry.
+fn layer_elements_for_output(
+    renderer: &mut GlesRenderer,
+    output: &Output,
+    layer: Layer,
+) -> Vec<SurfaceElement> {
+    let layer_map = layer_map_for_output(output);
+    let mut elements = Vec::new();
+    for surface in layer_map.layers().filter(|surface| surface.layer() == layer) {
+        let Some(geometry) = layer_map.layer_geometry(surface) else {
+            continue;
+        };
+        elements.extend(surface_elements(
+            renderer,
+            surface.wl_surface(),
+            (geometry.loc.x, geometry.loc.y),
+            1.0,
+        ));
+    }
+    elements
+}
+
+/// Renders a frame on the external desktop output.
+fn render_external_frame(
+    renderer: &mut GlesRenderer,
+    server: &mut PenumbraServerState,
+    ext: &mut KmsOutputSurface,
+    buffer: &mut Dmabuf,
+    started: Instant,
+) -> Result<(), Box<dyn Error>> {
+    let (width, height) = ext.mode.size();
+    let size: Size<i32, Physical> = (width as i32, height as i32).into();
+    let damage = Rectangle::from_size(size);
+    let output_geo = server
+        .space
+        .output_geometry(&ext.output)
+        .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (width as i32, height as i32).into()));
+
+    // 1. Collect desktop elements before binding frame
+    let background = layer_elements_for_output(renderer, &ext.output, Layer::Background);
+    let bottom = layer_elements_for_output(renderer, &ext.output, Layer::Bottom);
+
+    let mut window_elements = Vec::new();
+    for window in server.space.elements() {
+        if Some(window) == server.root_shell.as_ref() || server.is_phone_task(window) {
+            continue;
+        }
+        if let Some(toplevel) = window.toplevel() {
+            if let Some(loc) = server.space.element_location(window) {
+                let win_rect = Rectangle::new(loc.into(), window.geometry().size.into());
+                if win_rect.intersection(output_geo).is_some() {
+                    let ext_loc = (loc.x - output_geo.loc.x, loc.y - output_geo.loc.y);
+                    window_elements.extend(surface_elements(renderer, toplevel.wl_surface(), ext_loc, 1.0));
+                }
+            }
+        }
+    }
+
+    let top = layer_elements_for_output(renderer, &ext.output, Layer::Top);
+    let overlay = layer_elements_for_output(renderer, &ext.output, Layer::Overlay);
+
+    // Collect pointer cursor sprite elements before binding framebuffer
+    let mut cursor_surface_elements = Vec::new();
+    let mut cursor_memory_element = None;
+    if output_geo.to_f64().contains(server.pointer_location) {
+        let cursor_rel = (
+            (server.pointer_location.x - output_geo.loc.x as f64).round() as i32,
+            (server.pointer_location.y - output_geo.loc.y as f64).round() as i32,
+        );
+
+        match &server.cursor_status {
+            smithay::input::pointer::CursorImageStatus::Surface(surf) => {
+                let hotspot = smithay::wayland::compositor::with_states(surf, |states| {
+                    states
+                        .data_map
+                        .get::<std::sync::Mutex<smithay::input::pointer::CursorImageAttributes>>()
+                        .and_then(|attr| attr.lock().ok().map(|a| a.hotspot))
+                        .unwrap_or_default()
+                });
+                let loc = (cursor_rel.0 - hotspot.x, cursor_rel.1 - hotspot.y);
+                cursor_surface_elements.extend(surface_elements(renderer, surf, loc, 1.0));
+            }
+            smithay::input::pointer::CursorImageStatus::Named(_) => {
+                let loc = smithay::utils::Point::<f64, Physical>::from((cursor_rel.0 as f64, cursor_rel.1 as f64));
+                if let Ok(elem) = smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement::from_buffer(
+                    renderer,
+                    loc,
+                    &server.fallback_cursor_buffer,
+                    None,
+                    None,
+                    Some(Size::<i32, smithay::utils::Logical>::from((24, 24))),
+                    smithay::backend::renderer::element::Kind::Cursor,
+                ) {
+                    cursor_memory_element = Some(elem);
+                }
+            }
+            smithay::input::pointer::CursorImageStatus::Hidden => {}
+        }
+    }
+
+    let mut framebuffer = renderer.bind(buffer)?;
+    let mut frame = renderer.render(&mut framebuffer, size, Transform::Normal)?;
+    frame.clear(Color32F::new(0.04, 0.04, 0.06, 1.0), &[damage])?;
+
+    draw_render_elements(&mut frame, 1.0, &background, &[damage])?;
+    draw_render_elements(&mut frame, 1.0, &bottom, &[damage])?;
+    draw_render_elements(&mut frame, 1.0, &window_elements, &[damage])?;
+    draw_render_elements(&mut frame, 1.0, &top, &[damage])?;
+    draw_render_elements(&mut frame, 1.0, &overlay, &[damage])?;
+
+    if !cursor_surface_elements.is_empty() {
+        draw_render_elements(&mut frame, 1.0, &cursor_surface_elements, &[damage])?;
+    }
+    if let Some(elem) = cursor_memory_element {
+        draw_render_elements(&mut frame, 1.0, &[elem], &[damage])?;
+    }
+
+    frame.finish()?.wait()?;
+
+    let time = started.elapsed().as_millis() as u32;
+    for layer in layer_map_for_output(&ext.output).layers() {
+        send_frames_surface_tree(layer.wl_surface(), time);
+    }
+
+    ext.surface.queue_buffer(None, None, ())?;
     Ok(())
 }
 
@@ -765,9 +1038,9 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     );
     let surface = GbmBufferedSurface::<_, ()>::new(
         drm_surface,
-        allocator,
+        allocator.clone(),
         &[Fourcc::Abgr8888, Fourcc::Argb8888],
-        renderer_formats,
+        renderer_formats.clone(),
     )?;
 
     let socket_name = &_compositor.args.socket;
@@ -829,11 +1102,24 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         seat,
         space,
         root_shell: None,
-        output_a,
+        output_a: output_a.clone(),
         output_b: None,
+        external_outputs: std::collections::BTreeMap::new(),
         is_convergence_active: false,
         is_native: true,
         pointer_location: (0.0, 0.0).into(),
+        cursor_status: smithay::input::pointer::CursorImageStatus::Named(
+            smithay::input::pointer::CursorIcon::Default,
+        ),
+        window_drag: None,
+        fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer::from_slice(
+            crate::server::FALLBACK_CURSOR_DATA,
+            smithay::backend::allocator::Fourcc::Abgr8888,
+            (64, 64),
+            1,
+            Transform::Normal,
+            None,
+        ),
         phone_tasks: Vec::new(),
         next_task_id: 1,
         shell_state: ShellState::default(),
@@ -880,13 +1166,25 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let _ = std::fs::remove_file(runtime_path(phone::SHELL_CMD_FILE));
     let _ = write_atomic(&runtime_path(phone::WINDOWS_FILE), "");
 
+    let primary = KmsOutputSurface {
+        connector: connector_handle,
+        crtc,
+        output: output_a,
+        surface,
+        mode,
+    };
+
     let mut event_loop = smithay::reexports::calloop::EventLoop::<NativeState>::try_new()?;
     let loop_handle = event_loop.handle();
     loop_handle.insert_source(_drm_notifier, |event, _, state| {
         if let smithay::backend::drm::DrmEvent::VBlank(crtc) = event {
-            if crtc == state.crtc {
-                if let Err(error) = state.surface.frame_submitted() {
-                    tracing::error!(?error, "Failed to retire native DRM frame");
+            if crtc == state.primary.crtc {
+                if let Err(error) = state.primary.surface.frame_submitted() {
+                    tracing::error!(?error, "Failed to retire primary DRM frame");
+                }
+            } else if let Some(ext) = state.externals.get_mut(&crtc) {
+                if let Err(error) = ext.surface.frame_submitted() {
+                    tracing::error!(?error, connector = ?ext.connector, "Failed to retire external DRM frame");
                 }
             }
         }
@@ -894,6 +1192,15 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     loop_handle.insert_source(session_notifier, |event, _, _state| match event {
         SessionEvent::ActivateSession => tracing::info!("Native seat activated"),
         SessionEvent::PauseSession => tracing::warn!("Native seat paused"),
+    })?;
+
+    // Udev hotplug listener (adapted from cosmic-comp)
+    let udev_backend = UdevBackend::new(session.seat())?;
+    loop_handle.insert_source(udev_backend, |event, _, state| {
+        if let smithay::backend::udev::UdevEvent::Changed { .. } = event {
+            tracing::info!("DRM udev changed event detected, rescanning connectors");
+            state.rescan_external_connector();
+        }
     })?;
 
     // libinput delivers touch and pointer events from the session seat.
@@ -914,10 +1221,15 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let panel = (mode.size().0 as i32, mode.size().1 as i32);
     let now = Instant::now();
     let mut state = NativeState {
-        surface,
+        primary,
+        externals: std::collections::HashMap::new(),
+        device,
+        drm_fd,
+        allocator,
+        renderer_formats,
+        dh: dh.clone(),
         renderer,
         canvas,
-        crtc,
         listener,
         display,
         server,
@@ -926,6 +1238,10 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         started: now,
         last_ipc_poll: now,
     };
+
+    // Check if external monitors are already connected at startup
+    state.rescan_external_connector();
+
     tracing::info!("Native DRM backend is presenting; waiting for device events");
     event_loop.run(Some(Duration::from_millis(16)), &mut state, |state| {
         if let Ok(Some(stream)) = state.listener.accept() {
@@ -968,12 +1284,26 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             tracing::error!(?error, "Wayland client flush failed");
         }
 
-        // Rendering waits until the previous frame has been retired by DRM vblank.
-        let Ok((mut buffer, _)) = state.surface.next_buffer() else {
-            return;
-        };
-        if let Err(error) = render_frame(state, &mut buffer) {
-            tracing::error!(error = %error, "Native frame render failed");
+        // 1. Primary Phone Output Frame Rendering
+        if let Ok((mut buffer, _)) = state.primary.surface.next_buffer() {
+            if let Err(error) = render_frame(state, &mut buffer) {
+                tracing::error!(error = %error, "Native primary frame render failed");
+            }
+        }
+
+        // 2. Secondary External Desktop Frame Rendering (all connected external monitors)
+        for ext in state.externals.values_mut() {
+            if let Ok((mut ext_buffer, _)) = ext.surface.next_buffer() {
+                if let Err(error) = render_external_frame(
+                    &mut state.renderer,
+                    &mut state.server,
+                    ext,
+                    &mut ext_buffer,
+                    state.started,
+                ) {
+                    tracing::error!(error = %error, connector = ?ext.connector, "Native external frame render failed");
+                }
+            }
         }
     })?;
     Ok(())

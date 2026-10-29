@@ -10,6 +10,10 @@ pub struct SoundConfig {
     pub media_volume: f64,
     pub call_volume: f64,
     pub ring_volume: f64,
+    pub mic_volume: f64,
+    pub output_muted: bool,
+    pub mic_muted: bool,
+    pub output_device: String, // "speaker", "headset", "hdmi"
     pub dnd_enabled: bool,
     pub vibrate_for_calls: bool,
 }
@@ -20,6 +24,10 @@ impl Default for SoundConfig {
             media_volume: 0.65,
             call_volume: 0.80,
             ring_volume: 0.70,
+            mic_volume: 0.85,
+            output_muted: false,
+            mic_muted: false,
+            output_device: "speaker".into(),
             dnd_enabled: false,
             vibrate_for_calls: true,
         }

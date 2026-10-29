@@ -1,0 +1,168 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "../icon.slint";
+
+export struct DisplayItemData {
+    id: string,
+    name: string,
+    connector: string,
+    width: int,
+    height: int,
+    refresh_rate: int,
+    scale_pct: int,
+    pos_x: int,
+    pos_y: int,
+    is_primary: bool,
+    enabled: bool,
+}
+
+export component DisplayCanvas inherits Rectangle {
+    in-out property <[DisplayItemData]> displays: [
+        {
+            id: "DSI-1",
+            name: "Phone Display",
+            connector: "DSI-1",
+            width: 1080,
+            height: 2340,
+            refresh_rate: 60,
+            scale_pct: 262,
+            pos_x: 0,
+            pos_y: 0,
+            is_primary: true,
+            enabled: true,
+        },
+        {
+            id: "DP-1",
+            name: "External Monitor",
+            connector: "DP-1",
+            width: 1920,
+            height: 1080,
+            refresh_rate: 60,
+            scale_pct: 100,
+            pos_x: 1080,
+            pos_y: 0,
+            is_primary: false,
+            enabled: true,
+        }
+    ];
+
+    in-out property <int> selected-index: 0;
+    callback display-selected(int);
+    callback rearrange-requested(int, string); // (index, "left" | "right")
+
+    height: 180px;
+    border-radius: Theme.radius-card;
+    background: Theme.surface-lowest;
+    border-width: 1px;
+    border-color: Theme.outline-variant;
+    clip: true;
+
+    // Header label
+    Text {
+        x: 16px;
+        y: 12px;
+        text: "Display Arrangement (Drag / Select to configure)";
+        font-size: 12px;
+        font-weight: 500;
+        color: Theme.on-surface-variant;
+    }
+
+    // Canvas Container Centered
+    HorizontalLayout {
+        x: (parent.width - self.width) / 2;
+        y: 40px;
+        height: 120px;
+        spacing: 16px;
+        alignment: center;
+
+        for display[idx] in root.displays: Rectangle {
+            property <bool> is-selected: idx == root.selected-index;
+            // Aspect ratio calculation: portrait vs landscape
+            property <bool> is-portrait: display.height > display.width;
+            width: is-portrait ? 56px : 120px;
+            height: is-portrait ? 100px : 70px;
+            y: (parent.height - self.height) / 2;
+
+            border-radius: 8px;
+            background: is-selected ? Theme.primary-container : Theme.surface-low;
+            border-width: is-selected ? 2px : 1px;
+            border-color: is-selected ? Theme.primary : Theme.outline;
+
+            animate background { duration: 150ms; }
+            animate border-color { duration: 150ms; }
+
+            // Display Number Badge
+            Rectangle {
+                x: 6px;
+                y: 6px;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                background: is-selected ? Theme.primary : Theme.surface-highest;
+
+                Text {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    text: (idx + 1);
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: is-selected ? Theme.on-primary : Theme.on-surface;
+                }
+            }
+
+            // Primary Indicator Star
+            if display.is_primary: Rectangle {
+                x: parent.width - 22px;
+                y: 6px;
+                width: 16px;
+                height: 16px;
+
+                Icon {
+                    name: "settings";
+                    icon-size: 14px;
+                    icon-color: Theme.primary;
+                    x: 1px;
+                    y: 1px;
+                }
+            }
+
+            // Display Title & Resolution summary
+            VerticalLayout {
+                x: 6px;
+                y: 28px;
+                width: parent.width - 12px;
+                spacing: 2px;
+                alignment: center;
+
+                Text {
+                    text: display.name;
+                    font-size: 10px;
+                    font-weight: 600;
+                    color: is-selected ? Theme.on-primary-container : Theme.on-surface;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+
+                Text {
+                    text: display.width + "×" + display.height;
+                    font-size: 9px;
+                    color: is-selected ? Theme.on-primary-container.with-alpha(0.8) : Theme.on-surface-variant;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: display.scale_pct + "%";
+                    font-size: 8px;
+                    color: is-selected ? Theme.primary : Theme.on-surface-variant;
+                    horizontal-alignment: center;
+                }
+            }
+
+            TouchArea {
+                clicked => {
+                    root.selected-index = idx;
+                    root.display-selected(idx);
+                }
+            }
+        }
+    }
+}

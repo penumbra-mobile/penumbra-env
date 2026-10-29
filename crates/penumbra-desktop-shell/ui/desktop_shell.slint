@@ -1,0 +1,612 @@
+import { DesktopTheme } from "desktop_theme.slint";
+import { DesktopIcon } from "desktop_icon.slint";
+
+export struct DesktopAppEntry {
+    id: string,
+    name: string,
+    exec: string,
+    category: string,
+    icon-name: string,
+}
+
+export struct DesktopDockApp {
+    id: string,
+    name: string,
+    icon-name: string,
+    is-running: bool,
+    is-active: bool,
+}
+
+// ===========================================================================
+// 1. TOP DESKTOP PANEL (ZwlrLayerSurfaceV1 Layer::Top, height 36px)
+// ===========================================================================
+export component DesktopPanelWindow inherits Window {
+    in-out property <int> active-workspace: 1;
+    in-out property <int> total-workspaces: 4;
+    in-out property <string> active-window-title: "Penumbra Desktop";
+    in-out property <string> time-text: "15:45";
+    in-out property <string> date-text: "Thu, Oct 29";
+    in-out property <float> battery-pct: 100.0;
+    in-out property <bool> is-charging: false;
+    in-out property <bool> wifi-connected: true;
+    in-out property <string> wifi-ssid: "Wi-Fi";
+    in-out property <int> wifi-signal: 4;
+    in-out property <int> volume-pct: 80;
+    in-out property <bool> launcher-active: false;
+
+    callback toggle-launcher();
+    callback switch-workspace(int);
+    callback power-clicked();
+    callback time-clicked();
+
+    height: DesktopTheme.panel-height;
+    background: transparent;
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: DesktopTheme.panel-bg;
+        // Subtle bottom border line
+        Rectangle {
+            y: parent.height - 1px;
+            width: 100%;
+            height: 1px;
+            background: DesktopTheme.border-subtle;
+        }
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 12px;
+            alignment: space-between;
+
+            // --- LEFT REGION: App Launcher & Workspaces ---
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                // Application Launcher Trigger Pill
+                Rectangle {
+                    width: 110px;
+                    height: 28px;
+                    border-radius: 14px;
+                    background: launcher-touch.has-hover ? DesktopTheme.hover-tint : (root.launcher-active ? DesktopTheme.primary-container : transparent);
+                    border-width: 1px;
+                    border-color: root.launcher-active ? DesktopTheme.primary : DesktopTheme.border-subtle;
+
+                    animate background { duration: 150ms; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+
+                        DesktopIcon {
+                            name: "grid";
+                            icon-size: 14px;
+                            icon-color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.primary;
+                        }
+
+                        Text {
+                            text: "Apps";
+                            font-size: DesktopTheme.font-body;
+                            font-weight: 600;
+                            color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    launcher-touch := TouchArea {
+                        clicked => {
+                            root.toggle-launcher();
+                        }
+                    }
+                }
+
+                // Workspace Indicator Applet
+                Rectangle {
+                    height: 28px;
+                    border-radius: 14px;
+                    background: DesktopTheme.surface-glass;
+                    border-width: 1px;
+                    border-color: DesktopTheme.border-subtle;
+
+                    HorizontalLayout {
+                        padding-left: 4px;
+                        padding-right: 4px;
+                        spacing: 2px;
+                        alignment: center;
+
+                        for ws in [1, 2, 3, 4]: Rectangle {
+                            width: 26px;
+                            height: 22px;
+                            border-radius: 11px;
+                            background: ws == root.active-workspace ? DesktopTheme.primary : (ws-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+
+                            animate background { duration: 150ms; }
+
+                            Text {
+                                text: ws;
+                                font-size: DesktopTheme.font-caption;
+                                font-weight: 700;
+                                color: ws == root.active-workspace ? DesktopTheme.on-primary : DesktopTheme.on-surface-variant;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+
+                            ws-touch := TouchArea {
+                                clicked => {
+                                    root.switch-workspace(ws);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Focused Window Title
+                if root.active-window-title != "": Rectangle {
+                    height: 24px;
+                    clip: true;
+
+                    Text {
+                        text: root.active-window-title;
+                        font-size: DesktopTheme.font-caption;
+                        font-weight: 500;
+                        color: DesktopTheme.on-surface-muted;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // --- CENTER REGION: Clock & Date Applet ---
+            Rectangle {
+                height: 28px;
+                border-radius: 14px;
+                background: clock-touch.has-hover ? DesktopTheme.hover-tint : transparent;
+
+                animate background { duration: 150ms; }
+
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 6px;
+                    alignment: center;
+
+                    Text {
+                        text: root.time-text;
+                        font-size: DesktopTheme.font-title;
+                        font-weight: 700;
+                        color: DesktopTheme.on-surface;
+                        vertical-alignment: center;
+                    }
+
+                    Text {
+                        text: "•  " + root.date-text;
+                        font-size: DesktopTheme.font-caption;
+                        font-weight: 500;
+                        color: DesktopTheme.on-surface-variant;
+                        vertical-alignment: center;
+                    }
+                }
+
+                clock-touch := TouchArea {
+                    clicked => {
+                        root.time-clicked();
+                    }
+                }
+            }
+
+            // --- RIGHT REGION: Quick Status Applets & Power ---
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: center;
+
+                // Status Capsule (Network + Volume + Battery)
+                Rectangle {
+                    height: 28px;
+                    border-radius: 14px;
+                    background: DesktopTheme.surface-glass;
+                    border-width: 1px;
+                    border-color: DesktopTheme.border-subtle;
+
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        alignment: center;
+
+                        // Network
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            DesktopIcon {
+                                name: "wifi";
+                                icon-size: 14px;
+                                icon-color: root.wifi-connected ? DesktopTheme.primary : DesktopTheme.on-surface-muted;
+                            }
+
+                            if root.wifi-ssid != "": Text {
+                                text: root.wifi-ssid;
+                                font-size: DesktopTheme.font-caption;
+                                color: DesktopTheme.on-surface-variant;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Volume
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            DesktopIcon {
+                                name: "volume";
+                                icon-size: 14px;
+                                icon-color: DesktopTheme.on-surface-variant;
+                            }
+
+                            Text {
+                                text: root.volume-pct + "%";
+                                font-size: DesktopTheme.font-caption;
+                                color: DesktopTheme.on-surface-variant;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // Battery
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: center;
+
+                            DesktopIcon {
+                                name: "battery";
+                                icon-size: 14px;
+                                icon-color: root.battery-pct < 20.0 ? DesktopTheme.error : DesktopTheme.success;
+                            }
+
+                            Text {
+                                text: (root.is-charging ? "⚡ " : "") + Math.round(root.battery-pct) + "%";
+                                font-size: DesktopTheme.font-caption;
+                                font-weight: 600;
+                                color: DesktopTheme.on-surface;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+
+                // Power / Lock Action Pill
+                Rectangle {
+                    width: 32px;
+                    height: 28px;
+                    border-radius: 14px;
+                    background: power-touch.has-hover ? DesktopTheme.error : DesktopTheme.surface-glass;
+                    border-width: 1px;
+                    border-color: DesktopTheme.border-subtle;
+
+                    animate background { duration: 150ms; }
+
+                    DesktopIcon {
+                        name: "power";
+                        icon-size: 14px;
+                        icon-color: power-touch.has-hover ? #000000 : DesktopTheme.on-surface-variant;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    power-touch := TouchArea {
+                        clicked => {
+                            root.power-clicked();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ===========================================================================
+// 2. DESKTOP DOCK (ZwlrLayerSurfaceV1 Layer::Top, height 64px, Anchor::Bottom)
+// ===========================================================================
+export component DesktopDockWindow inherits Window {
+    in-out property <[DesktopDockApp]> dock-apps: [
+        { id: "launcher", name: "Apps", icon-name: "grid", is-running: false, is-active: false },
+        { id: "terminal", name: "Terminal", icon-name: "terminal", is-running: false, is-active: false },
+        { id: "browser", name: "Browser", icon-name: "browser", is-running: false, is-active: false },
+        { id: "files", name: "Files", icon-name: "folder", is-running: false, is-active: false },
+        { id: "editor", name: "Editor", icon-name: "edit", is-running: false, is-active: false },
+        { id: "settings", name: "Settings", icon-name: "settings", is-running: false, is-active: false }
+    ];
+
+    callback app-clicked(string);
+    callback launcher-clicked();
+
+    height: DesktopTheme.dock-height;
+    background: transparent;
+
+    HorizontalLayout {
+        alignment: center;
+
+        // Centered Floating Glass Dock Container
+        Rectangle {
+            height: 56px;
+            y: 4px;
+            border-radius: 18px;
+            background: DesktopTheme.dock-bg;
+            border-width: 1px;
+            border-color: DesktopTheme.specular-rim;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+                alignment: center;
+
+                for app in root.dock-apps: Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 14px;
+                    background: app-touch.has-hover ? DesktopTheme.hover-tint : (app.is-active ? DesktopTheme.primary-container : transparent);
+
+                    animate background { duration: 150ms; }
+
+                    // App Icon
+                    DesktopIcon {
+                        name: app.icon-name;
+                        icon-size: 24px;
+                        icon-color: app.is-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2 - (app.is-running ? 2px : 0px);
+                    }
+
+                    // Running Application Indicator Dot
+                    if app.is-running: Rectangle {
+                        width: 4px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: app.is-active ? DesktopTheme.primary : DesktopTheme.on-surface-muted;
+                        x: (parent.width - self.width) / 2;
+                        y: parent.height - 7px;
+                    }
+
+                    app-touch := TouchArea {
+                        clicked => {
+                            if app.id == "launcher" {
+                                root.launcher-clicked();
+                            } else {
+                                root.app-clicked(app.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ===========================================================================
+// 3. DESKTOP LAUNCHER (ZwlrLayerSurfaceV1 Layer::Overlay)
+// ===========================================================================
+export component DesktopLauncherWindow inherits Window {
+    in-out property <bool> is-open: false;
+    in-out property <string> search-text: "";
+    in-out property <string> active-category: "All";
+    in-out property <[DesktopAppEntry]> apps: [];
+
+    callback search-query-changed(string);
+    callback category-selected(string);
+    callback app-clicked(string, string); // (id, exec)
+    callback close-requested();
+
+    background: transparent;
+
+    // Fullscreen Scrim Backdrop
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: DesktopTheme.scrim-bg;
+        opacity: root.is-open ? 1.0 : 0.0;
+
+        animate opacity { duration: 180ms; }
+
+        scrim-touch := TouchArea {
+            clicked => {
+                root.close-requested();
+            }
+        }
+
+        // Floating Modal Chassis
+        Rectangle {
+            width: 720px;
+            height: 520px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 20px;
+            background: DesktopTheme.modal-bg;
+            border-width: 1px;
+            border-color: DesktopTheme.specular-rim;
+            clip: true;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 16px;
+
+                // --- Header: Search Bar & Close ---
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: space-between;
+
+                    // Search Pill Input
+                    Rectangle {
+                        height: 44px;
+                        horizontal-stretch: 1;
+                        border-radius: 22px;
+                        background: DesktopTheme.surface;
+                        border-width: 1px;
+                        border-color: DesktopTheme.border-focused;
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 10px;
+                            alignment: center;
+
+                            DesktopIcon {
+                                name: "search";
+                                icon-size: 18px;
+                                icon-color: DesktopTheme.primary;
+                            }
+
+                            TextInput {
+                                text: root.search-text;
+                                font-size: DesktopTheme.font-title;
+                                color: DesktopTheme.on-surface;
+                                vertical-alignment: center;
+                                single-line: true;
+
+                                edited => {
+                                    root.search-text = self.text;
+                                    root.search-query-changed(self.text);
+                                }
+                                accepted => {
+                                    if root.apps.length > 0 {
+                                        root.app-clicked(root.apps[0].id, root.apps[0].exec);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Close Button Pill
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: close-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface;
+                        border-width: 1px;
+                        border-color: DesktopTheme.border-subtle;
+
+                        DesktopIcon {
+                            name: "close";
+                            icon-size: 16px;
+                            icon-color: DesktopTheme.on-surface-variant;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        close-touch := TouchArea {
+                            clicked => {
+                                root.close-requested();
+                            }
+                        }
+                    }
+                }
+
+                // --- Category Filter Tabs ---
+                HorizontalLayout {
+                    spacing: 8px;
+                    height: 32px;
+
+                    for cat in ["All", "Internet", "Utilities", "System", "Development", "Office", "Multimedia"]: Rectangle {
+                        height: 30px;
+                        border-radius: 15px;
+                        background: cat == root.active-category ? DesktopTheme.primary : (cat-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface);
+                        border-width: 1px;
+                        border-color: cat == root.active-category ? DesktopTheme.primary : DesktopTheme.border-subtle;
+
+                        animate background { duration: 150ms; }
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            alignment: center;
+
+                            Text {
+                                text: cat;
+                                font-size: DesktopTheme.font-caption;
+                                font-weight: 600;
+                                color: cat == root.active-category ? DesktopTheme.on-primary : DesktopTheme.on-surface-variant;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        cat-touch := TouchArea {
+                            clicked => {
+                                root.active-category = cat;
+                                root.category-selected(cat);
+                            }
+                        }
+                    }
+                }
+
+                // --- Application Grid ---
+                Rectangle {
+                    vertical-stretch: 1;
+                    clip: true;
+
+                    Flickable {
+                        width: 100%;
+                        height: 100%;
+
+                        VerticalLayout {
+                            spacing: 8px;
+                            padding-right: 8px;
+
+                            for app in root.apps: Rectangle {
+                                height: 56px;
+                                border-radius: 12px;
+                                background: card-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface;
+                                border-width: 1px;
+                                border-color: card-touch.has-hover ? DesktopTheme.border-focused : DesktopTheme.border-subtle;
+
+                                animate background { duration: 120ms; }
+
+                                HorizontalLayout {
+                                    padding-left: 16px;
+                                    padding-right: 16px;
+                                    spacing: 14px;
+                                    alignment: center;
+
+                                    DesktopIcon {
+                                        name: app.icon-name;
+                                        icon-size: 24px;
+                                        icon-color: DesktopTheme.primary;
+                                    }
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 2px;
+                                        horizontal-stretch: 1;
+
+                                        Text {
+                                            text: app.name;
+                                            font-size: DesktopTheme.font-body;
+                                            font-weight: 600;
+                                            color: DesktopTheme.on-surface;
+                                        }
+
+                                        Text {
+                                            text: app.category != "" ? app.category : "Application";
+                                            font-size: DesktopTheme.font-caption;
+                                            color: DesktopTheme.on-surface-muted;
+                                        }
+                                    }
+
+                                    DesktopIcon {
+                                        name: "terminal";
+                                        icon-size: 14px;
+                                        icon-color: DesktopTheme.on-surface-muted;
+                                    }
+                                }
+
+                                card-touch := TouchArea {
+                                    clicked => {
+                                        root.app-clicked(app.id, app.exec);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

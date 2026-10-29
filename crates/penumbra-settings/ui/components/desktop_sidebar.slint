@@ -1,0 +1,192 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "../icon.slint";
+
+export struct SidebarCategoryItem {
+    id: string,
+    title: string,
+    icon-name: string,
+    icon-bg: color,
+    icon-tint: color,
+}
+
+export component DesktopSidebar inherits Rectangle {
+    in-out property <string> active-category: "display";
+    in-out property <string> search-query: "";
+    callback category-selected(string);
+    callback search-changed(string);
+
+    width: 280px;
+    background: Theme.surface-lowest;
+    border-width: 0px;
+    clip: true;
+
+    // Right border separator line
+    Rectangle {
+        x: parent.width - 1px;
+        y: 0px;
+        width: 1px;
+        height: parent.height;
+        background: Theme.outline-variant;
+    }
+
+    VerticalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 20px;
+        padding-bottom: 20px;
+        spacing: 12px;
+
+        // Window Header / Title in Sidebar
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 8px;
+                background: Theme.primary;
+
+                Icon {
+                    name: "settings";
+                    icon-size: 18px;
+                    icon-color: Theme.on-primary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            Text {
+                text: "Penumbra Settings";
+                font-size: 18px;
+                font-weight: 700;
+                color: Theme.on-surface;
+                vertical-alignment: center;
+            }
+        }
+
+        // Search bar
+        Rectangle {
+            height: 40px;
+            border-radius: 20px;
+            background: Theme.surface-container-high;
+            border-width: 1px;
+            border-color: Theme.outline;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 8px;
+                alignment: center;
+
+                Icon {
+                    name: "search";
+                    icon-size: 16px;
+                    icon-color: Theme.on-surface-variant;
+                }
+
+                search_input := TextInput {
+                    horizontal-stretch: 1;
+                    text: root.search-query;
+                    font-size: 13px;
+                    color: Theme.on-surface;
+                    vertical-alignment: center;
+
+                    edited => {
+                        root.search-query = self.text;
+                        root.search-changed(self.text);
+                    }
+                }
+
+                if root.search-query != "": TouchArea {
+                    width: 20px;
+                    height: 20px;
+                    clicked => {
+                        root.search-query = "";
+                        search_input.text = "";
+                        root.search-changed("");
+                    }
+                    Icon {
+                        name: "close";
+                        icon-size: 14px;
+                        icon-color: Theme.on-surface-variant;
+                    }
+                }
+            }
+        }
+
+        // Categories List
+        Flickable {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                spacing: 4px;
+
+                property <[SidebarCategoryItem]> categories: [
+                    { id: "wifi", title: "Network & Wi-Fi", icon-name: "wifi", icon-bg: #82d3e5, icon-tint: #00363f },
+                    { id: "bluetooth", title: "Bluetooth Devices", icon-name: "bluetooth", icon-bg: #90d5ff, icon-tint: #003354 },
+                    { id: "display", title: "Displays & Convergence", icon-name: "display", icon-bg: #ffcc80, icon-tint: #4e2600 },
+                    { id: "sound", title: "Sound & Volume", icon-name: "sound", icon-bg: #ffb4a9, icon-tint: #680003 },
+                    { id: "battery", title: "Battery & Power", icon-name: "battery", icon-bg: #a3e8b0, icon-tint: #073919 },
+                    { id: "keyboard", title: "Keyboard & Input", icon-name: "keyboard", icon-bg: #d0bcff, icon-tint: #381e72 },
+                    { id: "security", title: "Security & Lock", icon-name: "security", icon-bg: #ffb3b8, icon-tint: #680016 },
+                    { id: "about", title: "About Device", icon-name: "about", icon-bg: #c4c7c5, icon-tint: #1f2020 },
+                ];
+
+                for cat in self.categories: Rectangle {
+                    property <bool> is-active: cat.id == root.active-category;
+                    height: 46px;
+                    border-radius: 23px;
+                    background: is-active ? Theme.surface-high : (hover_touch.has-hover ? Theme.surface-low : Colors.transparent);
+
+                    animate background { duration: 120ms; }
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+                        alignment: center;
+
+                        Rectangle {
+                            width: 28px;
+                            height: 28px;
+                            border-radius: 14px;
+                            background: cat.icon-bg;
+
+                            Icon {
+                                name: cat.icon-name;
+                                icon-size: 16px;
+                                icon-color: cat.icon-tint;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                            }
+                        }
+
+                        Text {
+                            horizontal-stretch: 1;
+                            text: cat.title;
+                            font-size: 14px;
+                            font-weight: is-active ? 600 : 400;
+                            color: is-active ? Theme.primary : Theme.on-surface;
+                            vertical-alignment: center;
+                        }
+
+                        if is-active: Rectangle {
+                            width: 4px;
+                            height: 16px;
+                            border-radius: 2px;
+                            background: Theme.primary;
+                        }
+                    }
+
+                    hover_touch := TouchArea {
+                        clicked => {
+                            root.active-category = cat.id;
+                            root.category-selected(cat.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

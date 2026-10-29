@@ -147,6 +147,21 @@ fn clamp_to_canvas(x: f64, y: f64) -> Point<f64, Logical> {
         .into()
 }
 
+fn clamp_pointer_motion(
+    server: &PenumbraServerState,
+    x: f64,
+    y: f64,
+) -> Point<f64, Logical> {
+    let bounds = server.global_layout_bounds();
+    let max_x = (bounds.loc.x + bounds.size.w - 1) as f64;
+    let max_y = (bounds.loc.y + bounds.size.h - 1) as f64;
+    (
+        x.clamp(bounds.loc.x as f64, max_x),
+        y.clamp(bounds.loc.y as f64, max_y),
+    )
+        .into()
+}
+
 /// Moves the seat pointer to `pos`, delivering the motion to `focus`.
 fn send_motion(
     server: &mut PenumbraServerState,
@@ -180,9 +195,9 @@ fn send_button(
     input.pointer.frame(server);
 }
 
-/// Hover or mouse motion: focus follows the position under the pointer.
+/// Hover or mouse motion: focus follows the position under the pointer across all displays.
 fn hover(server: &mut PenumbraServerState, input: &mut InputState, pos: Point<f64, Logical>) {
-    let focus = server.phone_focus_under(pos);
+    let focus = server.focus_under(pos);
     send_motion(server, input, pos, focus);
 }
 
@@ -280,10 +295,17 @@ pub(crate) fn handle(
                 return;
             }
             let delta = event.delta();
-            let pos = clamp_to_canvas(
+            let pos = clamp_pointer_motion(
+                server,
                 server.pointer_location.x + delta.x,
                 server.pointer_location.y + delta.y,
             );
+            if let Some(drag) = server.window_drag.clone() {
+                let dx = (pos.x - drag.initial_pointer_loc.x).round() as i32;
+                let dy = (pos.y - drag.initial_pointer_loc.y).round() as i32;
+                let target_loc = (drag.initial_window_loc.x + dx, drag.initial_window_loc.y + dy);
+                server.handle_window_drag_motion(&drag.window, target_loc);
+            }
             hover(server, input, pos);
         }
         InputEvent::PointerMotionAbsolute { event } => {
@@ -300,6 +322,31 @@ pub(crate) fn handle(
         InputEvent::PointerButton { event } => {
             if server.screen_blanked {
                 return;
+            }
+            if event.state() == ButtonState::Pressed {
+                let pos = server.pointer_location;
+                if pos.x >= PHONE_W as f64 {
+                    let clicked_window = server.space.element_under(pos).map(|(w, _)| w.clone());
+                    if let Some(window) = clicked_window {
+                        if server.root_shell.as_ref() != Some(&window) && !server.is_phone_task(&window) {
+                            server.space.raise_element(&window, true);
+                            if let Some(toplevel) = window.toplevel() {
+                                let surf = toplevel.wl_surface().clone();
+                                let serial = input.next_serial();
+                                if let Some(keyboard) = server.seat.get_keyboard() {
+                                    keyboard.set_focus(server, Some(surf), serial);
+                                }
+                            }
+                        }
+                    } else if let Some((surf, _)) = server.desktop_focus_under(pos) {
+                        let serial = input.next_serial();
+                        if let Some(keyboard) = server.seat.get_keyboard() {
+                            keyboard.set_focus(server, Some(surf), serial);
+                        }
+                    }
+                }
+            } else if event.state() == ButtonState::Released {
+                server.window_drag = None;
             }
             send_button(server, input, event.button_code(), event.state());
         }

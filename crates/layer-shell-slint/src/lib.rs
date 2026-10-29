@@ -137,6 +137,9 @@ pub struct LayerConfig {
     pub keyboard_interactivity: KeyboardInteractivity,
     /// Selected rendering backend (Auto, Software, Gpu).
     pub renderer: RendererType,
+    /// Explicit target output connector name (e.g., "DP-1", "HDMI-A-1", "external").
+    /// If None, the surface targets the focused output or compositor default.
+    pub output_name: Option<String>,
 }
 
 impl Default for LayerConfig {
@@ -156,6 +159,7 @@ impl Default for LayerConfig {
             exclusive_zone: 48,
             keyboard_interactivity: KeyboardInteractivity::None,
             renderer,
+            output_name: None,
         }
     }
 }
@@ -175,6 +179,7 @@ impl LayerConfig {
             exclusive_zone: height as i32,
             keyboard_interactivity: KeyboardInteractivity::None,
             renderer: RendererType::Auto,
+            output_name: None,
         }
     }
 
@@ -192,6 +197,7 @@ impl LayerConfig {
             exclusive_zone: height as i32,
             keyboard_interactivity: KeyboardInteractivity::None,
             renderer: RendererType::Auto,
+            output_name: None,
         }
     }
 
@@ -209,6 +215,7 @@ impl LayerConfig {
             exclusive_zone: -1,
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
             renderer: RendererType::Auto,
+            output_name: None,
         }
     }
 
@@ -258,6 +265,12 @@ impl LayerConfig {
     /// Sets the rendering backend strategy (`Auto`, `Software`, `Gpu`).
     pub fn with_renderer(mut self, renderer: RendererType) -> Self {
         self.renderer = renderer;
+        self
+    }
+
+    /// Binds the layer surface to a designated output connector (e.g. "DP-1", "HDMI-A-1", or "external").
+    pub fn with_output(mut self, output: impl Into<String>) -> Self {
+        self.output_name = Some(output.into());
         self
     }
 }

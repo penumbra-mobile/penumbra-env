@@ -108,7 +108,7 @@ impl ClientData for ClientState {
     }
 }
 
-/// Server state managing Wayland protocols, dual outputs, and client surfaces.
+/// Server state managing Wayland protocols, multi-output displays, and client surfaces.
 pub struct PenumbraServerState {
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
@@ -127,9 +127,13 @@ pub struct PenumbraServerState {
     pub root_shell: Option<Window>,
     pub output_a: Output,
     pub output_b: Option<Output>,
+    pub external_outputs: std::collections::BTreeMap<String, Output>,
     pub is_convergence_active: bool,
     pub is_native: bool,
     pub pointer_location: Point<f64, smithay::utils::Logical>,
+    pub cursor_status: smithay::input::pointer::CursorImageStatus,
+    pub window_drag: Option<WindowDragState>,
+    pub fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer,
 
     /// Phone (Output A) tasks in MRU order. `[0]` is the active app.
     pub phone_tasks: Vec<PhoneTask>,
@@ -184,10 +188,20 @@ pub struct PenumbraServerState {
     pub qs_backdrop_pipeline: crate::render::QuickSettingsBackdropPipeline,
 }
 
+pub static FALLBACK_CURSOR_DATA: &[u8] = include_bytes!("../resources/cursor.rgba");
+
+#[derive(Debug, Clone)]
+pub struct WindowDragState {
+    pub window: Window,
+    pub initial_window_loc: Point<i32, smithay::utils::Logical>,
+    pub initial_pointer_loc: Point<f64, smithay::utils::Logical>,
+}
+
 /// A Wayland toplevel living on the phone output.
 pub struct PhoneTask {
     pub id: u32,
     pub window: Window,
+    pub is_migrated_desktop: bool,
 }
 
 impl PhoneTask {
@@ -221,8 +235,92 @@ impl PenumbraServerState {
             .and_then(|t| t.window.toplevel().map(|t| t.wl_surface().clone()))
     }
 
-    fn is_phone_task(&self, window: &Window) -> bool {
+    pub fn is_phone_task(&self, window: &Window) -> bool {
         self.phone_tasks.iter().any(|t| &t.window == window)
+    }
+
+    /// Migrates all desktop windows to the phone overview stack upon external display disconnection.
+    /// Desktop windows are placed behind the active phone app so the user is never interrupted.
+    pub fn migrate_desktop_surfaces_to_phone(&mut self) {
+        let mut to_migrate = Vec::new();
+        for window in self.space.elements() {
+            if Some(window) == self.root_shell.as_ref() {
+                continue;
+            }
+            if !self.is_phone_task(window) {
+                to_migrate.push(window.clone());
+            }
+        }
+
+        if to_migrate.is_empty() {
+            return;
+        }
+
+        tracing::info!(count = to_migrate.len(), "Migrating desktop windows to Phone Overview");
+        for window in to_migrate {
+            let task_id = self.next_task_id;
+            self.next_task_id += 1;
+            if let Some(toplevel) = window.toplevel() {
+                toplevel.with_pending_state(|state| {
+                    state.size = Some((PHONE_W, APP_H).into());
+                });
+                toplevel.send_configure();
+            }
+            self.space.map_element(window.clone(), (0, APP_Y), false);
+            // Insert behind foreground phone task so active mobile app is uninterrupted
+            if self.phone_tasks.is_empty() {
+                self.phone_tasks.push(PhoneTask { id: task_id, window, is_migrated_desktop: true });
+            } else {
+                self.phone_tasks.insert(1, PhoneTask { id: task_id, window, is_migrated_desktop: true });
+            }
+        }
+        self.publish_phone_tasks();
+    }
+
+    /// Migrates desktop windows upon display disconnection.
+    /// - If other external desktop displays remain connected, moves windows intersecting the
+    ///   unplugged output over to the remaining desktop display without touching the phone screen.
+    /// - If NO external displays remain, gracefully migrates all desktop windows to the phone overview.
+    pub fn migrate_desktop_surfaces_from_output(&mut self, unplugged_output: &Output) {
+        let remaining_desktop = self
+            .external_outputs
+            .values()
+            .find(|o| *o != unplugged_output)
+            .cloned();
+
+        if let Some(target_output) = remaining_desktop {
+            let target_geo = self
+                .space
+                .output_geometry(&target_output)
+                .unwrap_or_else(|| Rectangle::new((412, 0).into(), (1920, 1080).into()));
+            let unplugged_geo = self
+                .space
+                .output_geometry(unplugged_output)
+                .unwrap_or_else(|| Rectangle::new((412, 0).into(), (1920, 1080).into()));
+
+            let mut windows_to_move = Vec::new();
+            for window in self.space.elements() {
+                if Some(window) == self.root_shell.as_ref() || self.is_phone_task(window) {
+                    continue;
+                }
+                if let Some(loc) = self.space.element_location(window) {
+                    let win_rect = Rectangle::new(loc.into(), window.geometry().size.into());
+                    if win_rect.intersection(unplugged_geo).is_some() {
+                        windows_to_move.push((window.clone(), loc));
+                    }
+                }
+            }
+
+            for (window, loc) in windows_to_move {
+                let rel_x = (loc.x - unplugged_geo.loc.x).clamp(0, target_geo.size.w - 100);
+                let rel_y = (loc.y - unplugged_geo.loc.y).clamp(0, target_geo.size.h - 100);
+                let new_loc = (target_geo.loc.x + rel_x, target_geo.loc.y + rel_y);
+                self.space.map_element(window, new_loc, false);
+            }
+        } else {
+            // No external displays remaining: total disconnect
+            self.migrate_desktop_surfaces_to_phone();
+        }
     }
 
     /// Whether an app currently occupies the phone inset (Layer 1 is visible).
@@ -335,6 +433,156 @@ impl PenumbraServerState {
 
         // 6. Legacy root_shell (if running legacy monolithic shell)
         self.root_surface().map(|s| (s, (0.0, 0.0).into()))
+    }
+
+    /// Returns the global bounding rectangle encompassing the phone display
+    /// and all active external displays mapped in `space`.
+    pub fn global_layout_bounds(&self) -> Rectangle<i32, smithay::utils::Logical> {
+        let mut min_x = 0;
+        let mut min_y = 0;
+        let mut max_x = PHONE_W;
+        let mut max_y = PHONE_H;
+
+        for output in self.external_outputs.values() {
+            if let Some(geo) = self.space.output_geometry(output) {
+                min_x = min_x.min(geo.loc.x);
+                min_y = min_y.min(geo.loc.y);
+                max_x = max_x.max(geo.loc.x + geo.size.w);
+                max_y = max_y.max(geo.loc.y + geo.size.h);
+            }
+        }
+
+        Rectangle::new(
+            (min_x, min_y).into(),
+            (max_x - min_x, max_y - min_y).into(),
+        )
+    }
+
+    /// Resolves the surface receiving input at `pos` on external desktop displays.
+    /// Iterates through active external outputs, layer-shell surfaces, and floating XDG windows in `space`.
+    #[allow(dead_code)]
+    pub(crate) fn desktop_focus_under(
+        &self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) -> Option<(WlSurface, Point<f64, smithay::utils::Logical>)> {
+        for output in self.external_outputs.values() {
+            let Some(output_geo) = self.space.output_geometry(output) else {
+                continue;
+            };
+            if !output_geo.to_f64().contains(pos) {
+                continue;
+            }
+
+            let rel_p: Point<f64, smithay::utils::Logical> =
+                (pos.x - output_geo.loc.x as f64, pos.y - output_geo.loc.y as f64).into();
+            let map = layer_map_for_output(output);
+
+            // 1. Overlay layer (highest priority - lockscreen/popups/dialogs)
+            if let Some(l) = map.layer_under(Layer::Overlay, rel_p) {
+                let geo = map.layer_geometry(l).unwrap_or_default();
+                let loc: Point<f64, smithay::utils::Logical> =
+                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
+                return Some((l.wl_surface().clone(), loc));
+            }
+
+            // 2. Top layer (desktop panel, dock, desktop applets)
+            if let Some(l) = map.layer_under(Layer::Top, rel_p) {
+                let geo = map.layer_geometry(l).unwrap_or_default();
+                let loc: Point<f64, smithay::utils::Logical> =
+                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
+                return Some((l.wl_surface().clone(), loc));
+            }
+
+            // 3. Floating desktop XDG application windows in `space`
+            if let Some((window, rel_pos)) = self.space.element_under(pos) {
+                if self.root_shell.as_ref() != Some(&window) && !self.is_phone_task(&window) {
+                    if let Some(toplevel) = window.toplevel() {
+                        return Some((toplevel.wl_surface().clone(), rel_pos.to_f64()));
+                    }
+                }
+            }
+
+            // 4. Bottom layer
+            if let Some(l) = map.layer_under(Layer::Bottom, rel_p) {
+                let geo = map.layer_geometry(l).unwrap_or_default();
+                let loc: Point<f64, smithay::utils::Logical> =
+                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
+                return Some((l.wl_surface().clone(), loc));
+            }
+
+            // 5. Background layer (desktop wallpaper)
+            if let Some(l) = map.layer_under(Layer::Background, rel_p) {
+                let geo = map.layer_geometry(l).unwrap_or_default();
+                let loc: Point<f64, smithay::utils::Logical> =
+                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
+                return Some((l.wl_surface().clone(), loc));
+            }
+        }
+
+        None
+    }
+
+    /// Resolves the surface receiving input at global coordinates `pos` across all outputs.
+    #[allow(dead_code)]
+    pub(crate) fn focus_under(
+        &self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) -> Option<(WlSurface, Point<f64, smithay::utils::Logical>)> {
+        if pos.x < PHONE_W as f64 {
+            self.phone_focus_under(pos)
+        } else {
+            self.desktop_focus_under(pos)
+        }
+    }
+
+    /// Handles live window dragging across displays and output boundary transitions.
+    pub fn handle_window_drag_motion(&mut self, window: &Window, target_loc: (i32, i32)) {
+        let win_size = window.geometry().size;
+        let center_x = target_loc.0 + win_size.w / 2;
+
+        if center_x < PHONE_W {
+            // Dragged across boundary into Phone Screen
+            if !self.is_phone_task(window) {
+                tracing::info!("Dragging window across boundary into Phone mobile task stack");
+                let id = self.next_task_id;
+                self.next_task_id += 1;
+                if let Some(toplevel) = window.toplevel() {
+                    toplevel.with_pending_state(|state| {
+                        state.states.set(xdg_toplevel::State::Activated);
+                        state.states.set(xdg_toplevel::State::Maximized);
+                        state.size = Some((PHONE_W, APP_H).into());
+                    });
+                    toplevel.send_configure();
+                }
+                self.space.map_element(window.clone(), (0, APP_Y), false);
+                self.phone_tasks.insert(0, PhoneTask {
+                    id,
+                    window: window.clone(),
+                    is_migrated_desktop: false,
+                });
+                self.shell_state.mode = PhoneMode::App;
+                let _ = self.shell_state.save();
+                self.publish_phone_tasks();
+            }
+        } else {
+            // Dragged across boundary onto External Desktop Display
+            if self.is_phone_task(window) {
+                tracing::info!("Dragging window across boundary out to External Desktop");
+                self.phone_tasks.retain(|t| &t.window != window);
+                if let Some(toplevel) = window.toplevel() {
+                    toplevel.with_pending_state(|state| {
+                        state.states.set(xdg_toplevel::State::Activated);
+                        state.states.unset(xdg_toplevel::State::Maximized);
+                        state.size = Some((960, 640).into());
+                    });
+                    toplevel.send_configure();
+                }
+                self.space.map_element(window.clone(), target_loc, true);
+                self.publish_phone_tasks();
+            } else {
+                self.space.map_element(window.clone(), target_loc, false);
+            }
+        }
     }
 
     /// Advances all navigation and overview spring animations in lockstep.
@@ -618,7 +866,18 @@ impl PenumbraServerState {
                     })
                 })
                 .unwrap_or_default();
-            listing.push_str(&task_line(task.id, &app_id, &title));
+            let display_title = if task.is_migrated_desktop {
+                if title.is_empty() {
+                    "🖥 Desktop Session".to_string()
+                } else if !title.starts_with("🖥") {
+                    format!("🖥 Desktop Session • {}", title)
+                } else {
+                    title
+                }
+            } else {
+                title
+            };
+            listing.push_str(&task_line(task.id, &app_id, &display_title));
         }
         if listing != self.last_tasks_published {
             let _ = write_atomic(&runtime_path(phone::WINDOWS_FILE), &listing);
@@ -949,7 +1208,7 @@ impl XdgShellHandler for PenumbraServerState {
             let id = self.next_task_id;
             self.next_task_id += 1;
             let window_clone = window.clone();
-            self.phone_tasks.insert(0, PhoneTask { id, window });
+            self.phone_tasks.insert(0, PhoneTask { id, window, is_migrated_desktop: false });
 
             // Automatically switch to App mode and save state
             self.shell_state.mode = PhoneMode::App;
@@ -1017,6 +1276,29 @@ impl XdgShellHandler for PenumbraServerState {
         _token: u32,
     ) {
     }
+
+    fn move_request(
+        &mut self,
+        surface: ToplevelSurface,
+        _seat: wl_seat::WlSeat,
+        _serial: Serial,
+    ) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        if let Some(window) = matched {
+            if let Some(loc) = self.space.element_location(&window) {
+                self.space.raise_element(&window, true);
+                self.window_drag = Some(WindowDragState {
+                    window,
+                    initial_window_loc: loc,
+                    initial_pointer_loc: self.pointer_location,
+                });
+            }
+        }
+    }
 }
 
 impl WlrLayerShellHandler for PenumbraServerState {
@@ -1037,21 +1319,40 @@ impl WlrLayerShellHandler for PenumbraServerState {
         );
 
         // Output Routing Logic:
-        // Desktop components (desktop panel, dock, external monitor applets) map to Output B.
-        // Mobile shell layer surfaces (top-bar, status-bar, nav, osk) default to Output A (Phone Screen).
+        // Match explicit output resource across Phone and all external displays,
+        // or route desktop components to the primary external monitor.
         let ns = namespace.to_lowercase();
-        let target_output = if ns.contains("desktop") || ns.contains("panel") || ns.contains("dock")
-        {
-            self.output_b.as_ref().unwrap_or(&self.output_a)
-        } else if let Some(ref wl_out) = output {
+        let is_desktop_shell = ns.contains("desktop") || ns.contains("dock");
+
+        let target_output = if let Some(ref wl_out) = output {
             let resolved = Output::from_resource(wl_out);
-            if resolved.as_ref() == self.output_b.as_ref() {
-                self.output_b.as_ref().unwrap_or(&self.output_a)
+            if let Some(target) = self.external_outputs.values().find(|o| Some(*o) == resolved.as_ref()) {
+                Some(target)
+            } else if resolved.as_ref() == Some(&self.output_a) {
+                if is_desktop_shell {
+                    // Desktop shell must NEVER be placed on the internal phone panel
+                    self.external_outputs.values().next().or(self.output_b.as_ref())
+                } else {
+                    Some(&self.output_a)
+                }
+            } else if is_desktop_shell {
+                self.external_outputs.values().next().or(self.output_b.as_ref())
             } else {
-                &self.output_a
+                Some(&self.output_a)
             }
+        } else if is_desktop_shell {
+            self.external_outputs.values().next().or(self.output_b.as_ref())
         } else {
-            &self.output_a
+            Some(&self.output_a)
+        };
+
+        // Desktop shell surfaces MUST NOT be mapped if no external display is connected
+        let Some(target_output) = target_output else {
+            tracing::warn!(
+                "Refusing to map desktop shell layer surface '{}' onto phone screen (no external display connected)",
+                namespace
+            );
+            return;
         };
 
         let mut map = layer_map_for_output(target_output);
@@ -1184,8 +1485,9 @@ impl SeatHandler for PenumbraServerState {
     fn cursor_image(
         &mut self,
         _seat: &Seat<Self>,
-        _image: smithay::input::pointer::CursorImageStatus,
+        image: smithay::input::pointer::CursorImageStatus,
     ) {
+        self.cursor_status = image;
     }
 }
 
@@ -1281,20 +1583,20 @@ impl PenumbraCompositor {
     fn run_validation_loop(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let dsi_config = self
             .output_manager
-            .output_config(OutputRole::PhoneDsi)
+            .output_config(&OutputRole::PhoneDsi)
             .unwrap();
         assert_eq!(dsi_config.width, PHONE_W);
         assert_eq!(dsi_config.height, PHONE_H);
         assert!(dsi_config.enforces_gestures);
 
         if self.output_manager.is_convergence_active() {
-            let hdmi_config = self
+            let ext_config = self
                 .output_manager
-                .output_config(OutputRole::ExternalDesktopHdmi)
+                .external_outputs()
+                .first()
+                .cloned()
                 .unwrap();
-            assert_eq!(hdmi_config.width, 1280);
-            assert_eq!(hdmi_config.height, 720);
-            assert!(hdmi_config.allows_floating);
+            assert!(ext_config.allows_floating);
         }
 
         // Test gesture interception and state machine step
@@ -1425,10 +1727,29 @@ impl PenumbraCompositor {
             space,
             root_shell: None,
             output_a,
-            output_b,
+            output_b: output_b.clone(),
+            external_outputs: if let Some(ref b) = output_b {
+                let mut map = std::collections::BTreeMap::new();
+                map.insert("HDMI-A-1".to_string(), b.clone());
+                map
+            } else {
+                std::collections::BTreeMap::new()
+            },
             is_convergence_active: self.args.convergence,
             is_native: false,
             pointer_location: (0.0, 0.0).into(),
+            cursor_status: smithay::input::pointer::CursorImageStatus::Named(
+                smithay::input::pointer::CursorIcon::Default,
+            ),
+            window_drag: None,
+            fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer::from_slice(
+                FALLBACK_CURSOR_DATA,
+                smithay::backend::allocator::Fourcc::Abgr8888,
+                (64, 64),
+                1,
+                Transform::Normal,
+                None,
+            ),
             phone_tasks: Vec::new(),
             next_task_id: 1,
             shell_state: ShellState::default(),

@@ -13,8 +13,8 @@ pub mod theme;
 
 pub use audio::{adjust_volume_step, apply_volume_ratio, read_volume_ratio};
 pub use backlight::{apply_backlight_ratio, discover_backlight_dir, read_backlight_ratio};
-pub use battery::{BatteryInfo, BatteryService, BatteryState};
-pub use display::DisplayConfig;
+pub use battery::{BatteryInfo, BatteryService, BatteryState, PowerProfile};
+pub use display::{DisplayConfig, DisplayModeInfo, DisplayOutputInfo, DisplaysConfig, NightLightConfig};
 pub use network::{ConnectivityState, NetworkInfo, NetworkService};
 pub use security::{FingerprintManager, LockType, SecurityConfig};
 pub use sensor::{Orientation, SensorInfo, SensorService};

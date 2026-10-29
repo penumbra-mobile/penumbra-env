@@ -39,22 +39,31 @@ export component TopBarNav inherits Rectangle {
         padding-right: 16px;
         spacing: 12px;
 
-        // Clean Android Back Button
+        // Clean Android Back Button with Large 56px Touch Target
         Rectangle {
-            width: 44px;
-            height: 44px;
-            border-radius: 22px;
+            width: 56px;
+            height: 56px;
             y: (parent.height - self.height) / 2;
-            background: back-touch.pressed ? #282a30 : transparent;
+            background: transparent;
 
-            animate background { duration: 120ms; easing: ease-out; }
-
-            Icon {
-                name: "chevron-left";
-                icon-size: 22px;
-                icon-color: Theme.on-surface;
+            // Visual Circular Badge
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
+                background: back-touch.pressed ? #363842 : transparent;
+
+                animate background { duration: 90ms; easing: ease-out; }
+
+                Icon {
+                    name: "chevron-left";
+                    icon-size: 24px;
+                    icon-color: Theme.on-surface;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
             }
 
             back-touch := TouchArea {

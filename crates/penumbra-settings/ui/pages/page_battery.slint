@@ -20,9 +20,13 @@ export component PageBattery inherits Flickable {
     in property <string> battery-model: "L17C4PG2 (Li-ion)";
     // Whether aggressive power saver mode is actively enforced.
     in-out property <bool> battery-saver: false;
+    // Active power profile ("power-saver", "balanced", "performance")
+    in-out property <string> power-profile: "balanced";
 
     // Emitted when the user toggles the Battery Saver switch.
     callback toggle-battery-saver(bool);
+    // Emitted when a power profile is selected.
+    callback power-profile-changed(string);
 
     Flickable {
         width: 100%;
@@ -81,6 +85,139 @@ export component PageBattery inherits Flickable {
                         font-size: 13px;
                         color: Theme.on-surface-variant;
                         horizontal-alignment: left;
+                    }
+                }
+            }
+        }
+
+        // Power Profiles (Adapted from COSMIC Settings)
+        VerticalLayout {
+            spacing: 8px;
+            SettingsSectionHeader { title: "Power profile"; }
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        // Power Saver
+                        Rectangle {
+                            property <bool> is-active: root.power-profile == "power-saver";
+                            height: 52px;
+                            horizontal-stretch: 1;
+                            border-radius: 14px;
+                            background: is-active ? #a3e8b0 : (p-saver-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Power Saver";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? #073919 : Theme.on-surface;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "Extend battery";
+                                    font-size: 10px;
+                                    color: is-active ? #073919 : Theme.on-surface-variant;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            p-saver-touch := TouchArea {
+                                clicked => {
+                                    root.power-profile = "power-saver";
+                                    root.power-profile-changed("power-saver");
+                                }
+                            }
+                        }
+
+                        // Balanced
+                        Rectangle {
+                            property <bool> is-active: root.power-profile == "balanced";
+                            height: 52px;
+                            horizontal-stretch: 1;
+                            border-radius: 14px;
+                            background: is-active ? Theme.primary : (p-bal-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Balanced";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "Standard";
+                                    font-size: 10px;
+                                    color: is-active ? Theme.on-primary : Theme.on-surface-variant;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            p-bal-touch := TouchArea {
+                                clicked => {
+                                    root.power-profile = "balanced";
+                                    root.power-profile-changed("balanced");
+                                }
+                            }
+                        }
+
+                        // Performance
+                        Rectangle {
+                            property <bool> is-active: root.power-profile == "performance";
+                            height: 52px;
+                            horizontal-stretch: 1;
+                            border-radius: 14px;
+                            background: is-active ? #ffb3ba : (p-perf-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: "Performance";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? #491019 : Theme.on-surface;
+                                    horizontal-alignment: center;
+                                }
+                                Text {
+                                    text: "Max speed";
+                                    font-size: 10px;
+                                    color: is-active ? #491019 : Theme.on-surface-variant;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            p-perf-touch := TouchArea {
+                                clicked => {
+                                    root.power-profile = "performance";
+                                    root.power-profile-changed("performance");
+                                }
+                            }
+                        }
                     }
                 }
             }

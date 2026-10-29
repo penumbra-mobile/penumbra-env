@@ -9,6 +9,7 @@ members = [
     "crates/penumbra-greeter",
     "crates/penumbra-settings",
     "crates/penumbra-keyboard",
+    "crates/penumbra-desktop-shell",
 ]
 
 [workspace.package]

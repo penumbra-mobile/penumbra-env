@@ -23,6 +23,74 @@ impl BatteryState {
     }
 }
 
+/// System Power Profile (Performance, Balanced, Power Saver) adapted from COSMIC Settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PowerProfile {
+    PowerSaver,
+    Balanced,
+    Performance,
+}
+
+impl PowerProfile {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::PowerSaver => "power-saver",
+            Self::Balanced => "balanced",
+            Self::Performance => "performance",
+        }
+    }
+
+    pub fn from_str_lossy(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "power-saver" | "powersave" | "saver" => Self::PowerSaver,
+            "performance" | "perf" => Self::Performance,
+            _ => Self::Balanced,
+        }
+    }
+
+    fn config_path() -> std::path::PathBuf {
+        if let Ok(cfg_dir) = std::env::var("XDG_CONFIG_HOME") {
+            std::path::PathBuf::from(cfg_dir).join("penumbra").join("power_profile")
+        } else if let Ok(home) = std::env::var("HOME") {
+            std::path::PathBuf::from(home).join(".config").join("penumbra").join("power_profile")
+        } else {
+            std::path::PathBuf::from("/etc/penumbra/power_profile")
+        }
+    }
+
+    /// Reads current power profile from power-profiles-daemon or fallback config.
+    pub fn read_current() -> Self {
+        if let Ok(output) = std::process::Command::new("powerprofilesctl")
+            .arg("get")
+            .output()
+        {
+            if output.status.success() {
+                let text = String::from_utf8_lossy(&output.stdout);
+                return Self::from_str_lossy(text.trim());
+            }
+        }
+        let path = Self::config_path();
+        if let Ok(data) = std::fs::read_to_string(&path) {
+            return Self::from_str_lossy(data.trim());
+        }
+        Self::Balanced
+    }
+
+    /// Sets the power profile on the host system.
+    pub fn apply(&self) {
+        let name = self.as_str();
+        let _ = std::process::Command::new("powerprofilesctl")
+            .args(["set", name])
+            .status();
+
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(path, name);
+    }
+}
+
 /// Instantaneous battery telemetry.
 #[derive(Debug, Clone, PartialEq)]
 pub struct BatteryInfo {

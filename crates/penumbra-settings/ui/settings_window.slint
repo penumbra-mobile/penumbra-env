@@ -1,122 +1,144 @@
 import { Theme } from "theme.slint";
 import { Icon } from "icon.slint";
 import { TopBarNav } from "components/top_bar_nav.slint";
+import { DesktopSidebar } from "components/desktop_sidebar.slint";
 import { PageMain, SearchResultData } from "pages/page_main.slint";
 import { PageWifi, WifiApData } from "pages/page_wifi.slint";
 import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
-import { PageDisplay } from "pages/page_display.slint";
+import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
 import { PageBattery } from "pages/page_battery.slint";
 import { PageSound } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
 import { PageSecurity } from "pages/page_security.slint";
 
-export { WifiApData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData }
+export { WifiApData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData }
 
 // ==============================================================================
 // Component: SettingsWindow
 // ==============================================================================
-// Top-level application window for Penumbra Settings.
-//
-// Form Factor & Screen Geometry:
-// - Designed for handheld touch devices at 412x915 portrait geometry (standard
-//   Android / postmarketOS modern phone aspect ratio 20:9).
-// - Pitch black OLED base surface (`Theme.base-surface = #0D0B10`) minimizes power
-//   consumption on battery-powered mobile devices.
-//
-// Navigation Architecture:
-// 1. Two-Tier Viewport Stack:
-//    - Root level: `PageMain` catalog containing category cards and search banner.
-//    - Subpage level: Dedicated configuration views (`PageWifi`, `PageBluetooth`,
-//      `PageDisplay`, `PageBattery`, `PageSound`, `PageAbout`).
-// 2. Coordinated Horizontal Sliding Animation:
-//    - Driven by the normalized `subpage-slide` property (0.0 = Main, 1.0 = Subpage).
-//    - Duration: 250ms with an `ease-out` timing curve.
-//    - Parallax Depth: When entering a subpage, `PageMain` shifts left by -80px and
-//      its opacity fades to 0.3 (`1.0 - subpage-slide * 0.7`). Simultaneously, the
-//      incoming subpage slides smoothly from `+parent.width` to `0px`.
-// 3. Morphing App Bar:
-//    - `TopBarNav` dynamically morphs height and typography while updating the
-//      displayed title reactively from `active-page`.
+// Convergent Universal Settings Application Window.
+// Dynamically adapts between:
+// - Mobile Phone mode (width < 720px): Single-column tactile touch drilldown
+// - Desktop Convergence mode (width >= 720px): Two-column Master-Detail window
 export component SettingsWindow inherits Window {
     title: "Penumbra Settings";
     no-frame: true;
     preferred-width: 412px;
     preferred-height: 841px;
-    min-width: 412px;
-    min-height: 841px;
+    min-width: 360px;
+    min-height: 500px;
     background: Theme.base-surface;
     default-font-family: "Droid Sans";
 
     // --------------------------------------------------------------------------
+    // Convergence Geometry Property
+    // --------------------------------------------------------------------------
+    property <bool> is-desktop: root.width >= 720px;
+
+    // --------------------------------------------------------------------------
     // Navigation State
     // --------------------------------------------------------------------------
-    // Identifier of the currently active page ("main", "wifi", "bluetooth", etc.).
     in-out property <string> active-page: "main";
-    // Helper boolean indicating if the active view is a subpage (enables back button & subpage layout).
     property <bool> is-subpage: root.active-page != "main";
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Wi-Fi (NetworkManager)
     // --------------------------------------------------------------------------
-    // Whether the Wi-Fi wireless radio is powered on.
     in-out property <bool> wifi-enabled: true;
-    // SSID of the active wireless connection, or empty if disconnected.
     in property <string> connected-ssid: "";
-    // Signal percentage (0-100) of the active connection.
     in property <int> signal-strength: 0;
-    // Scanned Wi-Fi access point entries populated reactively by NetworkManagerBackend.
     in property <[WifiApData]> wifi-access-points: [];
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Bluetooth (BlueZ)
     // --------------------------------------------------------------------------
-    // Whether the host Bluetooth radio adapter is powered on.
     in-out property <bool> bt-enabled: true;
-    // Friendly broadcast name of the host Bluetooth adapter.
     in property <string> adapter-name: "Bluetooth";
-    // Whether device discovery / inquiry scanning is actively executing.
     in property <bool> is-discovering: false;
-    // List of paired, saved, and discovered Bluetooth accessories.
     in property <[BtDeviceData]> bt-devices: [];
 
     // --------------------------------------------------------------------------
-    // Reactive Hardware Properties - Display & Backlight
+    // Reactive Hardware Properties - Display & Convergence
     // --------------------------------------------------------------------------
-    // Display backlight luminance level clamped between 0.05 and 1.0.
     in-out property <float> brightness: 0.75;
-    // Whether ambient light sensor automatically adjusts display brightness.
     in-out property <bool> adaptive-brightness: true;
-    // Whether pitch-black dark theme is active across the system.
     in-out property <bool> dark-theme: true;
-    // Inactivity timeout period string (e.g. "2 minutes").
     in-out property <string> screen-timeout: "2 minutes";
+    in property <string> display-resolution: "1920 × 1080";
+    in-out property <string> accent-color: "blue";
+
+    in-out property <[DisplayItemData]> displays: [
+        {
+            id: "DSI-1",
+            name: "Internal Phone Display",
+            connector: "DSI-1",
+            width: 1080,
+            height: 2340,
+            refresh_rate: 60,
+            scale_pct: 262,
+            pos_x: 0,
+            pos_y: 0,
+            is_primary: true,
+            enabled: true,
+        },
+        {
+            id: "DP-1",
+            name: "External Monitor / TV",
+            connector: "DP-1",
+            width: 1920,
+            height: 1080,
+            refresh_rate: 60,
+            scale_pct: 100,
+            pos_x: 1080,
+            pos_y: 0,
+            is_primary: false,
+            enabled: true,
+        }
+    ];
+
+    in-out property <int> selected-display-index: 0;
+    in-out property <bool> is-mirroring: false;
+    in-out property <bool> night-light-enabled: false;
+    in-out property <float> night-light-temp: 0.5;
+
+    // Display Callbacks
+    callback display-selected(int);
+    callback toggle-mirroring(bool);
+    callback display-scale-selected(int, int);
+    callback display-primary-toggled(int, bool);
+    callback toggle-night-light(bool);
+    callback night-light-temp-changed(float);
+    callback accent-color-changed(string);
 
     // --------------------------------------------------------------------------
-    // Reactive Hardware Properties - Battery & Power (UPower)
+    // Reactive Hardware Properties - Battery & Power (UPower / COSMIC Power Profiles)
     // --------------------------------------------------------------------------
-    // Battery state of charge percentage (0 to 100).
     in property <int> battery-pct: 86;
-    // Whether external power source (AC/USB) is actively supplying energy.
     in property <bool> is-charging: false;
-    // Dynamic battery time remaining or charging status message.
     in property <string> battery-state-text: "About 14 hr left";
-    // Whether the system power-saver throttle profile is active.
     in-out property <bool> battery-saver: false;
+    in-out property <string> power-profile: "balanced"; // "power-saver", "balanced", "performance"
+    callback power-profile-changed(string);
 
     // --------------------------------------------------------------------------
-    // Reactive Hardware Properties - Audio & Sound (PipeWire)
+    // Reactive Hardware Properties - Audio & Sound (PipeWire / COSMIC Audio Routing)
     // --------------------------------------------------------------------------
-    // Media playback volume channel level (0.0 to 1.0).
     in-out property <float> media-volume: 0.65;
-    // Voice call volume channel level (0.0 to 1.0).
     in-out property <float> call-volume: 0.80;
-    // Ringer and notification alerts volume level (0.0 to 1.0).
     in-out property <float> ring-volume: 0.70;
-    // Whether Do Not Disturb notification suppression is enabled.
+    in-out property <float> mic-volume: 0.85;
+    in-out property <bool> output-muted: false;
+    in-out property <bool> mic-muted: false;
+    in-out property <string> output-device: "speaker"; // "speaker", "headset", "hdmi"
     in-out property <bool> dnd-enabled: false;
-    // Whether haptic vibration is enabled for incoming voice calls.
     in-out property <bool> vibrate-for-calls: true;
+
+    callback close-window();
+    callback mic-volume-changed(float);
+    callback toggle-output-muted(bool);
+    callback toggle-mic-muted(bool);
+    callback output-device-changed(string);
 
     // --------------------------------------------------------------------------
     // Search State & Query Callbacks
@@ -129,90 +151,65 @@ export component SettingsWindow inherits Window {
     // --------------------------------------------------------------------------
     // Real Hardware & System Telemetry Properties
     // --------------------------------------------------------------------------
-    in property <string> device-name: "Linux Device";
-    in property <string> device-model: "Standard Hardware";
-    in property <string> os-version: "Linux OS";
-    in property <string> kernel-version: "Linux";
-    in property <string> cpu-model: "Processor";
-    in property <string> memory-info: "System RAM";
-    in property <string> storage-info: "Internal Storage";
-    in property <string> uptime-info: "Active";
-    in property <string> compositor-info: "Penumbra Shell (Smithay Wayland)";
-    in property <string> wifi-mac: "Hardware MAC";
-    in property <string> bluetooth-mac: "5C:87:9C:27:10:A4";
-    in property <string> display-resolution: "1920 × 1080 Display";
-    in property <string> battery-health: "Normal";
-    in property <string> battery-model: "Li-ion Battery";
-    in property <string> storage-summary: "Calculating...";
-    in property <string> apps-summary: "Installed apps";
+    in property <string> device-name: "Fairphone 4";
+    in property <string> device-model: "FP4 (SM6350)";
+    in property <string> os-version: "Penumbra Mobile OS (Edge)";
+    in property <string> kernel-version: "Linux 7.2.0";
+    in property <string> cpu-model: "Snapdragon 750G 5G";
+    in property <string> memory-info: "6 GB RAM (4.1 GB free)";
+    in property <string> storage-info: "128 GB UFS (84 GB free)";
+    in property <string> uptime-info: "3 days, 14 hours";
+    in property <string> compositor-info: "penumbra-comp (Smithay Native KMS)";
+    in property <string> battery-health: "Good (96% health)";
+    in property <string> battery-model: "FP4-BAT01";
+    in property <string> wifi-mac: "00:00:00:00:00:00";
+    in property <string> bluetooth-mac: "00:00:00:00:00:00";
+    in property <string> storage-summary: "84 GB free of 128 GB";
+    in property <string> apps-summary: "29 apps installed";
 
     // --------------------------------------------------------------------------
-    // Reactive Hardware Properties - Keyboard (KDE Virtual Keyboard & Physical)
+    // Keyboards
     // --------------------------------------------------------------------------
     in property <[VirtualKeyboardData]> virtual-keyboards: [];
     in property <[PhysicalKeyboardData]> physical-keyboards: [];
     in-out property <bool> hide-on-physical-keyboard: true;
 
     // --------------------------------------------------------------------------
-    // Navigation Callbacks
+    // Security & Lock
     // --------------------------------------------------------------------------
-    // Dispatched to Rust when user navigates forward into a subpage.
-    callback navigate-to(string);
-    // Dispatched to Rust when user navigates backward toward the root catalog.
-    callback navigate-back();
+    in property <string> active-lock-type: "swipe";
+    in property <bool> has-fingerprint: false;
+    in-out property <bool> fingerprint-enabled: false;
+    in property <int> auto-lock-timeout: 30;
+    in-out property <bool> hide-sensitive-notifications: false;
 
     // --------------------------------------------------------------------------
-    // Hardware Action Callbacks (Dispatched to Tokio D-Bus Tasks)
+    // Navigation Callbacks
     // --------------------------------------------------------------------------
-    // Wi-Fi hardware toggle action callback.
+    callback navigate-to(string);
+    callback navigate-back();
     callback toggle-wifi(bool);
-    // Wi-Fi connection trigger with target SSID parameter.
     callback connect-ap(string);
-    // Wi-Fi connection trigger with password parameter.
     callback connect-ap-with-password(string, string);
-    // Wi-Fi dialog keyboard triggers.
     callback password-input-focused();
     callback password-input-dismissed();
-    // Trigger immediate wireless beacon rescan.
     callback refresh-wifi-scan();
-    // Bluetooth adapter power toggle action callback.
     callback toggle-bt(bool);
-    // Connect or disconnect target Bluetooth device address.
     callback toggle-bt-device(string);
-    // Start Bluetooth peripheral discovery scan.
     callback start-bt-discovery();
-    // Backlight brightness adjustment event callback.
     callback brightness-changed(float);
-    // Adaptive brightness toggle event callback.
     callback toggle-adaptive-brightness(bool);
-    // Dark theme toggle event callback.
     callback toggle-dark-theme(bool);
-    // Screen timeout selection event callback.
     callback screen-timeout-selected(int, string);
-    // Battery saver power profile toggle event callback.
     callback toggle-battery-saver(bool);
-    // Media volume adjustment event callback.
     callback media-volume-changed(float);
-    // Voice call volume adjustment event callback.
     callback call-volume-changed(float);
-    // Ringer volume adjustment event callback.
     callback ring-volume-changed(float);
-    // Do Not Disturb toggle event callback.
     callback toggle-dnd(bool);
-    // Call vibration toggle event callback.
     callback toggle-vibrate-calls(bool);
-    // Keyboard action callbacks.
     callback toggle-hide-on-physical(bool);
     callback select-virtual-keyboard(string);
     callback refresh-keyboard-scan();
-
-    // Security & Privacy Properties & Callbacks
-    in-out property <string> active-lock-type: "none";
-    in-out property <bool> has-fingerprint: false;
-    in-out property <bool> fingerprint-enabled: false;
-    in-out property <int> auto-lock-timeout: 300;
-    in-out property <bool> hide-sensitive-notifications: false;
-
     callback set-lock-swipe();
     callback set-lock-none();
     callback set-lock-pin(string);
@@ -221,41 +218,241 @@ export component SettingsWindow inherits Window {
     callback set-auto-lock-timeout(int);
     callback toggle-sensitive-notifications(bool);
 
-    // Dynamic Title Computation based on active subpage ID.
-    property <string> current-title: root.active-page == "wifi" ? "Network & internet"
-        : root.active-page == "bluetooth" ? "Connected devices"
-        : root.active-page == "display" ? "Display"
-        : root.active-page == "battery" ? "Battery"
-        : root.active-page == "sound" ? "Sound & vibration"
-        : root.active-page == "about" ? "About phone"
-        : root.active-page == "keyboard" ? "Keyboard"
-        : root.active-page == "security" ? "Security & privacy"
-        : "Settings";
-
-    // Animated sliding transition progress (0.0 = Main catalog, 1.0 = Subpage).
-    property <float> subpage-slide: root.is-subpage ? 1.0 : 0.0;
-    animate subpage-slide { duration: 250ms; easing: ease-out; }
-
-    forward-focus: fs;
-    fs := FocusScope {
-        key-pressed(event) => {
-            if (event.text == Key.Escape) {
-                if (root.is-subpage) {
-                    root.active-page = "main";
-                    root.navigate-back();
-                    return accept;
-                }
-            }
-            return reject;
-        }
+    // Mobile slide animation
+    in-out property <float> subpage-slide: root.is-subpage ? 1.0 : 0.0;
+    animate subpage-slide {
+        duration: 250ms;
+        easing: ease-out;
     }
 
-    VerticalLayout {
+    property <string> current-title:
+        root.active-page == "wifi" ? "Internet & Wi-Fi" :
+        root.active-page == "bluetooth" ? "Connected Devices" :
+        root.active-page == "display" ? "Displays & Convergence" :
+        root.active-page == "battery" ? "Battery & Power" :
+        root.active-page == "sound" ? "Sound & Vibration" :
+        root.active-page == "about" ? "About Device" :
+        root.active-page == "keyboard" ? "Keyboard & Input" :
+        root.active-page == "security" ? "Security & Lock" :
+        "Settings";
+
+    // ==========================================================================
+    // Convergent Layout Root
+    // ==========================================================================
+
+    if root.is-desktop: HorizontalLayout {
         width: 100%;
         height: 100%;
         spacing: 0px;
 
-        // Top App Bar
+        // Two-Column Left Navigation Sidebar
+        DesktopSidebar {
+            active-category: root.active-page == "main" ? "display" : root.active-page;
+            category-selected(cat) => {
+                root.active-page = cat;
+                root.navigate-to(cat);
+            }
+            search-changed(q) => {
+                root.search-query-changed(q);
+            }
+        }
+
+        // Two-Column Right Content Area
+        VerticalLayout {
+            horizontal-stretch: 1;
+            padding-left: 20px;
+            padding-right: 20px;
+            padding-top: 16px;
+            padding-bottom: 16px;
+            spacing: 12px;
+
+            // Desktop Content Header with Integrated Window Controls
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: space-between;
+
+                Text {
+                    text: root.current-title;
+                    font-size: 22px;
+                    font-weight: 700;
+                    color: Theme.on-surface;
+                    vertical-alignment: center;
+                }
+
+                // Desktop Window Action Controls (Close Window)
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: close-touch.pressed ? #e01b24 : (close-touch.has-hover ? #e01b24.with-alpha(0.2) : #282a30);
+
+                    animate background { duration: 90ms; easing: ease-out; }
+
+                    Icon {
+                        name: "close";
+                        icon-size: 16px;
+                        icon-color: close-touch.pressed ? #ffffff : Theme.on-surface;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    close-touch := TouchArea {
+                        clicked => {
+                            root.close-window();
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                height: 1px;
+                background: Theme.outline-variant;
+            }
+
+            // Desktop In-Place Page Rendering
+            Rectangle {
+                vertical-stretch: 1;
+                background: Theme.base-surface;
+                clip: true;
+
+                if root.active-page == "wifi": PageWifi {
+                    width: 100%; height: 100%;
+                    wifi-enabled <=> root.wifi-enabled;
+                    connected-ssid: root.connected-ssid;
+                    signal-strength: root.signal-strength;
+                    wifi-mac: root.wifi-mac;
+                    access-points: root.wifi-access-points;
+                    toggle-wifi(val) => { root.toggle-wifi(val); }
+                    connect-ap(ssid) => { root.connect-ap(ssid); }
+                    connect-ap-with-password(ssid, pw) => { root.connect-ap-with-password(ssid, pw); }
+                    password-input-focused => { root.password-input-focused(); }
+                    password-input-dismissed => { root.password-input-dismissed(); }
+                    scan-requested => { root.refresh-wifi-scan(); }
+                }
+
+                if root.active-page == "bluetooth": PageBluetooth {
+                    width: 100%; height: 100%;
+                    bt-enabled <=> root.bt-enabled;
+                    adapter-name: root.adapter-name;
+                    bluetooth-mac: root.bluetooth-mac;
+                    is-discovering: root.is-discovering;
+                    devices: root.bt-devices;
+                    toggle-bt(val) => { root.toggle-bt(val); }
+                    toggle-device(addr) => { root.toggle-bt-device(addr); }
+                    start-discovery => { root.start-bt-discovery(); }
+                }
+
+                if root.active-page == "display" || root.active-page == "main": PageDisplay {
+                    width: 100%; height: 100%;
+                    brightness <=> root.brightness;
+                    adaptive-brightness <=> root.adaptive-brightness;
+                    dark-theme <=> root.dark-theme;
+                    screen-timeout <=> root.screen-timeout;
+                    display-resolution: root.display-resolution;
+                    accent-color <=> root.accent-color;
+                    displays <=> root.displays;
+                    selected-display-index <=> root.selected-display-index;
+                    is-mirroring <=> root.is-mirroring;
+                    night-light-enabled <=> root.night-light-enabled;
+                    night-light-temp <=> root.night-light-temp;
+
+                    brightness-changed(v) => { root.brightness-changed(v); }
+                    toggle-adaptive-brightness(v) => { root.toggle-adaptive-brightness(v); }
+                    toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
+                    accent-color-changed(c) => { root.accent-color-changed(c); }
+                    screen-timeout-selected(secs, lbl) => { root.screen-timeout-selected(secs, lbl); }
+                    display-selected(idx) => { root.display-selected(idx); }
+                    toggle-mirroring(m) => { root.toggle-mirroring(m); }
+                    display-scale-selected(idx, s) => { root.display-scale-selected(idx, s); }
+                    display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
+                    toggle-night-light(nl) => { root.toggle-night-light(nl); }
+                    night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
+                }
+
+                if root.active-page == "battery": PageBattery {
+                    width: 100%; height: 100%;
+                    battery-pct: root.battery-pct;
+                    is-charging: root.is-charging;
+                    state-text: root.battery-state-text;
+                    battery-health: root.battery-health;
+                    battery-model: root.battery-model;
+                    battery-saver <=> root.battery-saver;
+                    power-profile <=> root.power-profile;
+                    toggle-battery-saver(v) => { root.toggle-battery-saver(v); }
+                    power-profile-changed(p) => { root.power-profile-changed(p); }
+                }
+
+                if root.active-page == "sound": PageSound {
+                    width: 100%; height: 100%;
+                    media-volume <=> root.media-volume;
+                    call-volume <=> root.call-volume;
+                    ring-volume <=> root.ring-volume;
+                    mic-volume <=> root.mic-volume;
+                    output-muted <=> root.output-muted;
+                    output-device <=> root.output-device;
+                    dnd-enabled <=> root.dnd-enabled;
+                    vibrate-for-calls <=> root.vibrate-for-calls;
+                    media-volume-changed(v) => { root.media-volume-changed(v); }
+                    call-volume-changed(v) => { root.call-volume-changed(v); }
+                    ring-volume-changed(v) => { root.ring-volume-changed(v); }
+                    mic-volume-changed(v) => { root.mic-volume-changed(v); }
+                    toggle-output-muted(v) => { root.toggle-output-muted(v); }
+                    output-device-changed(d) => { root.output-device-changed(d); }
+                    toggle-dnd(v) => { root.toggle-dnd(v); }
+                    toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
+                }
+
+                if root.active-page == "about": PageAbout {
+                    width: 100%; height: 100%;
+                    device-name: root.device-name;
+                    device-model: root.device-model;
+                    os-version: root.os-version;
+                    kernel-version: root.kernel-version;
+                    cpu-model: root.cpu-model;
+                    memory-info: root.memory-info;
+                    storage-info: root.storage-info;
+                    uptime-info: root.uptime-info;
+                    compositor-info: root.compositor-info;
+                }
+
+                if root.active-page == "keyboard": PageKeyboard {
+                    width: 100%; height: 100%;
+                    virtual-keyboards: root.virtual-keyboards;
+                    physical-keyboards: root.physical-keyboards;
+                    hide-on-physical <=> root.hide-on-physical-keyboard;
+                    toggle-hide-on-physical(v) => { root.toggle-hide-on-physical(v); }
+                    select-virtual-keyboard(id) => { root.select-virtual-keyboard(id); }
+                    refresh-scan => { root.refresh-keyboard-scan(); }
+                }
+
+                if root.active-page == "security": PageSecurity {
+                    width: 100%; height: 100%;
+                    active-lock-type: root.active-lock-type;
+                    has-fingerprint: root.has-fingerprint;
+                    fingerprint-enabled <=> root.fingerprint-enabled;
+                    auto-lock-timeout: root.auto-lock-timeout;
+                    hide-sensitive-notifications <=> root.hide-sensitive-notifications;
+                    back => {
+                        root.active-page = "main";
+                    }
+                    set-lock-swipe => { root.set-lock-swipe(); }
+                    set-lock-none => { root.set-lock-none(); }
+                    set-lock-pin(p) => { root.set-lock-pin(p); }
+                    set-lock-password(pw) => { root.set-lock-password(pw); }
+                    toggle-fingerprint(v) => { root.toggle-fingerprint(v); }
+                    set-auto-lock-timeout(t) => { root.set-auto-lock-timeout(t); }
+                    toggle-sensitive-notifications(v) => { root.toggle-sensitive-notifications(v); }
+                }
+            }
+        }
+    }
+
+    if !root.is-desktop: VerticalLayout {
+        width: 100%;
+        height: 100%;
+        spacing: 0px;
+
+        // Mobile Top App Bar
         TopBarNav {
             title: root.current-title;
             is-subpage: root.is-subpage;
@@ -346,10 +543,24 @@ export component SettingsWindow inherits Window {
                     dark-theme <=> root.dark-theme;
                     screen-timeout <=> root.screen-timeout;
                     display-resolution: root.display-resolution;
+                    accent-color <=> root.accent-color;
+                    displays <=> root.displays;
+                    selected-display-index <=> root.selected-display-index;
+                    is-mirroring <=> root.is-mirroring;
+                    night-light-enabled <=> root.night-light-enabled;
+                    night-light-temp <=> root.night-light-temp;
+
                     brightness-changed(v) => { root.brightness-changed(v); }
                     toggle-adaptive-brightness(v) => { root.toggle-adaptive-brightness(v); }
                     toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
+                    accent-color-changed(c) => { root.accent-color-changed(c); }
                     screen-timeout-selected(secs, lbl) => { root.screen-timeout-selected(secs, lbl); }
+                    display-selected(idx) => { root.display-selected(idx); }
+                    toggle-mirroring(m) => { root.toggle-mirroring(m); }
+                    display-scale-selected(idx, s) => { root.display-scale-selected(idx, s); }
+                    display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
+                    toggle-night-light(nl) => { root.toggle-night-light(nl); }
+                    night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
                 }
 
                 if root.active-page == "battery": PageBattery {
@@ -361,7 +572,9 @@ export component SettingsWindow inherits Window {
                     battery-health: root.battery-health;
                     battery-model: root.battery-model;
                     battery-saver <=> root.battery-saver;
+                    power-profile <=> root.power-profile;
                     toggle-battery-saver(v) => { root.toggle-battery-saver(v); }
+                    power-profile-changed(p) => { root.power-profile-changed(p); }
                 }
 
                 if root.active-page == "sound": PageSound {
@@ -370,13 +583,34 @@ export component SettingsWindow inherits Window {
                     media-volume <=> root.media-volume;
                     call-volume <=> root.call-volume;
                     ring-volume <=> root.ring-volume;
+                    mic-volume <=> root.mic-volume;
+                    output-muted <=> root.output-muted;
+                    output-device <=> root.output-device;
                     dnd-enabled <=> root.dnd-enabled;
                     vibrate-for-calls <=> root.vibrate-for-calls;
                     media-volume-changed(v) => { root.media-volume-changed(v); }
                     call-volume-changed(v) => { root.call-volume-changed(v); }
                     ring-volume-changed(v) => { root.ring-volume-changed(v); }
+                    mic-volume-changed(v) => { root.mic-volume-changed(v); }
+                    toggle-output-muted(v) => { root.toggle-output-muted(v); }
+                    output-device-changed(d) => { root.output-device-changed(d); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
                     toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
+                }
+
+                // Left-edge swipe-to-go-back gesture area (Android/iOS style)
+                edge_swipe := TouchArea {
+                    x: 0px;
+                    y: 0px;
+                    width: 36px;
+                    height: parent.height;
+                    z: 999;
+                    moved => {
+                        if (self.pressed && self.mouse-x > 48px) {
+                            root.active-page = "main";
+                            root.navigate-back();
+                        }
+                    }
                 }
 
                 if root.active-page == "about": PageAbout {

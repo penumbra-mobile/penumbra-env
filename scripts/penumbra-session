@@ -140,6 +140,21 @@ else
 fi
 penumbra-homescreen &
 shell_pids+=("$!")
+
+# Launch Penumbra Desktop Convergence Shell for external displays (Phase 3)
+if command -v penumbra-desktop-shell >/dev/null 2>&1; then
+    (
+        while kill -0 "$penumbra_comp_pid" 2>/dev/null; do
+            printf '%s [DesktopShell-Supervisor] Starting penumbra-desktop-shell\n' "$(date -Iseconds)"
+            penumbra-desktop-shell --output external || true
+            if ! kill -0 "$penumbra_comp_pid" 2>/dev/null; then
+                break
+            fi
+            sleep 2.0
+        done
+    ) &
+    shell_pids+=("$!")
+fi
 # Launch configured virtual keyboard (defaults to penumbra-keyboard, but dynamically
 # supports any selected 3rd-party Wayland keyboard such as squeekboard, maliit, wvkbd)
 keyboard_conf="${XDG_CONFIG_HOME:-$HOME/.config}/penumbra/keyboard.conf"

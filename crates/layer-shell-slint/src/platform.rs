@@ -268,6 +268,31 @@ impl Platform for LayerShellPlatform {
         // 1. Create a base wl_surface from the compositor
         let wl_surface = rt.app_state.compositor_state.create_surface(&rt.qh);
 
+        // Resolve explicit target output if requested
+        let target_output = if let Some(ref target_name) = config.output_name {
+            let found = rt.app_state.output_state.outputs().find(|output| {
+                if let Some(info) = rt.app_state.output_state.info(output) {
+                    if target_name == "external" {
+                        !info.name.as_deref().unwrap_or("").contains("DSI")
+                            && !info.name.as_deref().unwrap_or("").contains("Phone")
+                    } else {
+                        info.name.as_deref() == Some(target_name.as_str())
+                    }
+                } else {
+                    false
+                }
+            });
+            if found.is_none() {
+                return Err(PlatformError::Other(format!(
+                    "Target output '{}' not found",
+                    target_name
+                )));
+            }
+            found
+        } else {
+            None
+        };
+
         // 2. Instantiate zwlr_layer_surface_v1 via SCTK
         let sctk_layer = to_sctk_layer(config.layer);
         let layer_surface = rt.app_state.layer_shell.create_layer_surface(
@@ -275,7 +300,7 @@ impl Platform for LayerShellPlatform {
             wl_surface,
             sctk_layer,
             Some(config.namespace.clone()),
-            None, // Use default focused compositor output
+            target_output.as_ref(),
         );
 
         // 3. Configure anchors, geometry, margins, and exclusive zone

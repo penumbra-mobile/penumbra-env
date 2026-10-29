@@ -2,18 +2,18 @@ import { Theme } from "../theme.slint";
 import { Icon } from "../icon.slint";
 import { SettingsTile } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
+import { DisplayCanvas, DisplayItemData } from "../components/display_canvas.slint";
+
+export { DisplayItemData }
 
 // ==============================================================================
 // Component: BrightnessSliderCard
 // ==============================================================================
-// Tactile touch-scrubbing brightness card for mobile displays.
 component BrightnessSliderCard inherits Rectangle {
-    // Current normalized brightness level (0.05 to 1.0).
     in-out property <float> value: 0.75;
-    // Emitted continuously as the user drags their finger across the slider track.
     callback changed(float);
 
-    height: 72px;
+    height: 64px;
     border-radius: Theme.radius-card;
     background: Theme.surface-low;
     clip: true;
@@ -49,17 +49,16 @@ component BrightnessSliderCard inherits Rectangle {
         padding-right: 16px;
         spacing: 16px;
 
-        // 40px Circular Badge
         Rectangle {
-            width: 40px;
-            height: 40px;
-            border-radius: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
             background: #ffcc80;
             y: (parent.height - self.height) / 2;
 
             Icon {
                 name: "brightness";
-                icon-size: 22px;
+                icon-size: 20px;
                 icon-color: #4e2600;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
@@ -73,17 +72,15 @@ component BrightnessSliderCard inherits Rectangle {
 
             Text {
                 text: "Brightness level";
-                font-size: 16px;
+                font-size: 15px;
                 font-weight: 500;
                 color: Theme.on-surface;
-                horizontal-alignment: left;
             }
 
             Text {
                 text: Math.round(root.value * 100.0) + "%";
-                font-size: 13px;
+                font-size: 12px;
                 color: Theme.on-surface-variant;
-                horizontal-alignment: left;
             }
         }
     }
@@ -98,7 +95,6 @@ struct TimeoutOption {
 // ==============================================================================
 // Component: PageDisplay
 // ==============================================================================
-// Display, theme, and screen lock configuration subpage.
 export component PageDisplay inherits Rectangle {
     // Current display backlight level (0.05 to 1.0).
     in-out property <float> brightness: 0.75;
@@ -108,20 +104,66 @@ export component PageDisplay inherits Rectangle {
     in-out property <bool> dark-theme: true;
     // Idle timeout duration before screen dimming/blanking.
     in-out property <string> screen-timeout: "2 minutes";
-    // Real screen display resolution.
-    in property <string> display-resolution: "1920 × 1080 Display";
+    // Real screen display resolution summary.
+    in property <string> display-resolution: "1920 × 1080";
+
+    // --------------------------------------------------------------------------
+    // Multi-Display Convergence Properties (COSMIC Adapted)
+    // --------------------------------------------------------------------------
+    in-out property <[DisplayItemData]> displays: [
+        {
+            id: "DSI-1",
+            name: "Internal Phone Display",
+            connector: "DSI-1",
+            width: 1080,
+            height: 2340,
+            refresh_rate: 60,
+            scale_pct: 262,
+            pos_x: 0,
+            pos_y: 0,
+            is_primary: true,
+            enabled: true,
+        },
+        {
+            id: "DP-1",
+            name: "External Monitor / TV",
+            connector: "DP-1",
+            width: 1920,
+            height: 1080,
+            refresh_rate: 60,
+            scale_pct: 100,
+            pos_x: 1080,
+            pos_y: 0,
+            is_primary: false,
+            enabled: true,
+        }
+    ];
+
+    in-out property <int> selected-display-index: 0;
+    in-out property <bool> is-mirroring: false;
+
+    // Night Light state
+    in-out property <bool> night-light-enabled: false;
+    in-out property <float> night-light-temp: 0.5; // 0.0 (warm 2700K) to 1.0 (cool 6500K)
+
+    // Accent color state (Adapted from COSMIC Settings)
+    in-out property <string> accent-color: "blue"; // "blue", "lavender", "mint", "rose", "amber"
 
     // Dialog state for screen timeout picker
     in-out property <bool> show-timeout-picker: false;
 
-    // Emitted when the user adjusts the backlight slider.
+    // Callbacks
     callback brightness-changed(float);
-    // Emitted when the user toggles adaptive ambient brightness.
     callback toggle-adaptive-brightness(bool);
-    // Emitted when the user toggles dark theme mode.
     callback toggle-dark-theme(bool);
-    // Emitted when the user selects a screen timeout duration (seconds, display text).
+    callback accent-color-changed(string);
     callback screen-timeout-selected(int, string);
+    callback display-selected(int);
+    callback toggle-mirroring(bool);
+    callback display-scale-selected(int, int); // (display_idx, scale_pct)
+    callback display-primary-toggled(int, bool);
+    callback toggle-night-light(bool);
+    callback night-light-temp-changed(float);
 
     background: Theme.base-surface;
 
@@ -139,23 +181,176 @@ export component PageDisplay inherits Rectangle {
         width: 100%;
         height: 100%;
 
-        content := VerticalLayout {
+        VerticalLayout {
             padding-left: 16px;
             padding-right: 16px;
             padding-top: 12px;
             padding-bottom: 96px;
-            spacing: 12px;
+            spacing: 14px;
 
-            // Brightness Slider Card
+            // 1. Multi-Display Visual Arrangement Canvas
+            SettingsSectionHeader { title: "Display arrangement & convergence"; }
+
+            DisplayCanvas {
+                displays <=> root.displays;
+                selected-index <=> root.selected-display-index;
+                display-selected(idx) => {
+                    root.selected-display-index = idx;
+                    root.display-selected(idx);
+                }
+            }
+
+            // Arrangement & Mirroring Control Card
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+
+                    SettingsTile {
+                        icon-name: "display";
+                        icon-bg: #82d3e5;
+                        icon-tint: #00363f;
+                        title: "Mirror displays";
+                        subtitle: root.is-mirroring ? "Mirroring external screen" : "Extended desktop (Join displays)";
+                        is-switch: true;
+                        switch-checked: root.is-mirroring;
+                        is-first: true;
+                        is-last: false;
+                        show-divider: true;
+                        toggled(val) => {
+                            root.is-mirroring = val;
+                            root.toggle-mirroring(val);
+                        }
+                    }
+
+                    SettingsTile {
+                        icon-name: "settings";
+                        icon-bg: #d0bcff;
+                        icon-tint: #381e72;
+                        title: "Use as primary display";
+                        subtitle: (root.selected-display-index < root.displays.length && root.displays[root.selected-display-index].is_primary) ? "This is the primary display" : "Secondary display";
+                        is-switch: true;
+                        switch-checked: (root.selected-display-index < root.displays.length) ? root.displays[root.selected-display-index].is_primary : false;
+                        is-first: false;
+                        is-last: true;
+                        show-divider: false;
+                        toggled(val) => {
+                            root.display-primary-toggled(root.selected-display-index, val);
+                        }
+                    }
+                }
+            }
+
+            // 2. Selected Display Scaling & Resolution Card
+            if root.selected-display-index < root.displays.length: VerticalLayout {
+                spacing: 8px;
+                property <DisplayItemData> cur: root.displays[root.selected-display-index];
+
+                SettingsSectionHeader { title: "Display properties (" + cur.name + ")"; }
+
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        padding-top: 12px;
+                        padding-bottom: 12px;
+                        spacing: 12px;
+
+                        // Resolution & Refresh Rate Row
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: space-between;
+
+                            Text {
+                                text: "Resolution & Refresh Rate";
+                                font-size: 14px;
+                                font-weight: 500;
+                                color: Theme.on-surface;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle {
+                                border-radius: 8px;
+                                background: Theme.surface-high;
+                                border-width: 1px;
+                                border-color: Theme.outline;
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    padding-top: 4px;
+                                    padding-bottom: 4px;
+                                    Text {
+                                        text: cur.width + " × " + cur.height + " @ " + cur.refresh_rate + "Hz";
+                                        font-size: 12px;
+                                        font-weight: 600;
+                                        color: Theme.primary;
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.outline-variant;
+                        }
+
+                        // Fractional Scaling Presets
+                        VerticalLayout {
+                            spacing: 6px;
+
+                            Text {
+                                text: "Scale";
+                                font-size: 14px;
+                                font-weight: 500;
+                                color: Theme.on-surface;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+
+                                for scale in [100, 125, 150, 175, 200]: Rectangle {
+                                    property <bool> is-active: cur.scale_pct == scale;
+                                    height: 44px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 12px;
+                                    background: is-active ? Theme.primary : (scale-touch.pressed ? #282a30 : Theme.surface-high);
+                                    border-width: is-active ? 0px : 1px;
+                                    border-color: is-active ? transparent : Theme.outline-variant;
+
+                                    animate background { duration: 100ms; easing: ease-out; }
+
+                                    Text {
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                        text: scale + "%";
+                                        font-size: 13px;
+                                        font-weight: is-active ? 700 : 500;
+                                        color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    }
+
+                                    scale-touch := TouchArea {
+                                        clicked => {
+                                            root.display-scale-selected(root.selected-display-index, scale);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Brightness Slider Card
+            SettingsSectionHeader { title: "Backlight brightness"; }
             BrightnessSliderCard {
                 value <=> root.brightness;
                 changed(v) => { root.brightness-changed(v); }
             }
 
-            // Display Controls Card
+            // 4. Night Light Section (COSMIC Adapted)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Light & color"; }
+                SettingsSectionHeader { title: "Night light & color"; }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -163,16 +358,19 @@ export component PageDisplay inherits Rectangle {
 
                         SettingsTile {
                             icon-name: "brightness";
-                            icon-bg: #ffcc80;
-                            icon-tint: #4e2600;
-                            title: "Adaptive brightness";
-                            subtitle: "Optimize brightness for available ambient light";
+                            icon-bg: #ffb4a9;
+                            icon-tint: #680003;
+                            title: "Night light";
+                            subtitle: root.night-light-enabled ? "Warm amber tint active (sunset to sunrise)" : "Off";
                             is-switch: true;
-                            switch-checked: root.adaptive-brightness;
+                            switch-checked: root.night-light-enabled;
                             is-first: true;
                             is-last: false;
                             show-divider: true;
-                            toggled(val) => { root.toggle-adaptive-brightness(val); }
+                            toggled(val) => {
+                                root.night-light-enabled = val;
+                                root.toggle-night-light(val);
+                            }
                         }
 
                         SettingsTile {
@@ -180,22 +378,186 @@ export component PageDisplay inherits Rectangle {
                             icon-bg: #d0bcff;
                             icon-tint: #381e72;
                             title: "Dark theme";
-                            subtitle: root.dark-theme ? "On" : "Off";
+                            subtitle: root.dark-theme ? "Pitch black OLED enabled" : "Off";
                             is-switch: true;
                             switch-checked: root.dark-theme;
                             is-first: false;
+                            is-last: false;
+                            show-divider: true;
+                            toggled(val) => { root.toggle-dark-theme(val); }
+                        }
+
+                        SettingsTile {
+                            icon-name: "brightness";
+                            icon-bg: #ffcc80;
+                            icon-tint: #4e2600;
+                            title: "Adaptive brightness";
+                            subtitle: "Optimize brightness for ambient light sensor";
+                            is-switch: true;
+                            switch-checked: root.adaptive-brightness;
+                            is-first: false;
                             is-last: true;
                             show-divider: false;
-                            toggled(val) => { root.toggle-dark-theme(val); }
+                            toggled(val) => { root.toggle-adaptive-brightness(val); }
                         }
                     }
                 }
             }
 
-            // Screen & Behavior
+            // Accent Color Palette (Adapted from COSMIC Settings Desktop Appearance)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Screen timeout & display"; }
+                SettingsSectionHeader { title: "Accent color"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        padding-top: 14px;
+                        padding-bottom: 14px;
+                        spacing: 12px;
+
+                        HorizontalLayout {
+                            spacing: 12px;
+                            alignment: space-around;
+
+                            // Blue
+                            Rectangle {
+                                property <bool> is-selected: root.accent-color == "blue";
+                                width: 48px;
+                                height: 48px;
+                                border-radius: 24px;
+                                background: #7dd8fc;
+                                border-width: is-selected ? 3px : 0px;
+                                border-color: #ffffff;
+
+                                if is-selected: Icon {
+                                    name: "check";
+                                    icon-size: 20px;
+                                    icon-color: #00354e;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.accent-color = "blue";
+                                        root.accent-color-changed("blue");
+                                    }
+                                }
+                            }
+
+                            // Lavender
+                            Rectangle {
+                                property <bool> is-selected: root.accent-color == "lavender";
+                                width: 48px;
+                                height: 48px;
+                                border-radius: 24px;
+                                background: #d0bcff;
+                                border-width: is-selected ? 3px : 0px;
+                                border-color: #ffffff;
+
+                                if is-selected: Icon {
+                                    name: "check";
+                                    icon-size: 20px;
+                                    icon-color: #381e72;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.accent-color = "lavender";
+                                        root.accent-color-changed("lavender");
+                                    }
+                                }
+                            }
+
+                            // Mint
+                            Rectangle {
+                                property <bool> is-selected: root.accent-color == "mint";
+                                width: 48px;
+                                height: 48px;
+                                border-radius: 24px;
+                                background: #a3e8b0;
+                                border-width: is-selected ? 3px : 0px;
+                                border-color: #ffffff;
+
+                                if is-selected: Icon {
+                                    name: "check";
+                                    icon-size: 20px;
+                                    icon-color: #073919;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.accent-color = "mint";
+                                        root.accent-color-changed("mint");
+                                    }
+                                }
+                            }
+
+                            // Rose
+                            Rectangle {
+                                property <bool> is-selected: root.accent-color == "rose";
+                                width: 48px;
+                                height: 48px;
+                                border-radius: 24px;
+                                background: #ffb3ba;
+                                border-width: is-selected ? 3px : 0px;
+                                border-color: #ffffff;
+
+                                if is-selected: Icon {
+                                    name: "check";
+                                    icon-size: 20px;
+                                    icon-color: #491019;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.accent-color = "rose";
+                                        root.accent-color-changed("rose");
+                                    }
+                                }
+                            }
+
+                            // Amber
+                            Rectangle {
+                                property <bool> is-selected: root.accent-color == "amber";
+                                width: 48px;
+                                height: 48px;
+                                border-radius: 24px;
+                                background: #ffcc80;
+                                border-width: is-selected ? 3px : 0px;
+                                border-color: #ffffff;
+
+                                if is-selected: Icon {
+                                    name: "check";
+                                    icon-size: 20px;
+                                    icon-color: #4e2600;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                TouchArea {
+                                    clicked => {
+                                        root.accent-color = "amber";
+                                        root.accent-color-changed("amber");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 5. Screen Timeout
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Screen timeout"; }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -206,24 +568,12 @@ export component PageDisplay inherits Rectangle {
                             icon-bg: #7dd8fc;
                             icon-tint: #00354e;
                             title: "Screen timeout";
-                            subtitle: "After " + root.screen-timeout + " of inactivity";
+                            subtitle: "Turn off screen after " + root.screen-timeout + " of inactivity";
                             show-chevron: true;
                             is-first: true;
-                            is-last: false;
-                            show-divider: true;
-                            clicked => { root.show-timeout-picker = true; }
-                        }
-
-                        SettingsTile {
-                            icon-name: "devices";
-                            icon-bg: #a3e8b0;
-                            icon-tint: #073919;
-                            title: "Screen resolution";
-                            subtitle: root.display-resolution;
-                            show-chevron: false;
-                            is-first: false;
                             is-last: true;
                             show-divider: false;
+                            clicked => { root.show-timeout-picker = true; }
                         }
                     }
                 }
@@ -249,97 +599,53 @@ export component PageDisplay inherits Rectangle {
             border-color: #383540;
 
             VerticalLayout {
-                padding: 24px;
-                spacing: 12px;
+                padding-left: 24px;
+                padding-right: 24px;
+                padding-top: 24px;
+                padding-bottom: 24px;
+                spacing: 16px;
 
                 Text {
                     text: "Screen timeout";
                     font-size: 20px;
-                    font-weight: 600;
+                    font-weight: 500;
                     color: Theme.on-surface;
                 }
 
-                Text {
-                    text: "Select inactivity duration before display turns off:";
-                    font-size: 13px;
-                    color: Theme.on-surface-variant;
-                }
+                VerticalLayout {
+                    spacing: 4px;
 
-                Rectangle { height: 4px; }
+                    for opt in root.timeout-options: Rectangle {
+                        property <bool> is-selected: opt.label == root.screen-timeout;
+                        height: 44px;
+                        border-radius: 12px;
+                        background: is-selected ? Theme.surface-high : Colors.transparent;
 
-                // List of timeout options
-                for opt[idx] in root.timeout-options: Rectangle {
-                    height: 48px;
-                    border-radius: 14px;
-                    background: opt-touch.pressed ? #35333c : (root.screen-timeout == opt.label ? #323545 : transparent);
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            alignment: center;
 
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        spacing: 12px;
+                            Text {
+                                horizontal-stretch: 1;
+                                text: opt.label;
+                                font-size: 15px;
+                                color: is-selected ? Theme.primary : Theme.on-surface;
+                                vertical-alignment: center;
+                            }
 
-                        // Radio circle indicator
-                        Rectangle {
-                            width: 20px;
-                            height: 20px;
-                            border-radius: 10px;
-                            border-width: 2px;
-                            border-color: root.screen-timeout == opt.label ? #7dd8fc : #938f99;
-                            background: transparent;
-                            y: (parent.height - self.height) / 2;
-
-                            if root.screen-timeout == opt.label: Rectangle {
-                                width: 10px;
-                                height: 10px;
-                                border-radius: 5px;
-                                background: #7dd8fc;
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
+                            if is-selected: Icon {
+                                name: "settings";
+                                icon-size: 18px;
+                                icon-color: Theme.primary;
                             }
                         }
 
-                        Text {
-                            text: opt.label;
-                            font-size: 15px;
-                            font-weight: root.screen-timeout == opt.label ? 600 : 400;
-                            color: root.screen-timeout == opt.label ? #7dd8fc : Theme.on-surface;
-                            vertical-alignment: center;
-                            horizontal-stretch: 1;
-                        }
-                    }
-
-                    opt-touch := TouchArea {
-                        clicked => {
-                            root.screen-timeout = opt.label;
-                            root.show-timeout-picker = false;
-                            root.screen-timeout-selected(opt.seconds, opt.label);
-                        }
-                    }
-                }
-
-                Rectangle { height: 8px; }
-
-                HorizontalLayout {
-                    alignment: end;
-
-                    Rectangle {
-                        height: 40px;
-                        min-width: 80px;
-                        border-radius: 20px;
-                        background: cancel-touch.pressed ? #323038 : transparent;
-
-                        Text {
-                            text: "Cancel";
-                            font-size: 14px;
-                            font-weight: 500;
-                            color: #a8c7fa;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
-
-                        cancel-touch := TouchArea {
+                        TouchArea {
                             clicked => {
+                                root.screen-timeout = opt.label;
                                 root.show-timeout-picker = false;
+                                root.screen-timeout-selected(opt.seconds, opt.label);
                             }
                         }
                     }

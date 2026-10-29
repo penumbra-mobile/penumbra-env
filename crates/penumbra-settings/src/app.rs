@@ -20,11 +20,14 @@ use tracing::{info, warn};
 
 use penumbra_services::{
     apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
-    DisplayConfig, FingerprintManager, LockType, SecurityConfig, SoundConfig,
+    DisplayConfig, DisplaysConfig, FingerprintManager, LockType, PowerProfile, SecurityConfig, SoundConfig,
 };
 
 use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend};
-use crate::{BtDeviceData, PhysicalKeyboardData, SettingsWindow, VirtualKeyboardData, WifiApData};
+use crate::{
+    BtDeviceData, DisplayItemData, PhysicalKeyboardData, SettingsWindow, VirtualKeyboardData,
+    WifiApData,
+};
 
 /// Sets up reactive state bindings and user interaction callbacks for `SettingsWindow`.
 ///
@@ -83,6 +86,7 @@ pub fn setup_app(
         window.set_is_charging(power.is_charging);
         window.set_battery_state_text(power.state_text.into());
         window.set_battery_saver(power.power_saver);
+        window.set_power_profile(PowerProfile::read_current().as_str().into());
 
         // Populate display & backlight settings
         let disp_cfg = DisplayConfig::load();
@@ -90,6 +94,31 @@ pub fn setup_app(
         window.set_brightness(init_b as f32);
         window.set_adaptive_brightness(disp_cfg.adaptive_brightness);
         window.set_dark_theme(disp_cfg.dark_theme);
+        window.set_accent_color(disp_cfg.accent_color.into());
+
+        let multi_disp_cfg = DisplaysConfig::load();
+        let display_items: Vec<DisplayItemData> = multi_disp_cfg
+            .outputs
+            .iter()
+            .map(|o| DisplayItemData {
+                id: o.id.clone().into(),
+                name: o.name.clone().into(),
+                connector: o.connector.clone().into(),
+                width: o.width as i32,
+                height: o.height as i32,
+                refresh_rate: o.refresh_rate_hz as i32,
+                scale_pct: (o.scale * 100.0) as i32,
+                pos_x: o.pos_x,
+                pos_y: o.pos_y,
+                is_primary: o.is_primary,
+                enabled: o.enabled,
+            })
+            .collect();
+        window.set_displays(ModelRc::from(Rc::new(VecModel::from(display_items))));
+        window.set_is_mirroring(multi_disp_cfg.arrangement_mode == "mirror");
+        window.set_night_light_enabled(multi_disp_cfg.night_light.enabled);
+        let temp_norm = (multi_disp_cfg.night_light.temperature_k.clamp(2700, 6500) as f32 - 2700.0) / (6500.0 - 2700.0);
+        window.set_night_light_temp(temp_norm);
 
         // Populate sound channels & preferences
         let snd_cfg = SoundConfig::load();
@@ -97,6 +126,10 @@ pub fn setup_app(
         window.set_media_volume(init_v as f32);
         window.set_call_volume(snd_cfg.call_volume as f32);
         window.set_ring_volume(snd_cfg.ring_volume as f32);
+        window.set_mic_volume(snd_cfg.mic_volume as f32);
+        window.set_output_muted(snd_cfg.output_muted);
+        window.set_mic_muted(snd_cfg.mic_muted);
+        window.set_output_device(snd_cfg.output_device.into());
         window.set_dnd_enabled(snd_cfg.dnd_enabled);
         window.set_vibrate_for_calls(snd_cfg.vibrate_for_calls);
 
@@ -421,6 +454,100 @@ pub fn setup_app(
         });
     }
 
+    window.on_display_selected(|idx| {
+        info!("Settings: Display selected at index {idx}");
+    });
+
+    window.on_toggle_mirroring(|val| {
+        info!("Settings: Toggle display mirroring -> {val}");
+        let mut cfg = DisplaysConfig::load();
+        cfg.arrangement_mode = if val { "mirror".into() } else { "extended".into() };
+        let _ = cfg.save();
+    });
+
+    {
+        let weak = ui_weak.clone();
+        window.on_display_scale_selected(move |idx, scale_pct| {
+            info!("Settings: Display {idx} scale changed -> {scale_pct}%");
+            let mut cfg = DisplaysConfig::load();
+            if let Some(output) = cfg.outputs.get_mut(idx as usize) {
+                output.scale = scale_pct as f64 / 100.0;
+                let _ = cfg.save();
+            }
+            if let Some(ui) = weak.upgrade() {
+                let display_items: Vec<DisplayItemData> = cfg
+                    .outputs
+                    .iter()
+                    .map(|o| DisplayItemData {
+                        id: o.id.clone().into(),
+                        name: o.name.clone().into(),
+                        connector: o.connector.clone().into(),
+                        width: o.width as i32,
+                        height: o.height as i32,
+                        refresh_rate: o.refresh_rate_hz as i32,
+                        scale_pct: (o.scale * 100.0) as i32,
+                        pos_x: o.pos_x,
+                        pos_y: o.pos_y,
+                        is_primary: o.is_primary,
+                        enabled: o.enabled,
+                    })
+                    .collect();
+                ui.set_displays(ModelRc::from(Rc::new(VecModel::from(display_items))));
+            }
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_display_primary_toggled(move |idx, val| {
+            info!("Settings: Display {idx} primary set -> {val}");
+            let mut cfg = DisplaysConfig::load();
+            for (i, output) in cfg.outputs.iter_mut().enumerate() {
+                if i == idx as usize {
+                    output.is_primary = val;
+                } else if val {
+                    output.is_primary = false;
+                }
+            }
+            let _ = cfg.save();
+            if let Some(ui) = weak.upgrade() {
+                let display_items: Vec<DisplayItemData> = cfg
+                    .outputs
+                    .iter()
+                    .map(|o| DisplayItemData {
+                        id: o.id.clone().into(),
+                        name: o.name.clone().into(),
+                        connector: o.connector.clone().into(),
+                        width: o.width as i32,
+                        height: o.height as i32,
+                        refresh_rate: o.refresh_rate_hz as i32,
+                        scale_pct: (o.scale * 100.0) as i32,
+                        pos_x: o.pos_x,
+                        pos_y: o.pos_y,
+                        is_primary: o.is_primary,
+                        enabled: o.enabled,
+                    })
+                    .collect();
+                ui.set_displays(ModelRc::from(Rc::new(VecModel::from(display_items))));
+            }
+        });
+    }
+
+    window.on_toggle_night_light(|val| {
+        info!("Settings: Toggle night light -> {val}");
+        let mut cfg = DisplaysConfig::load();
+        cfg.night_light.enabled = val;
+        let _ = cfg.save();
+    });
+
+    window.on_night_light_temp_changed(|v| {
+        let temp = (2700.0 + v * (6500.0 - 2700.0)) as u32;
+        info!("Settings: Night light temperature changed -> {temp}K");
+        let mut cfg = DisplaysConfig::load();
+        cfg.night_light.temperature_k = temp;
+        let _ = cfg.save();
+    });
+
     window.on_media_volume_changed(|v| {
         info!("Settings: Media volume changed -> {:.2}", v);
         apply_volume_ratio(v as f64);
@@ -456,6 +583,62 @@ pub fn setup_app(
         cfg.vibrate_for_calls = val;
         let _ = cfg.save();
     });
+
+    // COSMIC Sound Routing & Microphone
+    window.on_output_device_changed(|dev| {
+        info!("Settings: Audio output device changed -> {dev}");
+        let mut cfg = SoundConfig::load();
+        cfg.output_device = dev.into();
+        let _ = cfg.save();
+    });
+
+    window.on_toggle_output_muted(|muted| {
+        info!("Settings: Audio master output mute -> {muted}");
+        let mut cfg = SoundConfig::load();
+        cfg.output_muted = muted;
+        let _ = cfg.save();
+    });
+
+    window.on_mic_volume_changed(|v| {
+        info!("Settings: Microphone input volume -> {:.2}", v);
+        let mut cfg = SoundConfig::load();
+        cfg.mic_volume = v as f64;
+        let _ = cfg.save();
+    });
+
+    window.on_toggle_mic_muted(|muted| {
+        info!("Settings: Microphone mute -> {muted}");
+        let mut cfg = SoundConfig::load();
+        cfg.mic_muted = muted;
+        let _ = cfg.save();
+    });
+
+    // COSMIC Power Profiles
+    window.on_power_profile_changed(|profile_str| {
+        info!("Settings: Power profile changed -> {profile_str}");
+        let profile = PowerProfile::from_str_lossy(&profile_str);
+        profile.apply();
+    });
+
+    // COSMIC Desktop Appearance Accent Color
+    window.on_accent_color_changed(|color_str| {
+        info!("Settings: Accent color changed -> {color_str}");
+        let mut cfg = DisplayConfig::load();
+        cfg.accent_color = color_str.into();
+        let _ = cfg.save();
+    });
+
+    // Desktop Window Controls (Close)
+    {
+        let weak = ui_weak.clone();
+        window.on_close_window(move || {
+            info!("Settings: Desktop close window clicked -> exiting");
+            if let Some(ui) = weak.upgrade() {
+                let _ = ui.window().hide();
+            }
+            std::process::exit(0);
+        });
+    }
 
     // Keyboard Action Callbacks
     window.on_toggle_hide_on_physical(|val| {

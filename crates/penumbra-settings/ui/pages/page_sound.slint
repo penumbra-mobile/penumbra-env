@@ -104,6 +104,14 @@ export component PageSound inherits Flickable {
     in-out property <float> call-volume: 0.80;
     // Current normalized ringer and notification volume (0.0 to 1.0).
     in-out property <float> ring-volume: 0.70;
+    // Current normalized microphone input volume (0.0 to 1.0).
+    in-out property <float> mic-volume: 0.85;
+    // Master mute state.
+    in-out property <bool> output-muted: false;
+    // Microphone mute state.
+    in-out property <bool> mic-muted: false;
+    // Active audio output device ("speaker", "headset", "hdmi").
+    in-out property <string> output-device: "speaker";
     // Whether Do Not Disturb mode is actively suppressing notifications.
     in-out property <bool> dnd-enabled: false;
     // Whether haptic vibration is enabled for incoming voice calls.
@@ -115,6 +123,14 @@ export component PageSound inherits Flickable {
     callback call-volume-changed(float);
     // Emitted when the ringer volume slider is scrubbed.
     callback ring-volume-changed(float);
+    // Emitted when the microphone volume slider is scrubbed.
+    callback mic-volume-changed(float);
+    // Emitted when master output mute is toggled.
+    callback toggle-output-muted(bool);
+    // Emitted when mic mute is toggled.
+    callback toggle-mic-muted(bool);
+    // Emitted when audio output device is changed.
+    callback output-device-changed(string);
     // Emitted when the user toggles Do Not Disturb mode.
     callback toggle-dnd(bool);
     // Emitted when the user toggles call vibration.
@@ -126,6 +142,163 @@ export component PageSound inherits Flickable {
         padding-top: 12px;
         padding-bottom: 96px;
         spacing: 12px;
+
+        // Audio Output Routing & Mute (Adapted from COSMIC Settings)
+        VerticalLayout {
+            spacing: 8px;
+            SettingsSectionHeader { title: "Sound output & routing"; }
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    spacing: 10px;
+
+                    // Output device selection pills
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        // Speaker
+                        Rectangle {
+                            property <bool> is-active: root.output-device == "speaker";
+                            height: 48px;
+                            horizontal-stretch: 1;
+                            border-radius: 12px;
+                            background: is-active ? Theme.primary : (spk-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                Icon {
+                                    name: "sound";
+                                    icon-size: 16px;
+                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "Speaker";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            spk-touch := TouchArea {
+                                clicked => {
+                                    root.output-device = "speaker";
+                                    root.output-device-changed("speaker");
+                                }
+                            }
+                        }
+
+                        // Headset
+                        Rectangle {
+                            property <bool> is-active: root.output-device == "headset";
+                            height: 48px;
+                            horizontal-stretch: 1;
+                            border-radius: 12px;
+                            background: is-active ? Theme.primary : (head-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                Icon {
+                                    name: "devices";
+                                    icon-size: 16px;
+                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "Headset";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            head-touch := TouchArea {
+                                clicked => {
+                                    root.output-device = "headset";
+                                    root.output-device-changed("headset");
+                                }
+                            }
+                        }
+
+                        // HDMI / External
+                        Rectangle {
+                            property <bool> is-active: root.output-device == "hdmi";
+                            height: 48px;
+                            horizontal-stretch: 1;
+                            border-radius: 12px;
+                            background: is-active ? Theme.primary : (hdmi-touch.pressed ? #282a30 : Theme.surface-high);
+                            border-width: is-active ? 0px : 1px;
+                            border-color: Theme.outline-variant;
+
+                            animate background { duration: 120ms; easing: ease-out; }
+
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 6px;
+                                Icon {
+                                    name: "display";
+                                    icon-size: 16px;
+                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: "HDMI / TV";
+                                    font-size: 13px;
+                                    font-weight: is-active ? 700 : 500;
+                                    color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            hdmi-touch := TouchArea {
+                                clicked => {
+                                    root.output-device = "hdmi";
+                                    root.output-device-changed("hdmi");
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.outline-variant;
+                    }
+
+                    // Master Mute Switch
+                    SettingsTile {
+                        icon-name: "sound";
+                        icon-bg: root.output-muted ? #ffb4a9 : #a8c7fa;
+                        icon-tint: root.output-muted ? #680003 : #042b59;
+                        title: "Mute output";
+                        subtitle: root.output-muted ? "Audio muted" : "Playing audio normally";
+                        is-switch: true;
+                        switch-checked: root.output-muted;
+                        show-divider: false;
+                        is-first: false;
+                        is-last: true;
+                        toggled(v) => {
+                            root.output-muted = v;
+                            root.toggle-output-muted(v);
+                        }
+                    }
+                }
+            }
+        }
 
         // Volume Sliders
         VerticalLayout {
@@ -150,6 +323,12 @@ export component PageSound inherits Flickable {
                     icon: "sound";
                     value <=> root.ring-volume;
                     changed(v) => { root.ring-volume-changed(v); }
+                }
+                VolumeSliderCard {
+                    label: "Microphone input";
+                    icon: "notifications";
+                    value <=> root.mic-volume;
+                    changed(v) => { root.mic-volume-changed(v); }
                 }
             }
         }
