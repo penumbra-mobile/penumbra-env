@@ -8,6 +8,7 @@ description = "Native Wayland Desktop Convergence Shell (Top Panel, Dock, Launch
 
 [dependencies]
 layer-shell-slint = { path = "../layer-shell-slint" }
+penumbra-applets = { path = "../penumbra-applets" }
 penumbra-services = { path = "../penumbra-services" }
 penumbra-shell = { path = "../penumbra-shell" }
 slint = { version = "1.18", default-features = false, features = ["compat-1-2", "image-default-formats", "renderer-software", "std"] }

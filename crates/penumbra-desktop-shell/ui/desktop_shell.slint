@@ -7,14 +7,151 @@ export struct DesktopAppEntry {
     exec: string,
     category: string,
     icon-name: string,
+    icon: image,
+    has-icon: bool,
 }
 
 export struct DesktopDockApp {
     id: string,
     name: string,
     icon-name: string,
+    icon: image,
+    has-icon: bool,
     is-running: bool,
     is-active: bool,
+}
+
+// ===========================================================================
+// 0. DESKTOP WALLPAPER + RIGHT-CLICK CONTEXT MENU (Layer::Background)
+// ===========================================================================
+component DesktopMenuRow inherits Rectangle {
+    in property <string> label;
+    in property <string> icon-name;
+    callback clicked();
+
+    height: 34px;
+    border-radius: 8px;
+    background: ta.has-hover ? DesktopTheme.hover-tint : transparent;
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 12px;
+        spacing: 10px;
+        alignment: start;
+
+        VerticalLayout {
+            alignment: center;
+            DesktopIcon {
+                name: root.icon-name;
+                icon-size: 14px;
+                icon-color: DesktopTheme.on-surface-variant;
+            }
+        }
+
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: 500;
+            color: DesktopTheme.on-surface;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component DesktopWallpaperWindow inherits Window {
+    in property <image> wallpaper;
+    in property <bool> has-wallpaper: false;
+    in-out property <bool> menu-open: false;
+    in-out property <length> menu-x: 100px;
+    in-out property <length> menu-y: 100px;
+
+    callback open-terminal();
+    callback open-files();
+    callback open-launcher();
+    callback open-settings(string);
+
+    background: #0d0f14;
+
+    if !root.has-wallpaper: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(135deg, #10131a 0%, #192234 55%, #12151e 100%);
+    }
+
+    if root.has-wallpaper: Image {
+        width: 100%;
+        height: 100%;
+        source: root.wallpaper;
+        image-fit: cover;
+    }
+
+    bg-ta := TouchArea {
+        width: 100%;
+        height: 100%;
+        pointer-event(event) => {
+            if (event.kind == PointerEventKind.down) {
+                if (event.button == PointerEventButton.right) {
+                    root.menu-x = Math.clamp(self.mouse-x, 12px, root.width - 212px);
+                    root.menu-y = Math.clamp(self.mouse-y, 38px, root.height - 250px);
+                    root.menu-open = true;
+                } else {
+                    root.menu-open = false;
+                }
+            }
+        }
+    }
+
+    if root.menu-open: Rectangle {
+        x: root.menu-x;
+        y: root.menu-y;
+        width: 204px;
+        height: menu-col.preferred-height;
+        border-radius: 12px;
+        background: DesktopTheme.modal-bg;
+        border-width: 1px;
+        border-color: DesktopTheme.specular-rim;
+        drop-shadow-blur: 20px;
+        drop-shadow-color: #00000099;
+        drop-shadow-offset-y: 6px;
+
+        menu-col := VerticalLayout {
+            padding: 6px;
+            spacing: 2px;
+
+            DesktopMenuRow {
+                label: "Open Terminal";
+                icon-name: "terminal";
+                clicked => { root.menu-open = false; root.open-terminal(); }
+            }
+            DesktopMenuRow {
+                label: "Open Files";
+                icon-name: "folder";
+                clicked => { root.menu-open = false; root.open-files(); }
+            }
+            DesktopMenuRow {
+                label: "Applications";
+                icon-name: "grid";
+                clicked => { root.menu-open = false; root.open-launcher(); }
+            }
+
+            Rectangle { height: 1px; background: DesktopTheme.border-subtle; }
+
+            DesktopMenuRow {
+                label: "Wallpaper & style";
+                icon-name: "edit";
+                clicked => { root.menu-open = false; root.open-settings("appearance"); }
+            }
+            DesktopMenuRow {
+                label: "Display settings";
+                icon-name: "settings";
+                clicked => { root.menu-open = false; root.open-settings("display"); }
+            }
+        }
+    }
 }
 
 // ===========================================================================
@@ -33,9 +170,11 @@ export component DesktopPanelWindow inherits Window {
     in-out property <int> wifi-signal: 4;
     in-out property <int> volume-pct: 80;
     in-out property <bool> launcher-active: false;
+    in-out property <string> active-applet: "";
 
     callback toggle-launcher();
     callback switch-workspace(int);
+    callback open-applet(string); // "time", "network", "audio", "battery", "power"
     callback power-clicked();
     callback time-clicked();
 
@@ -55,39 +194,66 @@ export component DesktopPanelWindow inherits Window {
         }
 
         HorizontalLayout {
-            padding-left: 10px;
-            padding-right: 12px;
+            padding-left: 8px;
+            padding-right: 8px;
             alignment: space-between;
 
-            // --- LEFT REGION: App Launcher & Workspaces ---
+            // --- LEFT WING (COSMIC Panel: Workspaces + Applications) ---
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 4px;
                 alignment: center;
 
-                // Application Launcher Trigger Pill
-                Rectangle {
-                    width: 110px;
-                    height: 28px;
-                    border-radius: 14px;
-                    background: launcher-touch.has-hover ? DesktopTheme.hover-tint : (root.launcher-active ? DesktopTheme.primary-container : transparent);
-                    border-width: 1px;
-                    border-color: root.launcher-active ? DesktopTheme.primary : DesktopTheme.border-subtle;
+                // Workspaces Strip (COSMIC Panel Workspaces Button)
+                HorizontalLayout {
+                    spacing: 2px;
+                    alignment: center;
 
-                    animate background { duration: 150ms; }
+                    for ws in [1, 2, 3, 4]: Rectangle {
+                        width: 24px;
+                        height: 22px;
+                        border-radius: 6px;
+                        background: ws == root.active-workspace
+                            ? DesktopTheme.primary-container
+                            : (ws-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 6px;
-
-                        DesktopIcon {
-                            name: "grid";
-                            icon-size: 14px;
-                            icon-color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.primary;
-                        }
+                        animate background { duration: 100ms; }
 
                         Text {
-                            text: "Apps";
-                            font-size: DesktopTheme.font-body;
+                            text: ws;
+                            font-size: 11px;
+                            font-weight: ws == root.active-workspace ? 700 : 500;
+                            color: ws == root.active-workspace ? DesktopTheme.on-primary-container : DesktopTheme.on-surface-variant;
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+
+                        ws-touch := TouchArea {
+                            clicked => {
+                                root.switch-workspace(ws);
+                            }
+                        }
+                    }
+                }
+
+                // Applications Button (COSMIC Panel App Button)
+                Rectangle {
+                    height: 22px;
+                    border-radius: 6px;
+                    background: root.launcher-active
+                        ? DesktopTheme.primary-container
+                        : (launcher-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+
+                    animate background { duration: 100ms; }
+
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 5px;
+                        alignment: center;
+
+                        Text {
+                            text: "Applications";
+                            font-size: 12px;
                             font-weight: 600;
                             color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
                             vertical-alignment: center;
@@ -100,200 +266,146 @@ export component DesktopPanelWindow inherits Window {
                         }
                     }
                 }
-
-                // Workspace Indicator Applet
-                Rectangle {
-                    height: 28px;
-                    border-radius: 14px;
-                    background: DesktopTheme.surface-glass;
-                    border-width: 1px;
-                    border-color: DesktopTheme.border-subtle;
-
-                    HorizontalLayout {
-                        padding-left: 4px;
-                        padding-right: 4px;
-                        spacing: 2px;
-                        alignment: center;
-
-                        for ws in [1, 2, 3, 4]: Rectangle {
-                            width: 26px;
-                            height: 22px;
-                            border-radius: 11px;
-                            background: ws == root.active-workspace ? DesktopTheme.primary : (ws-touch.has-hover ? DesktopTheme.hover-tint : transparent);
-
-                            animate background { duration: 150ms; }
-
-                            Text {
-                                text: ws;
-                                font-size: DesktopTheme.font-caption;
-                                font-weight: 700;
-                                color: ws == root.active-workspace ? DesktopTheme.on-primary : DesktopTheme.on-surface-variant;
-                                vertical-alignment: center;
-                                horizontal-alignment: center;
-                            }
-
-                            ws-touch := TouchArea {
-                                clicked => {
-                                    root.switch-workspace(ws);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Focused Window Title
-                if root.active-window-title != "": Rectangle {
-                    height: 24px;
-                    clip: true;
-
-                    Text {
-                        text: root.active-window-title;
-                        font-size: DesktopTheme.font-caption;
-                        font-weight: 500;
-                        color: DesktopTheme.on-surface-muted;
-                        vertical-alignment: center;
-                    }
-                }
             }
 
-            // --- CENTER REGION: Clock & Date Applet ---
+            // --- CENTER (COSMIC Applet Time) ---
             Rectangle {
-                height: 28px;
-                border-radius: 14px;
-                background: clock-touch.has-hover ? DesktopTheme.hover-tint : transparent;
+                height: 22px;
+                border-radius: 6px;
+                background: root.active-applet == "time"
+                    ? DesktopTheme.primary-container
+                    : (clock-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                animate background { duration: 150ms; }
+                animate background { duration: 100ms; }
 
                 HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
+                    padding-left: 10px;
+                    padding-right: 10px;
                     spacing: 6px;
                     alignment: center;
 
                     Text {
-                        text: root.time-text;
-                        font-size: DesktopTheme.font-title;
-                        font-weight: 700;
-                        color: DesktopTheme.on-surface;
-                        vertical-alignment: center;
-                    }
-
-                    Text {
-                        text: "•  " + root.date-text;
-                        font-size: DesktopTheme.font-caption;
-                        font-weight: 500;
-                        color: DesktopTheme.on-surface-variant;
+                        text: root.date-text + "  " + root.time-text;
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: root.active-applet == "time" ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
                         vertical-alignment: center;
                     }
                 }
 
                 clock-touch := TouchArea {
                     clicked => {
+                        root.open-applet("time");
                         root.time-clicked();
                     }
                 }
             }
 
-            // --- RIGHT REGION: Quick Status Applets & Power ---
+            // --- RIGHT WING (COSMIC Tray Applets: Audio, Network, Battery, Power) ---
             HorizontalLayout {
-                spacing: 8px;
+                spacing: 2px;
                 alignment: center;
 
-                // Status Capsule (Network + Volume + Battery)
+                // Audio Applet
                 Rectangle {
-                    height: 28px;
-                    border-radius: 14px;
-                    background: DesktopTheme.surface-glass;
-                    border-width: 1px;
-                    border-color: DesktopTheme.border-subtle;
+                    width: 28px;
+                    height: 22px;
+                    border-radius: 6px;
+                    background: root.active-applet == "audio"
+                        ? DesktopTheme.primary-container
+                        : (aud-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                    HorizontalLayout {
-                        padding-left: 10px;
-                        padding-right: 10px;
-                        spacing: 10px;
-                        alignment: center;
+                    DesktopIcon {
+                        name: "volume";
+                        icon-size: 14px;
+                        icon-color: root.active-applet == "audio" ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
 
-                        // Network
-                        HorizontalLayout {
-                            spacing: 4px;
-                            alignment: center;
-
-                            DesktopIcon {
-                                name: "wifi";
-                                icon-size: 14px;
-                                icon-color: root.wifi-connected ? DesktopTheme.primary : DesktopTheme.on-surface-muted;
-                            }
-
-                            if root.wifi-ssid != "": Text {
-                                text: root.wifi-ssid;
-                                font-size: DesktopTheme.font-caption;
-                                color: DesktopTheme.on-surface-variant;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        // Volume
-                        HorizontalLayout {
-                            spacing: 4px;
-                            alignment: center;
-
-                            DesktopIcon {
-                                name: "volume";
-                                icon-size: 14px;
-                                icon-color: DesktopTheme.on-surface-variant;
-                            }
-
-                            Text {
-                                text: root.volume-pct + "%";
-                                font-size: DesktopTheme.font-caption;
-                                color: DesktopTheme.on-surface-variant;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        // Battery
-                        HorizontalLayout {
-                            spacing: 4px;
-                            alignment: center;
-
-                            DesktopIcon {
-                                name: "battery";
-                                icon-size: 14px;
-                                icon-color: root.battery-pct < 20.0 ? DesktopTheme.error : DesktopTheme.success;
-                            }
-
-                            Text {
-                                text: (root.is-charging ? "⚡ " : "") + Math.round(root.battery-pct) + "%";
-                                font-size: DesktopTheme.font-caption;
-                                font-weight: 600;
-                                color: DesktopTheme.on-surface;
-                                vertical-alignment: center;
-                            }
-                        }
+                    aud-touch := TouchArea {
+                        clicked => { root.open-applet("audio"); }
                     }
                 }
 
-                // Power / Lock Action Pill
+                // Network Applet
                 Rectangle {
-                    width: 32px;
-                    height: 28px;
-                    border-radius: 14px;
-                    background: power-touch.has-hover ? DesktopTheme.error : DesktopTheme.surface-glass;
-                    border-width: 1px;
-                    border-color: DesktopTheme.border-subtle;
+                    width: 28px;
+                    height: 22px;
+                    border-radius: 6px;
+                    background: root.active-applet == "network"
+                        ? DesktopTheme.primary-container
+                        : (net-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                    animate background { duration: 150ms; }
+                    DesktopIcon {
+                        name: "wifi";
+                        icon-size: 14px;
+                        icon-color: root.active-applet == "network"
+                            ? DesktopTheme.on-primary-container
+                            : (root.wifi-connected ? DesktopTheme.on-surface : DesktopTheme.on-surface-muted);
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    net-touch := TouchArea {
+                        clicked => { root.open-applet("network"); }
+                    }
+                }
+
+                // Battery Applet
+                Rectangle {
+                    height: 22px;
+                    border-radius: 6px;
+                    background: root.active-applet == "battery"
+                        ? DesktopTheme.primary-container
+                        : (bat-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        spacing: 4px;
+                        alignment: center;
+
+                        DesktopIcon {
+                            name: "battery";
+                            icon-size: 14px;
+                            icon-color: root.battery-pct < 20.0 ? DesktopTheme.error : DesktopTheme.on-surface;
+                        }
+
+                        Text {
+                            text: Math.round(root.battery-pct) + "%";
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.active-applet == "battery" ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    bat-touch := TouchArea {
+                        clicked => { root.open-applet("battery"); }
+                    }
+                }
+
+                // Power Applet
+                Rectangle {
+                    width: 28px;
+                    height: 22px;
+                    border-radius: 6px;
+                    background: root.active-applet == "power"
+                        ? DesktopTheme.error
+                        : (power-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
                     DesktopIcon {
                         name: "power";
                         icon-size: 14px;
-                        icon-color: power-touch.has-hover ? #000000 : DesktopTheme.on-surface-variant;
+                        icon-color: root.active-applet == "power" ? #000000 : DesktopTheme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
 
                     power-touch := TouchArea {
                         clicked => {
+                            root.open-applet("power");
                             root.power-clicked();
                         }
                     }
@@ -307,14 +419,8 @@ export component DesktopPanelWindow inherits Window {
 // 2. DESKTOP DOCK (ZwlrLayerSurfaceV1 Layer::Top, height 64px, Anchor::Bottom)
 // ===========================================================================
 export component DesktopDockWindow inherits Window {
-    in-out property <[DesktopDockApp]> dock-apps: [
-        { id: "launcher", name: "Apps", icon-name: "grid", is-running: false, is-active: false },
-        { id: "terminal", name: "Terminal", icon-name: "terminal", is-running: false, is-active: false },
-        { id: "browser", name: "Browser", icon-name: "browser", is-running: false, is-active: false },
-        { id: "files", name: "Files", icon-name: "folder", is-running: false, is-active: false },
-        { id: "editor", name: "Editor", icon-name: "edit", is-running: false, is-active: false },
-        { id: "settings", name: "Settings", icon-name: "settings", is-running: false, is-active: false }
-    ];
+    in-out property <[DesktopDockApp]> dock-apps: [];
+    in-out property <bool> launcher-active: false;
 
     callback app-clicked(string);
     callback launcher-clicked();
@@ -325,31 +431,78 @@ export component DesktopDockWindow inherits Window {
     HorizontalLayout {
         alignment: center;
 
-        // Centered Floating Glass Dock Container
+        // Centered Floating Material 3 Expressive Glass Dock
         Rectangle {
-            height: 56px;
-            y: 4px;
-            border-radius: 18px;
+            height: 58px;
+            y: 3px;
+            border-radius: 22px;
             background: DesktopTheme.dock-bg;
             border-width: 1px;
             border-color: DesktopTheme.specular-rim;
 
             HorizontalLayout {
-                padding-left: 12px;
+                padding-left: 10px;
                 padding-right: 12px;
                 spacing: 8px;
                 alignment: center;
 
+                // Apps Drawer Button
+                Rectangle {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: apps-touch.pressed ? 12px : 16px;
+                    background: root.launcher-active
+                        ? DesktopTheme.primary-container
+                        : (apps-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface);
+                    border-width: 1px;
+                    border-color: root.launcher-active ? DesktopTheme.primary : DesktopTheme.border-subtle;
+
+                    animate background, border-radius { duration: 120ms; }
+
+                    DesktopIcon {
+                        name: "grid";
+                        icon-size: 22px;
+                        icon-color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.primary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+
+                    apps-touch := TouchArea {
+                        clicked => {
+                            root.launcher-clicked();
+                        }
+                    }
+                }
+
+                // Subtle divider between Apps button and pinned/open apps
+                if root.dock-apps.length > 0: Rectangle {
+                    width: 1px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    background: DesktopTheme.border-subtle;
+                }
+
                 for app in root.dock-apps: Rectangle {
                     width: 48px;
                     height: 48px;
-                    border-radius: 14px;
-                    background: app-touch.has-hover ? DesktopTheme.hover-tint : (app.is-active ? DesktopTheme.primary-container : transparent);
+                    border-radius: app-touch.pressed ? 12px : 16px;
+                    background: app.is-active
+                        ? DesktopTheme.primary-container
+                        : (app-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                    animate background { duration: 150ms; }
+                    animate background, border-radius { duration: 120ms; }
 
-                    // App Icon
-                    DesktopIcon {
+                    // Real XDG App Icon (with vector fallback)
+                    if app.has-icon: Image {
+                        source: app.icon;
+                        width: 34px;
+                        height: 34px;
+                        image-fit: contain;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2 - (app.is-running ? 2px : 0px);
+                    }
+
+                    if !app.has-icon: DesktopIcon {
                         name: app.icon-name;
                         icon-size: 24px;
                         icon-color: app.is-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
@@ -357,23 +510,20 @@ export component DesktopDockWindow inherits Window {
                         y: (parent.height - self.height) / 2 - (app.is-running ? 2px : 0px);
                     }
 
-                    // Running Application Indicator Dot
+                    // Running / Active Application Indicator Pill
                     if app.is-running: Rectangle {
-                        width: 4px;
+                        width: app.is-active ? 16px : 5px;
                         height: 4px;
                         border-radius: 2px;
                         background: app.is-active ? DesktopTheme.primary : DesktopTheme.on-surface-muted;
                         x: (parent.width - self.width) / 2;
-                        y: parent.height - 7px;
+                        y: parent.height - 6px;
+                        animate width { duration: 140ms; }
                     }
 
                     app-touch := TouchArea {
                         clicked => {
-                            if app.id == "launcher" {
-                                root.launcher-clicked();
-                            } else {
-                                root.app-clicked(app.id);
-                            }
+                            root.app-clicked(app.id);
                         }
                     }
                 }
@@ -387,7 +537,9 @@ export component DesktopDockWindow inherits Window {
 // ===========================================================================
 export component DesktopLauncherWindow inherits Window {
     in-out property <bool> is-open: false;
+    in-out property <bool> grid-mode: false; // false = COSMIC Quick Launcher list, true = App Library 5-col grid
     in-out property <string> search-text: "";
+    in-out property <string> calc-result: "";
     in-out property <string> active-category: "All";
     in-out property <[DesktopAppEntry]> apps: [];
 
@@ -404,8 +556,9 @@ export component DesktopLauncherWindow inherits Window {
         height: 100%;
         background: DesktopTheme.scrim-bg;
         opacity: root.is-open ? 1.0 : 0.0;
+        visible: self.opacity > 0.01;
 
-        animate opacity { duration: 180ms; }
+        animate opacity { duration: 150ms; }
 
         scrim-touch := TouchArea {
             clicked => {
@@ -413,17 +566,19 @@ export component DesktopLauncherWindow inherits Window {
             }
         }
 
-        // Floating Modal Chassis
+        // Floating Modal COSMIC Launcher / App Library Chassis
         Rectangle {
-            width: 720px;
-            height: 520px;
+            width: root.grid-mode ? 760px : 580px;
+            height: root.grid-mode ? 560px : 460px;
             x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            border-radius: 20px;
+            y: (root.grid-mode ? (parent.height - self.height) / 2 : 92px) + (root.is-open ? 0px : 18px);
+            border-radius: 22px;
             background: DesktopTheme.modal-bg;
             border-width: 1px;
             border-color: DesktopTheme.specular-rim;
             clip: true;
+
+            animate y, width, height { duration: 170ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
             VerticalLayout {
                 padding: 20px;
@@ -475,6 +630,37 @@ export component DesktopLauncherWindow inherits Window {
                         }
                     }
 
+                    // Mode Toggle Pill (Quick Search <-> App Library Grid)
+                    Rectangle {
+                        width: 88px;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: mode-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface;
+                        border-width: 1px;
+                        border-color: DesktopTheme.border-subtle;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            DesktopIcon {
+                                name: root.grid-mode ? "search" : "grid";
+                                icon-size: 14px;
+                                icon-color: DesktopTheme.primary;
+                            }
+                            Text {
+                                text: root.grid-mode ? "List" : "Grid";
+                                font-size: DesktopTheme.font-caption;
+                                font-weight: 600;
+                                color: DesktopTheme.on-surface;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        mode-touch := TouchArea {
+                            clicked => { root.grid-mode = !root.grid-mode; }
+                        }
+                    }
+
                     // Close Button Pill
                     Rectangle {
                         width: 44px;
@@ -500,8 +686,37 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Category Filter Tabs ---
-                HorizontalLayout {
+                // --- Inline Calculator Result (cosmic-launcher `=expr` style) ---
+                if root.calc-result != "": Rectangle {
+                    height: 44px;
+                    border-radius: 12px;
+                    background: DesktopTheme.primary-container;
+                    border-width: 1px;
+                    border-color: DesktopTheme.primary;
+
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        alignment: space-between;
+                        Text {
+                            text: "Calculator";
+                            font-size: DesktopTheme.font-caption;
+                            font-weight: 600;
+                            color: DesktopTheme.on-primary-container;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "= " + root.calc-result;
+                            font-size: DesktopTheme.font-title;
+                            font-weight: 700;
+                            color: DesktopTheme.on-primary-container;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // --- Category Filter Tabs (shown in App Library Grid mode) ---
+                if root.grid-mode: HorizontalLayout {
                     spacing: 8px;
                     height: 32px;
 
@@ -537,35 +752,45 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Application Grid ---
+                // --- Application Results: Quick Launcher List OR 5-Column App Library Grid ---
                 Rectangle {
                     vertical-stretch: 1;
                     clip: true;
 
-                    Flickable {
+                    if !root.grid-mode: Flickable {
                         width: 100%;
                         height: 100%;
 
                         VerticalLayout {
-                            spacing: 8px;
-                            padding-right: 8px;
+                            spacing: 6px;
+                            padding-right: 6px;
 
-                            for app in root.apps: Rectangle {
-                                height: 56px;
+                            for app[idx] in root.apps: Rectangle {
+                                height: 54px;
                                 border-radius: 12px;
-                                background: card-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface;
+                                background: idx == 0 && root.search-text != ""
+                                    ? DesktopTheme.primary-container
+                                    : (list-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface);
                                 border-width: 1px;
-                                border-color: card-touch.has-hover ? DesktopTheme.border-focused : DesktopTheme.border-subtle;
+                                border-color: idx == 0 && root.search-text != ""
+                                    ? DesktopTheme.primary
+                                    : (list-touch.has-hover ? DesktopTheme.border-focused : DesktopTheme.border-subtle);
 
-                                animate background { duration: 120ms; }
+                                animate background { duration: 100ms; }
 
                                 HorizontalLayout {
-                                    padding-left: 16px;
-                                    padding-right: 16px;
-                                    spacing: 14px;
+                                    padding-left: 14px;
+                                    padding-right: 14px;
+                                    spacing: 12px;
                                     alignment: center;
 
-                                    DesktopIcon {
+                                    if app.has-icon: Image {
+                                        source: app.icon;
+                                        width: 30px;
+                                        height: 30px;
+                                        image-fit: contain;
+                                    }
+                                    if !app.has-icon: DesktopIcon {
                                         name: app.icon-name;
                                         icon-size: 24px;
                                         icon-color: DesktopTheme.primary;
@@ -580,20 +805,108 @@ export component DesktopLauncherWindow inherits Window {
                                             text: app.name;
                                             font-size: DesktopTheme.font-body;
                                             font-weight: 600;
-                                            color: DesktopTheme.on-surface;
+                                            color: idx == 0 && root.search-text != ""
+                                                ? DesktopTheme.on-primary-container
+                                                : DesktopTheme.on-surface;
                                         }
 
                                         Text {
-                                            text: app.category != "" ? app.category : "Application";
+                                            text: app.category != "" ? app.category : app.exec;
                                             font-size: DesktopTheme.font-caption;
-                                            color: DesktopTheme.on-surface-muted;
+                                            color: idx == 0 && root.search-text != ""
+                                                ? DesktopTheme.on-primary-container
+                                                : DesktopTheme.on-surface-muted;
                                         }
                                     }
 
-                                    DesktopIcon {
-                                        name: "terminal";
-                                        icon-size: 14px;
-                                        icon-color: DesktopTheme.on-surface-muted;
+                                    if idx < 9: Text {
+                                        text: "Ctrl+" + (idx + 1);
+                                        font-size: 10px;
+                                        font-weight: 600;
+                                        color: DesktopTheme.on-surface-muted;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                list-touch := TouchArea {
+                                    clicked => {
+                                        root.app-clicked(app.id, app.exec);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if root.grid-mode: Flickable {
+                        width: 100%;
+                        height: 100%;
+                        content-height: Math.max(1, Math.ceil(root.apps.length / 5)) * 116px + 16px;
+
+                        grid-container := Rectangle {
+                            width: parent.width;
+                            height: Math.max(1, Math.ceil(root.apps.length / 5)) * 116px + 16px;
+
+                            property <length> col-w: parent.width / 5;
+
+                            for app[idx] in root.apps: Rectangle {
+                                x: Math.mod(idx, 5) * grid-container.col-w + (grid-container.col-w - self.width) / 2;
+                                y: Math.floor(idx / 5) * 116px;
+                                width: 132px;
+                                height: 106px;
+                                border-radius: card-touch.pressed ? 16px : 20px;
+                                background: card-touch.has-hover ? DesktopTheme.hover-tint : transparent;
+                                border-width: 1px;
+                                border-color: card-touch.has-hover ? DesktopTheme.border-subtle : transparent;
+
+                                animate background, border-radius { duration: 120ms; }
+
+                                VerticalLayout {
+                                    padding-top: 10px;
+                                    padding-bottom: 8px;
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    spacing: 8px;
+                                    alignment: center;
+
+                                    // Squircle Icon Container
+                                    Rectangle {
+                                        width: card-touch.pressed ? 52px : 56px;
+                                        height: card-touch.pressed ? 52px : 56px;
+                                        x: (parent.width - self.width) / 2;
+                                        border-radius: 18px;
+                                        background: DesktopTheme.surface;
+                                        border-width: 1px;
+                                        border-color: DesktopTheme.specular-rim;
+                                        clip: true;
+
+                                        animate width, height { duration: 100ms; }
+
+                                        if app.has-icon: Image {
+                                            source: app.icon;
+                                            width: parent.width * 0.78;
+                                            height: parent.height * 0.78;
+                                            image-fit: contain;
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+
+                                        if !app.has-icon: DesktopIcon {
+                                            name: app.icon-name;
+                                            icon-size: 26px;
+                                            icon-color: DesktopTheme.primary;
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+                                    }
+
+                                    Text {
+                                        text: app.name;
+                                        font-size: DesktopTheme.font-caption;
+                                        font-weight: 600;
+                                        color: DesktopTheme.on-surface;
+                                        horizontal-alignment: center;
+                                        overflow: elide;
+                                        width: 100%;
                                     }
                                 }
 

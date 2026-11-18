@@ -27,8 +27,9 @@ use smithay::{
     },
     delegate_compositor, delegate_data_device, delegate_input_method_manager,
     delegate_layer_shell, delegate_output, delegate_seat, delegate_shm,
-    delegate_text_input_manager, delegate_virtual_keyboard_manager, delegate_xdg_shell,
-    desktop::{layer_map_for_output, space::Space, LayerSurface, Window},
+    delegate_text_input_manager, delegate_virtual_keyboard_manager, delegate_xdg_decoration,
+    delegate_xdg_shell,
+    desktop::{layer_map_for_output, space::Space, LayerMap, LayerSurface, Window, WindowSurfaceType},
     input::{
         keyboard::FilterResult,
         pointer::{AxisFrame, ButtonEvent, MotionEvent},
@@ -36,7 +37,10 @@ use smithay::{
     },
     output::{Mode, Output, PhysicalProperties, Scale, Subpixel},
     reexports::{
-        wayland_protocols::xdg::shell::server::xdg_toplevel,
+        wayland_protocols::xdg::{
+            decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecorationMode,
+            shell::server::xdg_toplevel,
+        },
         wayland_server::{
             backend::{ClientData, ClientId, DisconnectReason},
             protocol::{
@@ -69,6 +73,7 @@ use smithay::{
                 Layer, LayerSurface as WlrLayerSurface, WlrLayerShellHandler, WlrLayerShellState,
             },
             xdg::{
+                decoration::{XdgDecorationHandler, XdgDecorationState},
                 PopupSurface, PositionerState, ToplevelSurface, XdgShellHandler, XdgShellState,
                 XdgToplevelSurfaceData,
             },
@@ -112,6 +117,7 @@ impl ClientData for ClientState {
 pub struct PenumbraServerState {
     pub compositor_state: CompositorState,
     pub xdg_shell_state: XdgShellState,
+    pub xdg_decoration_state: XdgDecorationState,
     pub layer_shell_state: WlrLayerShellState,
     pub shm_state: ShmState,
     pub seat_state: SeatState<Self>,
@@ -134,6 +140,7 @@ pub struct PenumbraServerState {
     pub cursor_status: smithay::input::pointer::CursorImageStatus,
     pub window_drag: Option<WindowDragState>,
     pub fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer,
+    pub titlebar_cache: std::collections::HashMap<crate::decorations::TitlebarCacheKey, smithay::backend::renderer::element::memory::MemoryRenderBuffer>,
 
     /// Phone (Output A) tasks in MRU order. `[0]` is the active app.
     pub phone_tasks: Vec<PhoneTask>,
@@ -145,6 +152,14 @@ pub struct PenumbraServerState {
     pub overview_scroll: f64,
     /// Last task list written to the shell, to avoid redundant writes.
     pub last_tasks_published: String,
+    /// Active desktop workspace (1..=4) for external displays.
+    pub active_desktop_workspace: u8,
+    /// Per-window workspace assignment for external desktop windows.
+    pub desktop_window_workspaces: std::collections::HashMap<smithay::reexports::wayland_server::backend::ObjectId, u8>,
+    /// Minimized external desktop windows.
+    pub minimized_desktop_windows: std::collections::HashSet<smithay::reexports::wayland_server::backend::ObjectId>,
+    /// Saved pre-maximize/fullscreen window geometry for restore.
+    pub pre_maximize_geometry: std::collections::HashMap<smithay::reexports::wayland_server::backend::ObjectId, (smithay::utils::Point<i32, smithay::utils::Logical>, smithay::utils::Size<i32, smithay::utils::Logical>)>,
     /// Logical canvas for Output A; layer surfaces are sized to this, not the raw mode.
     pub phone_logical_size: (i32, i32),
     pub screen_blanked: bool,
@@ -459,6 +474,57 @@ impl PenumbraServerState {
     }
 
     /// Resolves the surface receiving input at `pos` on external desktop displays.
+    /// Hit-tests a specific `Layer` on an output, respecting each surface's Wayland `input_region`.
+    fn desktop_layer_under(
+        map: &LayerMap,
+        layer: Layer,
+        output_loc: Point<i32, smithay::utils::Logical>,
+        rel_p: Point<f64, smithay::utils::Logical>,
+    ) -> Option<(WlSurface, Point<f64, smithay::utils::Logical>)> {
+        for l in map.layers_on(layer).rev() {
+            let Some(geo) = map.layer_geometry(l) else {
+                continue;
+            };
+            if !geo.to_f64().contains(rel_p) {
+                continue;
+            }
+            let surf_rel = (rel_p.x - geo.loc.x as f64, rel_p.y - geo.loc.y as f64);
+            if let Some((surf, loc)) = l.surface_under(surf_rel, WindowSurfaceType::ALL) {
+                let global_loc: Point<f64, smithay::utils::Logical> = (
+                    (output_loc.x + geo.loc.x + loc.x) as f64,
+                    (output_loc.y + geo.loc.y + loc.y) as f64,
+                )
+                    .into();
+                return Some((surf, global_loc));
+            }
+        }
+        None
+    }
+
+    /// Returns true if an `Overlay` or `Top` layer-shell surface accepts input at global `pos`.
+    pub(crate) fn has_desktop_top_or_overlay_at(
+        &self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) -> bool {
+        for output in self.external_outputs.values() {
+            let Some(output_geo) = self.space.output_geometry(output) else {
+                continue;
+            };
+            if !output_geo.to_f64().contains(pos) {
+                continue;
+            }
+            let rel_p: Point<f64, smithay::utils::Logical> =
+                (pos.x - output_geo.loc.x as f64, pos.y - output_geo.loc.y as f64).into();
+            let map = layer_map_for_output(output);
+            if Self::desktop_layer_under(&map, Layer::Overlay, output_geo.loc, rel_p).is_some()
+                || Self::desktop_layer_under(&map, Layer::Top, output_geo.loc, rel_p).is_some()
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Iterates through active external outputs, layer-shell surfaces, and floating XDG windows in `space`.
     #[allow(dead_code)]
     pub(crate) fn desktop_focus_under(
@@ -477,25 +543,22 @@ impl PenumbraServerState {
                 (pos.x - output_geo.loc.x as f64, pos.y - output_geo.loc.y as f64).into();
             let map = layer_map_for_output(output);
 
-            // 1. Overlay layer (highest priority - lockscreen/popups/dialogs)
-            if let Some(l) = map.layer_under(Layer::Overlay, rel_p) {
-                let geo = map.layer_geometry(l).unwrap_or_default();
-                let loc: Point<f64, smithay::utils::Logical> =
-                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
-                return Some((l.wl_surface().clone(), loc));
+            // 1. Overlay layer (highest priority - launcher/applets/lockscreen/popups)
+            if let Some(hit) = Self::desktop_layer_under(&map, Layer::Overlay, output_geo.loc, rel_p) {
+                return Some(hit);
             }
 
-            // 2. Top layer (desktop panel, dock, desktop applets)
-            if let Some(l) = map.layer_under(Layer::Top, rel_p) {
-                let geo = map.layer_geometry(l).unwrap_or_default();
-                let loc: Point<f64, smithay::utils::Logical> =
-                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
-                return Some((l.wl_surface().clone(), loc));
+            // 2. Top layer (desktop panel, dock)
+            if let Some(hit) = Self::desktop_layer_under(&map, Layer::Top, output_geo.loc, rel_p) {
+                return Some(hit);
             }
 
             // 3. Floating desktop XDG application windows in `space`
             if let Some((window, rel_pos)) = self.space.element_under(pos) {
-                if self.root_shell.as_ref() != Some(&window) && !self.is_phone_task(&window) {
+                if self.root_shell.as_ref() != Some(&window)
+                    && !self.is_phone_task(&window)
+                    && self.is_desktop_window_visible(&window)
+                {
                     if let Some(toplevel) = window.toplevel() {
                         return Some((toplevel.wl_surface().clone(), rel_pos.to_f64()));
                     }
@@ -503,19 +566,15 @@ impl PenumbraServerState {
             }
 
             // 4. Bottom layer
-            if let Some(l) = map.layer_under(Layer::Bottom, rel_p) {
-                let geo = map.layer_geometry(l).unwrap_or_default();
-                let loc: Point<f64, smithay::utils::Logical> =
-                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
-                return Some((l.wl_surface().clone(), loc));
+            if let Some(hit) = Self::desktop_layer_under(&map, Layer::Bottom, output_geo.loc, rel_p) {
+                return Some(hit);
             }
 
             // 5. Background layer (desktop wallpaper)
-            if let Some(l) = map.layer_under(Layer::Background, rel_p) {
-                let geo = map.layer_geometry(l).unwrap_or_default();
-                let loc: Point<f64, smithay::utils::Logical> =
-                    ((output_geo.loc.x + geo.loc.x) as f64, (output_geo.loc.y + geo.loc.y) as f64).into();
-                return Some((l.wl_surface().clone(), loc));
+            if let Some(hit) =
+                Self::desktop_layer_under(&map, Layer::Background, output_geo.loc, rel_p)
+            {
+                return Some(hit);
             }
         }
 
@@ -733,6 +792,7 @@ impl PenumbraServerState {
 
     /// Reads shell state + commands and publishes the phone task list.
     pub(crate) fn poll_shell_ipc(&mut self) {
+        self.poll_desktop_cmd_ipc();
         let incoming_state = if let Some(sock) = &self.state_socket {
             let mut latest = None;
             while let Some((st, _seq)) = sock.try_recv() {
@@ -883,7 +943,216 @@ impl PenumbraServerState {
             let _ = write_atomic(&runtime_path(phone::WINDOWS_FILE), &listing);
             self.last_tasks_published = listing;
         }
+
+        // Publish open external desktop windows for penumbra-desktop-shell dock integration
+        let mut desktop_listing = String::new();
+        for window in self.space.elements() {
+            if Some(window) == self.root_shell.as_ref() || self.is_phone_task(window) {
+                continue;
+            }
+            if let Some(t) = window.toplevel() {
+                let (app_id, title) = with_states(t.wl_surface(), |states| {
+                    states
+                        .data_map
+                        .get::<XdgToplevelSurfaceData>()
+                        .and_then(|d| d.lock().ok())
+                        .map(|d| {
+                            (
+                                d.app_id.clone().unwrap_or_default(),
+                                d.title.clone().unwrap_or_default(),
+                            )
+                        })
+                        .unwrap_or_default()
+                });
+                if !app_id.is_empty() || !title.is_empty() {
+                    let clean_title = title.replace(['\n', '\r', '\t'], " ");
+                    desktop_listing.push_str(&format!("{}\t{}\n", app_id, clean_title));
+                }
+            }
+        }
+        let desktop_path = runtime_path("penumbra-desktop-windows");
+        let existing_desktop = std::fs::read_to_string(&desktop_path).unwrap_or_default();
+        if desktop_listing != existing_desktop {
+            let _ = write_atomic(&desktop_path, &desktop_listing);
+        }
     }
+    /// Returns `true` if a desktop window belongs to the active workspace and is not minimized.
+    pub fn is_desktop_window_visible(&self, window: &Window) -> bool {
+        let Some(toplevel) = window.toplevel() else {
+            return true;
+        };
+        let id = smithay::reexports::wayland_server::Resource::id(toplevel.wl_surface());
+        if self.minimized_desktop_windows.contains(&id) {
+            return false;
+        }
+        let ws = self.desktop_window_workspaces.get(&id).copied().unwrap_or(1);
+        ws == self.active_desktop_workspace
+    }
+
+    pub fn switch_desktop_workspace(&mut self, ws: u8) {
+        let ws = ws.clamp(1, 4);
+        if self.active_desktop_workspace != ws {
+            self.active_desktop_workspace = ws;
+            let _ = write_atomic(&runtime_path("penumbra-desktop-workspace"), &ws.to_string());
+            tracing::info!("Desktop workspace switched to {}", ws);
+        }
+    }
+
+    pub fn focus_desktop_app(&mut self, app_id_query: &str) {
+        let q = app_id_query.trim().to_lowercase();
+        if q.is_empty() {
+            return;
+        }
+        let target = self
+            .space
+            .elements()
+            .filter(|w| Some(*w) != self.root_shell.as_ref() && !self.is_phone_task(w))
+            .find(|w| {
+                w.toplevel()
+                    .map(|t| {
+                        with_states(t.wl_surface(), |states| {
+                            states
+                                .data_map
+                                .get::<XdgToplevelSurfaceData>()
+                                .and_then(|d| d.lock().ok())
+                                .map(|d| {
+                                    let aid = d.app_id.as_deref().unwrap_or("").to_lowercase();
+                                    let title = d.title.as_deref().unwrap_or("").to_lowercase();
+                                    (!aid.is_empty() && (aid == q || q.contains(&aid) || aid.contains(&q)))
+                                        || (!title.is_empty() && title.contains(&q))
+                                })
+                                .unwrap_or(false)
+                        })
+                    })
+                    .unwrap_or(false)
+            })
+            .cloned();
+
+        if let Some(window) = target {
+            if let Some(toplevel) = window.toplevel() {
+                let id = smithay::reexports::wayland_server::Resource::id(toplevel.wl_surface());
+                self.minimized_desktop_windows.remove(&id);
+                let ws = self.desktop_window_workspaces.get(&id).copied().unwrap_or(1);
+                self.switch_desktop_workspace(ws);
+                self.space.raise_element(&window, true);
+                let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+                if let Some(kb) = self.seat.get_keyboard() {
+                    kb.set_focus(self, Some(toplevel.wl_surface().clone()), serial);
+                }
+            }
+        }
+    }
+
+    pub fn close_focused_desktop_window(&mut self) {
+        let focused = self.seat.get_keyboard().and_then(|kb| kb.current_focus());
+        if let Some(surf) = focused {
+            let matched = self
+                .space
+                .elements()
+                .filter(|w| Some(*w) != self.root_shell.as_ref() && !self.is_phone_task(w))
+                .find(|w| w.toplevel().map(|t| t.wl_surface() == &surf).unwrap_or(false))
+                .cloned();
+            if let Some(win) = matched {
+                if let Some(t) = win.toplevel() {
+                    t.send_close();
+                }
+            }
+        }
+    }
+
+    pub fn window_has_ssd(&self, window: &Window) -> bool {
+        if !self.is_convergence_active || Some(window) == self.root_shell.as_ref() || self.is_phone_task(window) {
+            return false;
+        }
+        window
+            .toplevel()
+            .map(|t| t.current_state().decoration_mode == Some(DecorationMode::ServerSide))
+            .unwrap_or(false)
+    }
+
+    pub fn toggle_maximize_window(&mut self, window: &Window) {
+        if let Some(t) = window.toplevel().cloned() {
+            let id = smithay::reexports::wayland_server::Resource::id(t.wl_surface());
+            if self.pre_maximize_geometry.contains_key(&id) {
+                self.unmaximize_request(t);
+            } else {
+                self.maximize_request(t);
+            }
+        }
+    }
+
+    pub fn minimize_window(&mut self, window: &Window) {
+        if let Some(t) = window.toplevel().cloned() {
+            self.minimize_request(t);
+        }
+    }
+
+    pub fn toggle_maximize_focused_desktop_window(&mut self) {
+        let focused = self.seat.get_keyboard().and_then(|kb| kb.current_focus());
+        let Some(surf) = focused else { return; };
+        let matched = self
+            .space
+            .elements()
+            .filter(|w| Some(*w) != self.root_shell.as_ref() && !self.is_phone_task(w))
+            .find(|w| w.toplevel().map(|t| t.wl_surface() == &surf).unwrap_or(false))
+            .cloned();
+        if let Some(win) = matched {
+            if let Some(t) = win.toplevel().cloned() {
+                let id = smithay::reexports::wayland_server::Resource::id(t.wl_surface());
+                if self.pre_maximize_geometry.contains_key(&id) {
+                    self.unmaximize_request(t);
+                } else {
+                    self.maximize_request(t);
+                }
+            }
+        }
+    }
+
+    pub fn cycle_desktop_window(&mut self) {
+        let visible: Vec<Window> = self
+            .space
+            .elements()
+            .filter(|w| {
+                Some(*w) != self.root_shell.as_ref()
+                    && !self.is_phone_task(w)
+                    && self.is_desktop_window_visible(w)
+            })
+            .cloned()
+            .collect();
+        if visible.len() >= 2 {
+            // Raise the bottom-most visible window to the top (Alt+Tab cycle)
+            let next = visible[0].clone();
+            self.space.raise_element(&next, true);
+            if let Some(t) = next.toplevel() {
+                let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+                if let Some(kb) = self.seat.get_keyboard() {
+                    kb.set_focus(self, Some(t.wl_surface().clone()), serial);
+                }
+            }
+        }
+    }
+
+    pub fn poll_desktop_cmd_ipc(&mut self) {
+        let cmd_path = runtime_path("penumbra-desktop-cmd");
+        if let Ok(content) = std::fs::read_to_string(&cmd_path) {
+            let _ = std::fs::remove_file(&cmd_path);
+            for line in content.lines() {
+                let line = line.trim();
+                if let Some(ws_str) = line.strip_prefix("switch_workspace:") {
+                    if let Ok(ws) = ws_str.trim().parse::<u8>() {
+                        self.switch_desktop_workspace(ws);
+                    }
+                } else if let Some(app) = line.strip_prefix("focus_app:") {
+                    self.focus_desktop_app(app);
+                } else if line == "close_focused" {
+                    self.close_focused_desktop_window();
+                } else if line == "toggle_maximize_focused" {
+                    self.toggle_maximize_focused_desktop_window();
+                }
+            }
+        }
+    }
+
     pub fn set_phone_home(&mut self) {
         self.shell_state.mode = PhoneMode::Home;
         self.shell_state.overview_index = 0;
@@ -1299,6 +1568,125 @@ impl XdgShellHandler for PenumbraServerState {
             }
         }
     }
+
+    fn maximize_request(&mut self, surface: ToplevelSurface) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        let Some(window) = matched else { return; };
+        if self.is_phone_task(&window) || Some(&window) == self.root_shell.as_ref() {
+            return;
+        }
+        let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
+        if !self.pre_maximize_geometry.contains_key(&id) {
+            let loc = self.space.element_location(&window).unwrap_or((PHONE_W + 40, 48).into());
+            let size = window.geometry().size;
+            self.pre_maximize_geometry.insert(id, (loc, size));
+        }
+        let out_geo = self
+            .external_outputs
+            .values()
+            .next()
+            .or(self.output_b.as_ref())
+            .and_then(|o| self.space.output_geometry(o))
+            .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
+        let top_inset = if self.window_has_ssd(&window) {
+            30 + crate::decorations::SSD_TITLEBAR_H
+        } else {
+            30
+        };
+        let work_loc = (out_geo.loc.x, out_geo.loc.y + top_inset);
+        let work_size: smithay::utils::Size<i32, smithay::utils::Logical> =
+            (out_geo.size.w, (out_geo.size.h - top_inset - 76).max(200)).into();
+        surface.with_pending_state(|state| {
+            state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Maximized);
+            state.size = Some(work_size);
+        });
+        surface.send_configure();
+        self.space.map_element(window, work_loc, true);
+    }
+
+    fn unmaximize_request(&mut self, surface: ToplevelSurface) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        let Some(window) = matched else { return; };
+        let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
+        let (loc, size) = self
+            .pre_maximize_geometry
+            .remove(&id)
+            .unwrap_or(((PHONE_W + 80, 64).into(), (1024, 680).into()));
+        surface.with_pending_state(|state| {
+            state.states.unset(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Maximized);
+            state.size = Some(size);
+        });
+        surface.send_configure();
+        self.space.map_element(window, loc, true);
+    }
+
+    fn minimize_request(&mut self, surface: ToplevelSurface) {
+        let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
+        self.minimized_desktop_windows.insert(id);
+    }
+
+    fn fullscreen_request(
+        &mut self,
+        surface: ToplevelSurface,
+        _output: Option<WlOutput>,
+    ) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        let Some(window) = matched else { return; };
+        if self.is_phone_task(&window) || Some(&window) == self.root_shell.as_ref() {
+            return;
+        }
+        let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
+        if !self.pre_maximize_geometry.contains_key(&id) {
+            let loc = self.space.element_location(&window).unwrap_or((PHONE_W + 40, 48).into());
+            let size = window.geometry().size;
+            self.pre_maximize_geometry.insert(id, (loc, size));
+        }
+        let out_geo = self
+            .external_outputs
+            .values()
+            .next()
+            .or(self.output_b.as_ref())
+            .and_then(|o| self.space.output_geometry(o))
+            .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
+        surface.with_pending_state(|state| {
+            state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Fullscreen);
+            state.size = Some(out_geo.size);
+        });
+        surface.send_configure();
+        self.space.map_element(window, out_geo.loc, true);
+    }
+
+    fn unfullscreen_request(&mut self, surface: ToplevelSurface) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        let Some(window) = matched else { return; };
+        let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
+        let (loc, size) = self
+            .pre_maximize_geometry
+            .remove(&id)
+            .unwrap_or(((PHONE_W + 80, 64).into(), (1024, 680).into()));
+        surface.with_pending_state(|state| {
+            state.states.unset(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Fullscreen);
+            state.size = Some(size);
+        });
+        surface.send_configure();
+        self.space.map_element(window, loc, true);
+    }
 }
 
 impl WlrLayerShellHandler for PenumbraServerState {
@@ -1352,6 +1740,7 @@ impl WlrLayerShellHandler for PenumbraServerState {
                 "Refusing to map desktop shell layer surface '{}' onto phone screen (no external display connected)",
                 namespace
             );
+            surface.send_close();
             return;
         };
 
@@ -1500,7 +1889,46 @@ impl InputMethodHandler for PenumbraServerState {
     }
 }
 
+impl XdgDecorationHandler for PenumbraServerState {
+    fn new_decoration(&mut self, toplevel: ToplevelSurface) {
+        let mode = if self.is_convergence_active {
+            DecorationMode::ServerSide
+        } else {
+            DecorationMode::ClientSide
+        };
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(mode);
+        });
+        toplevel.send_configure();
+    }
+
+    fn request_mode(&mut self, toplevel: ToplevelSurface, mode: DecorationMode) {
+        let chosen = if self.is_convergence_active {
+            DecorationMode::ServerSide
+        } else {
+            mode
+        };
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(chosen);
+        });
+        toplevel.send_configure();
+    }
+
+    fn unset_mode(&mut self, toplevel: ToplevelSurface) {
+        let mode = if self.is_convergence_active {
+            DecorationMode::ServerSide
+        } else {
+            DecorationMode::ClientSide
+        };
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(mode);
+        });
+        toplevel.send_configure();
+    }
+}
+
 delegate_xdg_shell!(PenumbraServerState);
+delegate_xdg_decoration!(PenumbraServerState);
 delegate_layer_shell!(PenumbraServerState);
 delegate_compositor!(PenumbraServerState);
 delegate_shm!(PenumbraServerState);
@@ -1644,6 +2072,7 @@ impl PenumbraCompositor {
         let mut seat_state = SeatState::new();
         let seat = seat_state.new_wl_seat(&dh, "penumbra-seat");
         let xdg_shell_state = XdgShellState::new::<PenumbraServerState>(&dh);
+        let xdg_decoration_state = XdgDecorationState::new::<PenumbraServerState>(&dh);
         let layer_shell_state = WlrLayerShellState::new::<PenumbraServerState>(&dh);
         let data_device_state = DataDeviceState::new::<PenumbraServerState>(&dh);
         let output_manager_state =
@@ -1714,6 +2143,7 @@ impl PenumbraCompositor {
         let mut state = PenumbraServerState {
             compositor_state,
             xdg_shell_state,
+            xdg_decoration_state,
             layer_shell_state,
             shm_state,
             seat_state,
@@ -1750,12 +2180,17 @@ impl PenumbraCompositor {
                 Transform::Normal,
                 None,
             ),
+            titlebar_cache: std::collections::HashMap::new(),
             phone_tasks: Vec::new(),
             next_task_id: 1,
             shell_state: ShellState::default(),
             state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
             overview_scroll: 0.0,
             last_tasks_published: String::from("\u{0}"),
+            active_desktop_workspace: 1,
+            desktop_window_workspaces: std::collections::HashMap::new(),
+            minimized_desktop_windows: std::collections::HashSet::new(),
+            pre_maximize_geometry: std::collections::HashMap::new(),
             phone_logical_size: (mode_a.size.w, mode_a.size.h),
             screen_blanked: false,
             saved_brightness: 2500,

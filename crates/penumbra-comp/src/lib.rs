@@ -1,6 +1,7 @@
 //! Penumbra Compositor library.
 
 pub mod args;
+pub mod decorations;
 #[cfg(feature = "native-drm")]
 pub mod native;
 #[cfg(feature = "native-drm")]

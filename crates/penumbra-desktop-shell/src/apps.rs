@@ -1,7 +1,7 @@
 //! Application discovery, categorization, search filtering, and process spawning
 //! for the Penumbra Desktop Convergence Shell.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use freedesktop_desktop_entry::{default_paths, DesktopEntry, Iter};
 use tracing::info;
@@ -13,7 +13,38 @@ pub struct AppInfo {
     pub exec: String,
     pub category: String,
     pub icon_name: String,
+    pub icon_path: Option<PathBuf>,
     pub terminal: bool,
+}
+
+/// Loads a Slint `Image` from an XDG icon path if available.
+pub fn load_slint_icon(path: Option<&Path>) -> (slint::Image, bool) {
+    if let Some(p) = path {
+        if let Ok(img) = slint::Image::load_from_path(p) {
+            return (img, true);
+        }
+    }
+    (slint::Image::default(), false)
+}
+
+/// Reads currently open external desktop windows written by `penumbra-comp`.
+pub fn read_open_desktop_windows() -> Vec<(String, String)> {
+    let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+    let path = Path::new(&dir).join("penumbra-desktop-windows");
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    content
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            if line.is_empty() {
+                return None;
+            }
+            let (app_id, title) = line.split_once('\t').unwrap_or((line, ""));
+            Some((app_id.trim().to_string(), title.trim().to_string()))
+        })
+        .collect()
 }
 
 /// Discovers all installed XDG `.desktop` applications from system and user directories.
@@ -38,6 +69,9 @@ pub fn discover_desktop_apps() -> Vec<AppInfo> {
                     let exec_clean = clean_exec(exec_raw);
                     let category = classify_categories(&entry.categories().unwrap_or_default());
                     let icon_name = determine_icon_name(&id, &name, &exec_clean, &category);
+                    let icon_path = entry
+                        .icon()
+                        .and_then(penumbra_shell::apps::find_icon_fast);
 
                     apps.push(AppInfo {
                         id,
@@ -45,6 +79,7 @@ pub fn discover_desktop_apps() -> Vec<AppInfo> {
                         exec: exec_clean,
                         category,
                         icon_name,
+                        icon_path,
                         terminal: entry.terminal(),
                     });
                 }
@@ -71,6 +106,7 @@ pub fn default_fallback_apps() -> Vec<AppInfo> {
             exec: "kgx".into(),
             category: "System".into(),
             icon_name: "terminal".into(),
+            icon_path: penumbra_shell::apps::find_icon_fast("utilities-terminal"),
             terminal: false,
         },
         AppInfo {
@@ -79,6 +115,7 @@ pub fn default_fallback_apps() -> Vec<AppInfo> {
             exec: "firefox".into(),
             category: "Internet".into(),
             icon_name: "browser".into(),
+            icon_path: penumbra_shell::apps::find_icon_fast("firefox"),
             terminal: false,
         },
         AppInfo {
@@ -87,6 +124,7 @@ pub fn default_fallback_apps() -> Vec<AppInfo> {
             exec: "nautilus".into(),
             category: "Utilities".into(),
             icon_name: "folder".into(),
+            icon_path: penumbra_shell::apps::find_icon_fast("system-file-manager"),
             terminal: false,
         },
         AppInfo {
@@ -95,6 +133,7 @@ pub fn default_fallback_apps() -> Vec<AppInfo> {
             exec: "gedit".into(),
             category: "Utilities".into(),
             icon_name: "edit".into(),
+            icon_path: penumbra_shell::apps::find_icon_fast("accessories-text-editor"),
             terminal: false,
         },
         AppInfo {
@@ -103,6 +142,7 @@ pub fn default_fallback_apps() -> Vec<AppInfo> {
             exec: "penumbra-settings".into(),
             category: "System".into(),
             icon_name: "settings".into(),
+            icon_path: penumbra_shell::apps::find_icon_fast("penumbra-settings"),
             terminal: false,
         },
     ]
@@ -234,6 +274,7 @@ mod tests {
                 exec: "firefox".into(),
                 category: "Internet".into(),
                 icon_name: "browser".into(),
+                icon_path: None,
                 terminal: false,
             },
             AppInfo {
@@ -242,6 +283,7 @@ mod tests {
                 exec: "alacritty".into(),
                 category: "System".into(),
                 icon_name: "terminal".into(),
+                icon_path: None,
                 terminal: false,
             },
             AppInfo {
@@ -250,6 +292,7 @@ mod tests {
                 exec: "gnome-calculator".into(),
                 category: "Utilities".into(),
                 icon_name: "grid".into(),
+                icon_path: None,
                 terminal: false,
             },
         ];

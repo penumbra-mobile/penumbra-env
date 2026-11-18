@@ -19,6 +19,7 @@ required_bins=(
     penumbra-keyboard
     penumbra-greeter
     penumbra-shell
+    penumbra-desktop-shell
 )
 
 BLUE='\033[0;34m'

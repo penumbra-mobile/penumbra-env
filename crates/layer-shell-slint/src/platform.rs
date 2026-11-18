@@ -155,7 +155,7 @@ impl LayerShellPlatform {
         );
 
         let connection = Connection::connect_to_env()?;
-        let (globals, event_queue) = registry_queue_init::<AppState>(&connection).map_err(|e| {
+        let (globals, mut event_queue) = registry_queue_init::<AppState>(&connection).map_err(|e| {
             LayerShellError::ProtocolError(format!("Registry init failed: {:?}", e))
         })?;
 
@@ -196,7 +196,7 @@ impl LayerShellPlatform {
 
         let exit_flag = Arc::new(AtomicBool::new(false));
 
-        let app_state = AppState {
+        let mut app_state = AppState {
             registry_state,
             compositor_state,
             output_state,
@@ -212,6 +212,11 @@ impl LayerShellPlatform {
             touch_targets: std::collections::HashMap::new(),
             exit_flag: exit_flag.clone(),
         };
+
+        // Flush wl_output / wl_seat binds and receive initial output info (name, mode, done)
+        // before any window adapter queries `output_state.outputs()`.
+        let _ = event_queue.roundtrip(&mut app_state);
+        let _ = event_queue.roundtrip(&mut app_state);
 
         // Create the Calloop event loop
         let event_loop = calloop::EventLoop::<AppState>::try_new().map_err(|e| {
@@ -272,11 +277,11 @@ impl Platform for LayerShellPlatform {
         let target_output = if let Some(ref target_name) = config.output_name {
             let found = rt.app_state.output_state.outputs().find(|output| {
                 if let Some(info) = rt.app_state.output_state.info(output) {
+                    let name = info.name.as_deref().unwrap_or("");
                     if target_name == "external" {
-                        !info.name.as_deref().unwrap_or("").contains("DSI")
-                            && !info.name.as_deref().unwrap_or("").contains("Phone")
+                        !name.is_empty() && !name.contains("DSI") && !name.contains("Phone")
                     } else {
-                        info.name.as_deref() == Some(target_name.as_str())
+                        name == target_name.as_str()
                     }
                 } else {
                     false

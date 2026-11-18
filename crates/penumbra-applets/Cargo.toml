@@ -1,0 +1,17 @@
+[package]
+name = "penumbra-applets"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "COSMIC-inspired interactive desktop panel applets (Audio, Network, Battery, Calendar, Power) in Slint"
+
+[dependencies]
+penumbra-services = { path = "../penumbra-services" }
+slint = { version = "1.18", default-features = false, features = ["compat-1-2", "std"] }
+chrono = "0.4"
+tracing = "0.1"
+
+[build-dependencies]
+slint-build = "1.18"
+

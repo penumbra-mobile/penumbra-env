@@ -270,14 +270,71 @@ fn handle_keyboard(
             if let Some(keyboard) = server.seat.get_keyboard() {
                 let serial = input.next_serial();
                 let time = input.time();
+                let mut action: Option<&'static str> = None;
                 keyboard.input::<(), _>(
                     server,
                     keycode,
                     state,
                     serial,
                     time,
-                    |_, _, _| FilterResult::Forward,
+                    |_server, modifiers, handle| {
+                        if state == KeyState::Pressed {
+                            let sym = handle.modified_sym().raw();
+                            // Super (Logo) + Q or Alt + F4 -> Close focused desktop window
+                            if (modifiers.logo && (sym == b'q' as u32 || sym == b'Q' as u32))
+                                || (modifiers.alt && sym == 0xffc1)
+                            {
+                                action = Some("close");
+                                return FilterResult::Intercept(());
+                            }
+                            // Super + F / Super + M -> Toggle maximize
+                            if modifiers.logo
+                                && matches!(sym as u8, b'f' | b'F' | b'm' | b'M')
+                            {
+                                action = Some("maximize");
+                                return FilterResult::Intercept(());
+                            }
+                            // Super + 1..4 -> Switch desktop workspace
+                            if modifiers.logo && (b'1' as u32..=b'4' as u32).contains(&sym) {
+                                action = match sym as u8 {
+                                    b'1' => Some("ws1"),
+                                    b'2' => Some("ws2"),
+                                    b'3' => Some("ws3"),
+                                    _ => Some("ws4"),
+                                };
+                                return FilterResult::Intercept(());
+                            }
+                            // Alt + Tab -> Cycle desktop window
+                            if modifiers.alt && sym == 0xff09 {
+                                action = Some("cycle");
+                                return FilterResult::Intercept(());
+                            }
+                            // Super_L / Super_R alone -> Toggle COSMIC Launcher
+                            if sym == 0xffeb || sym == 0xffec {
+                                action = Some("launcher");
+                            }
+                        }
+                        FilterResult::Forward
+                    },
                 );
+                if let Some(act) = action {
+                    match act {
+                        "close" => server.close_focused_desktop_window(),
+                        "maximize" => server.toggle_maximize_focused_desktop_window(),
+                        "ws1" => server.switch_desktop_workspace(1),
+                        "ws2" => server.switch_desktop_workspace(2),
+                        "ws3" => server.switch_desktop_workspace(3),
+                        "ws4" => server.switch_desktop_workspace(4),
+                        "cycle" => server.cycle_desktop_window(),
+                        "launcher" if server.is_convergence_active => {
+                            let _ = crate::phone::write_atomic(
+                                &crate::phone::runtime_path("penumbra-launcher-toggle"),
+                                "toggle",
+                            );
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
     }
@@ -326,8 +383,69 @@ pub(crate) fn handle(
             if event.state() == ButtonState::Pressed {
                 let pos = server.pointer_location;
                 if pos.x >= PHONE_W as f64 {
-                    let clicked_window = server.space.element_under(pos).map(|(w, _)| w.clone());
-                    if let Some(window) = clicked_window {
+                    // Check layer-shell overlays/panels first (respecting wl_surface input_region)
+                    // so clicking Panel/Dock/Launcher never steals keyboard focus to a window underneath.
+                    let on_top_or_overlay = server.has_desktop_top_or_overlay_at(pos);
+
+                    if on_top_or_overlay {
+                        if let Some((surf, _)) = server.desktop_focus_under(pos) {
+                            let serial = input.next_serial();
+                            if let Some(keyboard) = server.seat.get_keyboard() {
+                                keyboard.set_focus(server, Some(surf), serial);
+                            }
+                        }
+                    } else {
+                        // Hit-test COSMIC SSD titlebars in top-to-bottom z-order
+                        let ssd_hit = server
+                            .space
+                            .elements()
+                            .rev()
+                            .filter(|w| {
+                                server.window_has_ssd(w) && server.is_desktop_window_visible(w)
+                            })
+                            .find_map(|w| {
+                                let loc = server.space.element_location(w)?;
+                                let w_size = w.geometry().size;
+                                let action = crate::decorations::hit_test_titlebar(
+                                    (loc.x, loc.y),
+                                    w_size.w,
+                                    (pos.x, pos.y),
+                                )?;
+                                Some((w.clone(), loc, action))
+                            });
+
+                        if let Some((window, loc, action)) = ssd_hit {
+                            server.space.raise_element(&window, true);
+                            if let Some(toplevel) = window.toplevel() {
+                                let surf = toplevel.wl_surface().clone();
+                                let serial = input.next_serial();
+                                if let Some(keyboard) = server.seat.get_keyboard() {
+                                    keyboard.set_focus(server, Some(surf), serial);
+                                }
+                            }
+                            match action {
+                                crate::decorations::TitlebarAction::Close => {
+                                    if let Some(toplevel) = window.toplevel() {
+                                        toplevel.send_close();
+                                    }
+                                }
+                                crate::decorations::TitlebarAction::Maximize => {
+                                    server.toggle_maximize_window(&window);
+                                }
+                                crate::decorations::TitlebarAction::Minimize => {
+                                    server.minimize_window(&window);
+                                }
+                                crate::decorations::TitlebarAction::Drag => {
+                                    server.window_drag = Some(crate::server::WindowDragState {
+                                        window,
+                                        initial_pointer_loc: pos,
+                                        initial_window_loc: (loc.x, loc.y).into(),
+                                    });
+                                }
+                            }
+                            return;
+                        } else if let Some((window, _)) = server.space.element_under(pos) {
+                        let window = window.clone();
                         if server.root_shell.as_ref() != Some(&window) && !server.is_phone_task(&window) {
                             server.space.raise_element(&window, true);
                             if let Some(toplevel) = window.toplevel() {
@@ -343,6 +461,7 @@ pub(crate) fn handle(
                         if let Some(keyboard) = server.seat.get_keyboard() {
                             keyboard.set_focus(server, Some(surf), serial);
                         }
+                    }
                     }
                 }
             } else if event.state() == ButtonState::Released {

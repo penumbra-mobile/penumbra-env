@@ -27,6 +27,7 @@ required_bins=(
     penumbra-keyboard
     penumbra-greeter
     penumbra-shell
+    penumbra-desktop-shell
 )
 
 BOLD='\033[1m'

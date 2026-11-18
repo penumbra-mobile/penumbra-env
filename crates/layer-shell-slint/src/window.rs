@@ -117,10 +117,12 @@ impl LayerWindow {
     ) {
         let region = compositor.create_region(&self.qh, ());
         if is_expanded_or_dragging {
-            region.add(0, 0, screen_width, screen_height);
-        } else {
-            region.add(0, 0, screen_width, top_bar_height);
+            region.add(0, 0, screen_width.max(1), screen_height.max(1));
+        } else if top_bar_height > 0 {
+            region.add(0, 0, screen_width.max(1), top_bar_height);
         }
+        // When !is_expanded_or_dragging && top_bar_height <= 0, leave `region` empty
+        // (zero `add` calls) so the surface is 100% click-through.
         let wl_surface = self.layer_surface.wl_surface();
         wl_surface.set_input_region(Some(&region));
         wl_surface.commit();

@@ -8,7 +8,7 @@ use smithay::{
         allocator::{
             dmabuf::Dmabuf,
             gbm::{GbmAllocator, GbmBufferFlags, GbmDevice},
-            Fourcc,
+            Format, Fourcc, Modifier,
         },
         drm::{DrmDevice, DrmDeviceFd, GbmBufferedSurface},
         egl::{EGLContext, EGLDevice, EGLDisplay},
@@ -58,6 +58,74 @@ use crate::{
     },
 };
 use penumbra_gestures::compute_home_collapse_scale;
+
+/// Reads a boolean key from `PENUMBRA_<ENV_KEY>` or `penumbra/drm.conf`
+/// (`$XDG_CONFIG_HOME/penumbra/drm.conf`, `~/.config/penumbra/drm.conf`, `/etc/penumbra/drm.conf`).
+fn read_drm_flag(env_key: &str, conf_key: &str) -> bool {
+    if let Ok(val) = std::env::var(env_key) {
+        let v = val.trim().to_ascii_lowercase();
+        if matches!(v.as_str(), "1" | "true" | "yes" | "on") {
+            return true;
+        }
+        if matches!(v.as_str(), "0" | "false" | "no" | "off") {
+            return false;
+        }
+    }
+
+    let mut candidates = Vec::new();
+    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+        candidates.push(std::path::PathBuf::from(xdg).join("penumbra/drm.conf"));
+    }
+    if let Ok(home) = std::env::var("HOME") {
+        candidates.push(std::path::PathBuf::from(home).join(".config/penumbra/drm.conf"));
+    }
+    candidates.push(std::path::PathBuf::from("/etc/penumbra/drm.conf"));
+
+    for path in candidates {
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            for line in contents.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((k, v)) = line.split_once('=') {
+                    if k.trim() == conf_key {
+                        let v = v.trim().to_ascii_lowercase();
+                        return matches!(v.as_str(), "1" | "true" | "yes" | "on");
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn filter_drm_formats(formats: &[Format], no_modifiers: bool) -> Vec<Format> {
+    if !no_modifiers {
+        return formats.to_vec();
+    }
+    // Match wlroots WLR_DRM_NO_MODIFIERS=1: force Modifier::Invalid so Smithay
+    // uses implicit-modifier gbm_bo_create + drmModeAddFB instead of AddFB2WithModifiers.
+    let implicit: Vec<Format> = formats
+        .iter()
+        .copied()
+        .filter(|f| f.modifier == Modifier::Invalid)
+        .collect();
+    if implicit.is_empty() {
+        vec![
+            Format {
+                code: Fourcc::Abgr8888,
+                modifier: Modifier::Invalid,
+            },
+            Format {
+                code: Fourcc::Argb8888,
+                modifier: Modifier::Invalid,
+            },
+        ]
+    } else {
+        implicit
+    }
+}
 
 type NativeSurface = GbmBufferedSurface<GbmAllocator<DrmDeviceFd>, ()>;
 
@@ -193,11 +261,18 @@ impl NativeState {
                 }
             };
 
+            let no_mods = read_drm_flag("PENUMBRA_DRM_NO_MODIFIERS", "no_modifiers")
+                || read_drm_flag("PENUMBRA_EXTERNAL_DRM_NO_MODIFIERS", "external_no_modifiers");
+            let ext_formats = filter_drm_formats(&self.renderer_formats, no_mods);
+            if no_mods {
+                tracing::info!(connector = %discovered_conn.name, count = ext_formats.len(), "Using linear-only DRM formats (no_modifiers) for external display");
+            }
+
             let surface = match GbmBufferedSurface::<_, ()>::new(
                 drm_surface,
                 self.allocator.clone(),
                 &[Fourcc::Abgr8888, Fourcc::Argb8888],
-                self.renderer_formats.clone(),
+                ext_formats,
             ) {
                 Ok(s) => s,
                 Err(err) => {
@@ -871,18 +946,56 @@ fn render_external_frame(
     let bottom = layer_elements_for_output(renderer, &ext.output, Layer::Bottom);
 
     let mut window_elements = Vec::new();
+    let mut titlebar_elements = Vec::new();
+    let focused_surf = server.seat.get_keyboard().and_then(|kb| kb.current_focus());
+    let mut ssd_windows = Vec::new();
     for window in server.space.elements() {
-        if Some(window) == server.root_shell.as_ref() || server.is_phone_task(window) {
+        if Some(window) == server.root_shell.as_ref()
+            || server.is_phone_task(window)
+            || !server.is_desktop_window_visible(window)
+        {
             continue;
         }
         if let Some(toplevel) = window.toplevel() {
             if let Some(loc) = server.space.element_location(window) {
-                let win_rect = Rectangle::new(loc.into(), window.geometry().size.into());
+                let win_size = window.geometry().size;
+                let has_ssd = server.window_has_ssd(window);
+                let top_pad = if has_ssd { crate::decorations::SSD_TITLEBAR_H } else { 0 };
+                let win_rect = Rectangle::new(
+                    (loc.x, loc.y - top_pad).into(),
+                    (win_size.w, win_size.h + top_pad).into(),
+                );
                 if win_rect.intersection(output_geo).is_some() {
                     let ext_loc = (loc.x - output_geo.loc.x, loc.y - output_geo.loc.y);
                     window_elements.extend(surface_elements(renderer, toplevel.wl_surface(), ext_loc, 1.0));
+                    if has_ssd && win_size.w > 0 {
+                        let is_focused = focused_surf.as_ref() == Some(toplevel.wl_surface());
+                        let title = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
+                            states
+                                .data_map
+                                .get::<smithay::wayland::shell::xdg::XdgToplevelSurfaceData>()
+                                .and_then(|d| {
+                                    let guard = d.lock().ok()?;
+                                    guard.title.clone().or_else(|| guard.app_id.clone())
+                                })
+                        })
+                        .unwrap_or_else(|| "Application".to_string());
+                        ssd_windows.push((win_size.w, title, is_focused, ext_loc));
+                    }
                 }
             }
+        }
+    }
+    for (w, title, focused, ext_loc) in ssd_windows {
+        if let Some(elem) = crate::decorations::render_titlebar_element(
+            renderer,
+            &mut server.titlebar_cache,
+            w,
+            &title,
+            focused,
+            ext_loc,
+        ) {
+            titlebar_elements.push(elem);
         }
     }
 
@@ -917,8 +1030,8 @@ fn render_external_frame(
                     loc,
                     &server.fallback_cursor_buffer,
                     None,
-                    None,
-                    Some(Size::<i32, smithay::utils::Logical>::from((24, 24))),
+                    Some(smithay::utils::Rectangle::<f64, smithay::utils::Logical>::from_size((21.0, 31.0).into())),
+                    Some(Size::<i32, smithay::utils::Logical>::from((16, 24))),
                     smithay::backend::renderer::element::Kind::Cursor,
                 ) {
                     cursor_memory_element = Some(elem);
@@ -935,6 +1048,9 @@ fn render_external_frame(
     draw_render_elements(&mut frame, 1.0, &background, &[damage])?;
     draw_render_elements(&mut frame, 1.0, &bottom, &[damage])?;
     draw_render_elements(&mut frame, 1.0, &window_elements, &[damage])?;
+    if !titlebar_elements.is_empty() {
+        draw_render_elements(&mut frame, 1.0, &titlebar_elements, &[damage])?;
+    }
     draw_render_elements(&mut frame, 1.0, &top, &[damage])?;
     draw_render_elements(&mut frame, 1.0, &overlay, &[damage])?;
 
@@ -1036,11 +1152,13 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         gbm.clone(),
         GbmBufferFlags::RENDERING | GbmBufferFlags::SCANOUT,
     );
+    let primary_no_mods = read_drm_flag("PENUMBRA_DRM_NO_MODIFIERS", "no_modifiers");
+    let primary_formats = filter_drm_formats(&renderer_formats, primary_no_mods);
     let surface = GbmBufferedSurface::<_, ()>::new(
         drm_surface,
         allocator.clone(),
         &[Fourcc::Abgr8888, Fourcc::Argb8888],
-        renderer_formats.clone(),
+        primary_formats,
     )?;
 
     let socket_name = &_compositor.args.socket;
@@ -1056,6 +1174,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let touch = seat.add_touch();
     let _keyboard = seat.add_keyboard(Default::default(), 200, 200)?;
     let xdg_shell_state = XdgShellState::new::<PenumbraServerState>(&dh);
+    let xdg_decoration_state = smithay::wayland::shell::xdg::decoration::XdgDecorationState::new::<PenumbraServerState>(&dh);
     let layer_shell_state = WlrLayerShellState::new::<PenumbraServerState>(&dh);
     let data_device_state = DataDeviceState::new::<PenumbraServerState>(&dh);
     let output_manager_state = OutputManagerState::new_with_xdg_output::<PenumbraServerState>(&dh);
@@ -1090,6 +1209,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let server = PenumbraServerState {
         compositor_state,
         xdg_shell_state,
+        xdg_decoration_state,
         layer_shell_state,
         shm_state,
         seat_state,
@@ -1120,12 +1240,17 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             Transform::Normal,
             None,
         ),
+        titlebar_cache: std::collections::HashMap::new(),
         phone_tasks: Vec::new(),
         next_task_id: 1,
         shell_state: ShellState::default(),
         state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
         overview_scroll: 0.0,
         last_tasks_published: String::from("\u{0}"),
+        active_desktop_workspace: 1,
+        desktop_window_workspaces: std::collections::HashMap::new(),
+        minimized_desktop_windows: std::collections::HashSet::new(),
+        pre_maximize_geometry: std::collections::HashMap::new(),
         phone_logical_size: (phone::PHONE_W, phone::PHONE_H),
         screen_blanked: false,
         saved_brightness: 2500,

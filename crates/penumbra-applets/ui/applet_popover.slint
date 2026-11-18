@@ -1,0 +1,503 @@
+export struct CalendarDay {
+    label: string,
+    in-month: bool,
+    is-today: bool,
+}
+
+global AppletTheme {
+    out property <color> popover-bg: #18181ef5;
+    out property <color> surface: #22222b;
+    out property <color> surface-hover: #2d2d39;
+    out property <color> primary: #93c5fd;
+    out property <color> on-primary: #062848;
+    out property <color> primary-container: #1e3a5f;
+    out property <color> on-primary-container: #dbeafe;
+    out property <color> on-surface: #f1f1f5;
+    out property <color> on-surface-variant: #a8abb8;
+    out property <color> border-subtle: #ffffff1a;
+    out property <color> error: #fca5a5;
+    out property <color> error-container: #4c1d24;
+    out property <color> success: #86efac;
+}
+
+component AppletIcon inherits Rectangle {
+    in property <string> name;
+    in property <color> icon-color: AppletTheme.on-surface;
+    in property <length> icon-size: 18px;
+
+    property <string> d:
+        root.name == "wifi" ? "M2 9 Q12 -1 22 9 M5 12.5 Q12 6 19 12.5 M8.5 16 Q12 12.5 15.5 16 M11.5 19 A 0.5 0.5 0 1 0 12.5 19 A 0.5 0.5 0 1 0 11.5 19 Z"
+        : root.name == "volume" ? "M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z M16 9 Q18.5 12 16 15 M18.5 6.5 Q22 12 18.5 17.5"
+        : root.name == "volume-mute" ? "M4 9 L8 9 L13 5 L13 19 L8 15 L4 15 Z M16 9 L21 14 M21 9 L16 14"
+        : root.name == "battery" ? "M3 8 L19 8 L19 16 L3 16 Z M21 11 L21 13 M6 11 L14 11 L14 13 L6 13 Z"
+        : root.name == "power" ? "M6.34 6.34 A 8 8 0 1 0 17.66 6.34 M12 3 L12 12"
+        : root.name == "lock" ? "M7 11 V7 A 5 5 0 0 1 17 7 V11 M5 11 H19 V21 H5 Z"
+        : root.name == "restart" ? "M20 4 V9 H15 M4.93 9 A 9 9 0 0 1 18.36 5.64 L20 9 M19.07 15 A 9 9 0 0 1 5.64 18.36"
+        : root.name == "logout" ? "M9 21 H5 A 2 2 0 0 1 3 19 V5 A 2 2 0 0 1 5 3 H9 M16 17 L21 12 L16 7 M21 12 H9"
+        : root.name == "settings" ? "M4 7 L20 7 M4 17 L20 17 M9 4 L9 10 M15 14 L15 20"
+        : "M12 2 A 10 10 0 1 0 12 22 A 10 10 0 1 0 12 2 Z";
+
+    width: root.icon-size;
+    height: root.icon-size;
+    background: transparent;
+
+    Path {
+        width: parent.width;
+        height: parent.height;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.d;
+        stroke: root.icon-color;
+        stroke-width: 1.9px;
+        fill: transparent;
+    }
+}
+
+component PopoverActionRow inherits Rectangle {
+    in property <string> title;
+    in property <string> icon-name;
+    in property <color> tint: AppletTheme.on-surface;
+    in property <bool> danger: false;
+    callback clicked();
+
+    height: 40px;
+    border-radius: 10px;
+    background: ta.has-hover
+        ? (root.danger ? AppletTheme.error-container : AppletTheme.surface-hover)
+        : AppletTheme.surface;
+    border-width: 1px;
+    border-color: AppletTheme.border-subtle;
+
+    animate background { duration: 100ms; }
+
+    ta := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 10px;
+        alignment: start;
+
+        VerticalLayout {
+            alignment: center;
+            AppletIcon {
+                name: root.icon-name;
+                icon-size: 16px;
+                icon-color: root.danger ? AppletTheme.error : root.tint;
+            }
+        }
+
+        Text {
+            text: root.title;
+            font-size: 13px;
+            font-weight: 600;
+            color: root.danger ? AppletTheme.error : root.tint;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component AppletPopoverWindow inherits Window {
+    in-out property <string> active-applet: ""; // "", "time", "network", "audio", "battery", "power"
+    in-out property <float> volume: 0.65;
+    in-out property <bool> is-muted: false;
+    in-out property <bool> wifi-connected: true;
+    in-out property <string> wifi-ssid: "Wi-Fi";
+    in-out property <int> wifi-signal: 4;
+    in-out property <float> battery-pct: 100.0;
+    in-out property <bool> is-charging: false;
+    in-out property <string> power-profile: "balanced"; // "power-saver", "balanced", "performance"
+    in-out property <string> calendar-header: "November 2026";
+    in-out property <string> time-text: "12:00";
+    in-out property <string> date-text: "Wed, Nov 18";
+    in-out property <[CalendarDay]> calendar-days: [];
+
+    callback close-requested();
+    callback volume-changed(float);
+    callback mute-toggled(bool);
+    callback power-profile-selected(string);
+    callback open-settings(string);
+    callback power-action(string);
+
+    property <bool> is-open: root.active-applet != "";
+    property <length> card-width: root.active-applet == "time" ? 316px : (root.active-applet == "power" ? 240px : 300px);
+
+    background: transparent;
+
+    // Click-outside dismiss layer
+    TouchArea {
+        enabled: root.is-open;
+        width: 100%;
+        height: 100%;
+        clicked => { root.close-requested(); }
+    }
+
+    if root.is-open: card := Rectangle {
+        x: root.active-applet == "time"
+            ? (parent.width - self.width) / 2
+            : (parent.width - self.width - 12px);
+        y: 44px;
+        width: root.card-width;
+        height: content-col.preferred-height;
+        border-radius: 16px;
+        background: AppletTheme.popover-bg;
+        border-width: 1px;
+        border-color: AppletTheme.border-subtle;
+        drop-shadow-blur: 28px;
+        drop-shadow-color: #000000aa;
+        drop-shadow-offset-y: 8px;
+        clip: true;
+
+        // Absorb clicks inside the popover card
+        TouchArea {
+            width: 100%;
+            height: 100%;
+        }
+
+        content-col := VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+
+            // =================================================================
+            // 1. AUDIO APPLET
+            // =================================================================
+            if root.active-applet == "audio": VerticalLayout {
+                spacing: 12px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "Sound output";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppletTheme.on-surface;
+                    }
+                    Text {
+                        text: root.is-muted ? "Muted" : (Math.round(root.volume * 100.0) + "%");
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: AppletTheme.primary;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    alignment: center;
+
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 10px;
+                        background: mute-ta.has-hover ? AppletTheme.surface-hover : AppletTheme.surface;
+                        border-width: 1px;
+                        border-color: AppletTheme.border-subtle;
+
+                        AppletIcon {
+                            name: root.is-muted || root.volume <= 0.01 ? "volume-mute" : "volume";
+                            icon-size: 18px;
+                            icon-color: root.is-muted ? AppletTheme.error : AppletTheme.primary;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
+
+                        mute-ta := TouchArea {
+                            clicked => {
+                                root.is-muted = !root.is-muted;
+                                root.mute-toggled(root.is-muted);
+                            }
+                        }
+                    }
+
+                    // Interactive Volume Track
+                    slider-track := Rectangle {
+                        horizontal-stretch: 1;
+                        height: 28px;
+                        border-radius: 14px;
+                        background: AppletTheme.surface;
+                        border-width: 1px;
+                        border-color: AppletTheme.border-subtle;
+                        clip: true;
+
+                        Rectangle {
+                            x: 0px;
+                            y: 0px;
+                            width: parent.width * Math.clamp(root.is-muted ? 0.0 : root.volume, 0.0, 1.0);
+                            height: parent.height;
+                            border-radius: 14px;
+                            background: AppletTheme.primary;
+                        }
+
+                        vol-ta := TouchArea {
+                            moved => {
+                                if (self.pressed) {
+                                    let v = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    root.volume = v;
+                                    root.is-muted = v <= 0.01;
+                                    root.volume-changed(v);
+                                }
+                            }
+                            pointer-event(pe) => {
+                                if (pe.kind == PointerEventKind.down || pe.kind == PointerEventKind.up) {
+                                    let v = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                    root.volume = v;
+                                    root.is-muted = v <= 0.01;
+                                    root.volume-changed(v);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                PopoverActionRow {
+                    title: "Sound settings";
+                    icon-name: "settings";
+                    clicked => { root.open-settings("sound"); }
+                }
+            }
+
+            // =================================================================
+            // 2. NETWORK APPLET
+            // =================================================================
+            if root.active-applet == "network": VerticalLayout {
+                spacing: 12px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "Network";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppletTheme.on-surface;
+                    }
+                    Text {
+                        text: root.wifi-connected ? "Connected" : "Disconnected";
+                        font-size: 12px;
+                        font-weight: 600;
+                        color: root.wifi-connected ? AppletTheme.success : AppletTheme.on-surface-variant;
+                    }
+                }
+
+                Rectangle {
+                    height: 52px;
+                    border-radius: 12px;
+                    background: AppletTheme.surface;
+                    border-width: 1px;
+                    border-color: AppletTheme.border-subtle;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            AppletIcon {
+                                name: "wifi";
+                                icon-size: 20px;
+                                icon-color: root.wifi-connected ? AppletTheme.primary : AppletTheme.on-surface-variant;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: root.wifi-ssid != "" ? root.wifi-ssid : "Wi-Fi";
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: AppletTheme.on-surface;
+                            }
+                            Text {
+                                text: root.wifi-connected ? "Signal: \{root.wifi-signal}/4" : "No active connection";
+                                font-size: 11px;
+                                color: AppletTheme.on-surface-variant;
+                            }
+                        }
+                    }
+                }
+
+                PopoverActionRow {
+                    title: "Network & Wi-Fi settings";
+                    icon-name: "settings";
+                    clicked => { root.open-settings("wifi"); }
+                }
+            }
+
+            // =================================================================
+            // 3. BATTERY & POWER PROFILE APPLET
+            // =================================================================
+            if root.active-applet == "battery": VerticalLayout {
+                spacing: 12px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: "Battery & power";
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppletTheme.on-surface;
+                    }
+                    Text {
+                        text: (root.is-charging ? "Charging • " : "") + Math.round(root.battery-pct) + "%";
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: root.battery-pct < 20.0 ? AppletTheme.error : AppletTheme.success;
+                    }
+                }
+
+                Text {
+                    text: "Power mode";
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: AppletTheme.on-surface-variant;
+                }
+
+                // 3-Way Power Profile Selector (COSMIC Battery Applet style)
+                HorizontalLayout {
+                    spacing: 6px;
+                    for prof in [
+                        { id: "power-saver", label: "Saver" },
+                        { id: "balanced", label: "Balanced" },
+                        { id: "performance", label: "Perf" },
+                    ]: Rectangle {
+                        property <bool> is-sel: root.power-profile == prof.id;
+                        horizontal-stretch: 1;
+                        height: 34px;
+                        border-radius: 10px;
+                        background: self.is-sel ? AppletTheme.primary-container : (p-ta.has-hover ? AppletTheme.surface-hover : AppletTheme.surface);
+                        border-width: 1px;
+                        border-color: self.is-sel ? AppletTheme.primary : AppletTheme.border-subtle;
+
+                        p-ta := TouchArea {
+                            clicked => {
+                                root.power-profile = prof.id;
+                                root.power-profile-selected(prof.id);
+                            }
+                        }
+
+                        Text {
+                            text: prof.label;
+                            font-size: 12px;
+                            font-weight: parent.is-sel ? 700 : 500;
+                            color: parent.is-sel ? AppletTheme.on-primary-container : AppletTheme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                PopoverActionRow {
+                    title: "Battery settings";
+                    icon-name: "settings";
+                    clicked => { root.open-settings("battery"); }
+                }
+            }
+
+            // =================================================================
+            // 4. TIME & CALENDAR APPLET
+            // =================================================================
+            if root.active-applet == "time": VerticalLayout {
+                spacing: 10px;
+
+                HorizontalLayout {
+                    alignment: space-between;
+                    Text {
+                        text: root.calendar-header;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: AppletTheme.on-surface;
+                    }
+                    Text {
+                        text: root.time-text;
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: AppletTheme.primary;
+                    }
+                }
+
+                Text {
+                    text: root.date-text;
+                    font-size: 11px;
+                    color: AppletTheme.on-surface-variant;
+                }
+
+                // Weekday headers (Mon..Sun)
+                HorizontalLayout {
+                    for wd in ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]: Text {
+                        horizontal-stretch: 1;
+                        text: wd;
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: AppletTheme.on-surface-variant;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // 6x7 Calendar Grid
+                Rectangle {
+                    height: 6 * 34px;
+                    for d[idx] in root.calendar-days: Rectangle {
+                        x: Math.mod(idx, 7) * (parent.width / 7) + ((parent.width / 7) - 30px) / 2;
+                        y: Math.floor(idx / 7) * 34px + 2px;
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 15px;
+                        background: d.is-today ? AppletTheme.primary : transparent;
+
+                        Text {
+                            text: d.label;
+                            font-size: 12px;
+                            font-weight: d.is-today ? 700 : 500;
+                            color: d.is-today
+                                ? AppletTheme.on-primary
+                                : (d.in-month ? AppletTheme.on-surface : AppletTheme.on-surface-variant);
+                            opacity: d.in-month ? 1.0 : 0.4;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            // =================================================================
+            // 5. POWER MENU APPLET
+            // =================================================================
+            if root.active-applet == "power": VerticalLayout {
+                spacing: 8px;
+
+                Text {
+                    text: "Session & power";
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: AppletTheme.on-surface;
+                }
+
+                PopoverActionRow {
+                    title: "Lock screen";
+                    icon-name: "lock";
+                    clicked => { root.power-action("lock"); }
+                }
+                PopoverActionRow {
+                    title: "Sign out";
+                    icon-name: "logout";
+                    clicked => { root.power-action("logout"); }
+                }
+                PopoverActionRow {
+                    title: "Restart";
+                    icon-name: "restart";
+                    clicked => { root.power-action("reboot"); }
+                }
+                PopoverActionRow {
+                    title: "Power off";
+                    icon-name: "power";
+                    danger: true;
+                    clicked => { root.power-action("poweroff"); }
+                }
+            }
+        }
+    }
+}
+
