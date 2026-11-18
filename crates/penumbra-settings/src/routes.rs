@@ -30,6 +30,8 @@ pub enum Page {
     Bluetooth,
     /// Screen brightness sliders, auto-brightness, dark theme, and display metrics.
     Display,
+    /// Wallpaper & style, Dynamic Monet palette, themed icons, and icon shape.
+    Appearance,
     /// Battery health diagnostics, charge telemetry, and power saving modes.
     Battery,
     /// Volume channels (Media, Call, Ring) and Do Not Disturb controls.
@@ -53,6 +55,7 @@ impl Page {
             Page::Wifi => "wifi",
             Page::Bluetooth => "bluetooth",
             Page::Display => "display",
+            Page::Appearance => "appearance",
             Page::Battery => "battery",
             Page::Sound => "sound",
             Page::About => "about",
@@ -72,6 +75,7 @@ impl Page {
             Page::Wifi => "Network & internet",
             Page::Bluetooth => "Connected devices",
             Page::Display => "Display",
+            Page::Appearance => "Wallpaper & style",
             Page::Battery => "Battery",
             Page::Sound => "Sound & vibration",
             Page::About => "About phone",
@@ -109,6 +113,9 @@ impl FromStr for Page {
             "wifi" | "wi-fi" | "network" | "internet" | "wlan" => Page::Wifi,
             "bluetooth" | "bt" => Page::Bluetooth,
             "display" | "brightness" | "screen" => Page::Display,
+            "appearance" | "style" | "theme" | "wallpaper" | "personalization" | "monet" => {
+                Page::Appearance
+            }
             "battery" | "power" | "battery_saver" => Page::Battery,
             "sound" | "audio" | "volume" => Page::Sound,
             "about" | "system" | "device" | "info" => Page::About,

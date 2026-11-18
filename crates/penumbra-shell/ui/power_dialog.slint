@@ -1,4 +1,89 @@
+import { Theme } from "theme.slint";
 import { Icon } from "icon.slint";
+
+component PowerActionRow inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+    in property <string> icon-name;
+    in property <color> container-color;
+    in property <color> badge-color;
+    in property <color> icon-tint;
+    in property <color> title-color;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    height: 62px;
+    background: transparent;
+
+    inner := Rectangle {
+        x: touch.pressed ? 4px : 0px;
+        y: touch.pressed ? 1.5px : 0px;
+        width: parent.width - (touch.pressed ? 8px : 0px);
+        height: parent.height - (touch.pressed ? 3px : 0px);
+        border-radius: touch.pressed ? Theme.radius-item : 22px;
+        background: root.container-color;
+        border-width: 1px;
+        border-color: touch.pressed ? Theme.specular-rim-active : Theme.specular-rim;
+
+        animate x, y, width, height, border-radius {
+            duration: Theme.duration-micro;
+            easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+        }
+
+        touch := TouchArea {
+            enabled: root.enabled;
+            clicked => { root.clicked(); }
+        }
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 16px;
+            spacing: 14px;
+            alignment: start;
+
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: touch.pressed ? 14px : 20px;
+                    background: root.badge-color;
+
+                    animate border-radius {
+                        duration: Theme.duration-micro;
+                        easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                    }
+
+                    Icon {
+                        name: root.icon-name;
+                        icon-color: root.icon-tint;
+                        icon-size: 20px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: root.title;
+                    color: root.title-color;
+                    font-size: 15px;
+                    font-weight: 700;
+                }
+                Text {
+                    text: root.subtitle;
+                    color: Theme.on-surface-variant;
+                    font-size: Theme.font-caption;
+                    font-weight: 500;
+                }
+            }
+        }
+    }
+}
 
 export component PowerDialog inherits Rectangle {
     in-out property <bool> open: false;
@@ -7,227 +92,135 @@ export component PowerDialog inherits Rectangle {
     callback logout();
     callback cancel();
 
-    visible: root.open;
+    opacity: root.open ? 1.0 : 0.0;
+    visible: self.opacity > 0.01;
     width: 100%;
     height: 100%;
     background: transparent;
 
-    // Material 3 Gaussian Blur & Frosted Glass Backdrop Scrim
+    animate opacity {
+        duration: root.open ? Theme.duration-medium : Theme.duration-short;
+        easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+    }
+
+    // Scrim backdrop
     TouchArea {
+        enabled: root.open;
         width: 100%;
         height: 100%;
         clicked => { root.cancel(); }
 
-        // Dark frosted scrim
         Rectangle {
             width: 100%;
             height: 100%;
-            background: #06070add;
-        }
-
-        // Diffused ambient blur aura behind the modal
-        Rectangle {
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            width: 360px;
-            height: 420px;
-            border-radius: 48px;
-            background: #25283838;
-            drop-shadow-blur: 64px;
-            drop-shadow-color: #000000f0;
+            background: Theme.glass-scrim-deep;
         }
     }
 
     // Centered Material 3 Expressive Power Card
-    Rectangle {
+    card := Rectangle {
         x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        width: 320px;
-        height: 380px;
-        background: #1c1b26f5;
-        border-radius: 28px;
-        border-width: 1.5px;
-        border-color: #ffffff25;
+        y: (parent.height - self.height) / 2 + (root.open ? 0px : 24px);
+        width: 328px;
+        height: 360px;
+        background: Theme.surface-container-high;
+        border-radius: Theme.radius-card;
+        border-width: 1px;
+        border-color: Theme.specular-rim-active;
         drop-shadow-blur: 48px;
-        drop-shadow-color: #000000e8;
-        drop-shadow-offset-y: 10px;
+        drop-shadow-color: Theme.glass-scrim-deep;
+        drop-shadow-offset-y: 12px;
         clip: true;
 
+        animate y {
+            duration: root.open ? Theme.duration-medium : Theme.duration-short;
+            easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
+        }
+
         VerticalLayout {
-            padding-top: 24px;
-            padding-bottom: 20px;
-            padding-left: 20px;
-            padding-right: 20px;
-            spacing: 12px;
+            padding-top: 22px;
+            padding-bottom: 18px;
+            padding-left: 18px;
+            padding-right: 18px;
+            spacing: 10px;
 
-            // Title
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: center;
-                Text {
-                    text: "Device Options";
-                    color: #f3f4f6;
-                    font-size: 20px;
-                    font-weight: 700;
-                }
+            Text {
+                text: "Device options";
+                color: Theme.on-surface;
+                font-size: Theme.font-title;
+                font-weight: 700;
+                horizontal-alignment: center;
             }
 
-            // Power off Button
-            Rectangle {
-                height: 58px;
-                background: power-touch.pressed ? #ef444445 : #ef444420;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: #ef444440;
-                power-touch := TouchArea {
-                    clicked => { root.power-off(); }
-                }
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 14px;
-                    alignment: start;
-                    Rectangle {
-                        width: 38px;
-                        height: 38px;
-                        border-radius: 19px;
-                        background: #ef4444;
-                        y: (parent.height - self.height) / 2;
-
-                        Icon {
-                            name: "power";
-                            icon-color: #ffffff;
-                            icon-size: 20px;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "Turn OFF";
-                            color: #fca5a5;
-                            font-size: 15px;
-                            font-weight: 600;
-                        }
-                        Text {
-                            text: "Shut down device";
-                            color: #9ca3af;
-                            font-size: 11px;
-                        }
-                    }
-                }
+            PowerActionRow {
+                title: "Power off";
+                subtitle: "Shut down device";
+                icon-name: "power";
+                container-color: Theme.error-container;
+                badge-color: Theme.error;
+                icon-tint: Theme.on-error;
+                title-color: Theme.on-error-container;
+                enabled: root.open;
+                clicked => { root.power-off(); }
             }
 
-            // Reboot Button
-            Rectangle {
-                height: 58px;
-                background: reboot-touch.pressed ? #f59e0b45 : #f59e0b20;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: #f59e0b40;
-                reboot-touch := TouchArea {
-                    clicked => { root.reboot(); }
-                }
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 14px;
-                    alignment: start;
-                    Rectangle {
-                        width: 38px;
-                        height: 38px;
-                        border-radius: 19px;
-                        background: #f59e0b;
-                        y: (parent.height - self.height) / 2;
-
-                        Icon {
-                            name: "restart";
-                            icon-color: #ffffff;
-                            icon-size: 20px;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "Reboot";
-                            color: #fde68a;
-                            font-size: 15px;
-                            font-weight: 600;
-                        }
-                        Text {
-                            text: "Restart system";
-                            color: #9ca3af;
-                            font-size: 11px;
-                        }
-                    }
-                }
+            PowerActionRow {
+                title: "Restart";
+                subtitle: "Reboot system";
+                icon-name: "restart";
+                container-color: Theme.tertiary-container;
+                badge-color: Theme.tertiary;
+                icon-tint: Theme.on-tertiary;
+                title-color: Theme.on-tertiary-container;
+                enabled: root.open;
+                clicked => { root.reboot(); }
             }
 
-            // Logout Button
-            Rectangle {
-                height: 58px;
-                background: logout-touch.pressed ? #0284c745 : #0284c720;
-                border-radius: 16px;
-                border-width: 1px;
-                border-color: #0284c740;
-                logout-touch := TouchArea {
-                    clicked => { root.logout(); }
-                }
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    spacing: 14px;
-                    alignment: start;
-                    Rectangle {
-                        width: 38px;
-                        height: 38px;
-                        border-radius: 19px;
-                        background: #0284c7;
-                        y: (parent.height - self.height) / 2;
-
-                        Icon {
-                            name: "logout";
-                            icon-color: #ffffff;
-                            icon-size: 20px;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                        }
-                    }
-                    VerticalLayout {
-                        alignment: center;
-                        Text {
-                            text: "Logout";
-                            color: #bae6fd;
-                            font-size: 15px;
-                            font-weight: 600;
-                        }
-                        Text {
-                            text: "End current session";
-                            color: #9ca3af;
-                            font-size: 11px;
-                        }
-                    }
-                }
+            PowerActionRow {
+                title: "Sign out";
+                subtitle: "End current session";
+                icon-name: "logout";
+                container-color: Theme.secondary-container;
+                badge-color: Theme.secondary;
+                icon-tint: Theme.on-secondary;
+                title-color: Theme.on-secondary-container;
+                enabled: root.open;
+                clicked => { root.logout(); }
             }
 
-            // Cancel Button
+            // Cancel Pill Button with 0.96x touch squash
             Rectangle {
-                height: 44px;
-                background: cancel-touch.pressed ? #ffffff25 : #ffffff14;
-                border-radius: 22px;
-                cancel-touch := TouchArea {
-                    clicked => { root.cancel(); }
-                }
-                Text {
-                    text: "Cancel";
-                    color: #e5e7eb;
-                    font-size: 14px;
-                    font-weight: 500;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                height: 46px;
+                background: transparent;
+
+                Rectangle {
+                    x: cancel-touch.pressed ? 6px : 0px;
+                    y: cancel-touch.pressed ? 1.5px : 0px;
+                    width: parent.width - (cancel-touch.pressed ? 12px : 0px);
+                    height: parent.height - (cancel-touch.pressed ? 3px : 0px);
+                    background: cancel-touch.pressed ? Theme.surface-bright : Theme.surface-container-highest;
+                    border-radius: Theme.radius-pill;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+
+                    animate x, y, width, height, background {
+                        duration: Theme.duration-micro;
+                        easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                    }
+
+                    cancel-touch := TouchArea {
+                        enabled: root.open;
+                        clicked => { root.cancel(); }
+                    }
+
+                    Text {
+                        text: "Cancel";
+                        color: Theme.on-surface;
+                        font-size: Theme.font-body;
+                        font-weight: 600;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }

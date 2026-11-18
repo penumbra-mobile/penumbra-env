@@ -83,7 +83,7 @@ export component DrawerAppTile inherits Rectangle {
 
         Text {
             text: root.app.name;
-            color: #f2edf7;
+            color: Theme.on-surface;
             font-size: 13px;
             font-weight: 500;
             horizontal-alignment: center;
@@ -278,12 +278,12 @@ export component AppDrawer inherits Rectangle {
 
     width: 100%;
     height: 100%;
-    // Translucent obsidian frosted glass
-    background: #14121be8;
-    border-top-left-radius: 32px;
-    border-top-right-radius: 32px;
-    border-width: 1.5px;
-    border-color: #ffffff22;
+    // Opaque obsidian surface avoids expensive full-screen alpha-blending overdraw on older GPUs/CPU
+    background: Theme.surface-container-lowest;
+    border-top-left-radius: Theme.radius-card;
+    border-top-right-radius: Theme.radius-card;
+    border-width: 1px;
+    border-color: Theme.specular-rim-active;
     clip: true;
 
     // Top specular accent sheen (glass refraction line)
@@ -292,7 +292,7 @@ export component AppDrawer inherits Rectangle {
         y: 1.5px;
         width: parent.width - 64px;
         height: 1px;
-        background: #ffffff1f;
+        background: Theme.specular-rim;
     }
 
     VerticalLayout {
@@ -313,7 +313,7 @@ export component AppDrawer inherits Rectangle {
                 width: 48px;
                 height: 5px;
                 border-radius: 2.5px;
-                background: #938f99;
+                background: Theme.outline;
                 x: (parent.width - self.width) / 2;
                 y: 6px;
             }
@@ -325,9 +325,9 @@ export component AppDrawer inherits Rectangle {
                 width: parent.width;
                 height: 52px;
                 border-radius: 26px;
-                background: #23202be0;
+                background: Theme.surface-container-high;
                 border-width: 1.5px;
-                border-color: search-input.has-focus ? Theme.primary : #ffffff18;
+                border-color: search-input.has-focus ? Theme.primary : Theme.specular-rim;
 
                 animate border-color { duration: 150ms; }
 
@@ -335,7 +335,7 @@ export component AppDrawer inherits Rectangle {
                 Icon {
                     name: "search";
                     icon-size: 20px;
-                    icon-color: search-input.has-focus ? Theme.primary : #a09cb0;
+                    icon-color: search-input.has-focus ? Theme.primary : Theme.on-surface-variant;
                     x: 18px;
                     y: (parent.height - self.height) / 2;
                 }
@@ -355,7 +355,7 @@ export component AppDrawer inherits Rectangle {
                         height: 100%;
                         text: "Search apps...";
                         font-size: 15px;
-                        color: #8e8a9f;
+                        color: Theme.on-surface-variant;
                         vertical-alignment: center;
                     }
 
@@ -366,7 +366,7 @@ export component AppDrawer inherits Rectangle {
                         height: 100%;
                         text <=> root.search-query;
                         font-size: 15px;
-                        color: #e6e0e9;
+                        color: Theme.on-surface;
                         vertical-alignment: center;
                         single-line: true;
 
@@ -387,12 +387,12 @@ export component AppDrawer inherits Rectangle {
                     width: 30px;
                     height: 30px;
                     border-radius: 15px;
-                    background: #ffffff18;
+                    background: Theme.surface-container-highest;
 
                     Icon {
                         name: "close";
                         icon-size: 14px;
-                        icon-color: #e6e0e9;
+                        icon-color: Theme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -597,68 +597,50 @@ export component AppDrawer inherits Rectangle {
                 }
             }
 
-            // Scrollable app content
+            // Scrollable app content (flat-positioned + cached for 60fps sliding on older devices)
             list-content := Rectangle {
                 x: 0px;
                 y: root.scroll-y;
                 width: parent.width;
                 height: root.content-height;
+                cache-rendering-hint: true;
 
-                VerticalLayout {
-                    spacing: 12px;
-                    alignment: start;
+                property <length> col-w: parent.width / 4;
 
-                    for row in Math.max(1, (root.installed-apps.length + 3) / 4): HorizontalLayout {
-                        spacing: 0px;
-                        for col in 4: Rectangle {
-                            horizontal-stretch: 1;
-                            height: 104px;
-                            property <int> idx: row * 4 + col;
-                            property <length> tile-base-x: 16px + (col * (parent.width / 4)) + ((parent.width / 4) - 90px) / 2;
-                            property <length> tile-base-y: 124px + root.scroll-y + row * 116px;
-
-                            if self.idx < root.installed-apps.length: DrawerAppTile {
-                                app: root.installed-apps[parent.idx];
-                                base-x: parent.tile-base-x;
-                                base-y: parent.tile-base-y;
-                                scroll-y: root.scroll-y;
-                                drawer-progress: root.drawer-progress;
-                                x: (parent.width - self.width) / 2;
-                                clicked => {
-                                    root.app-clicked(root.installed-apps[parent.idx].id);
-                                }
-                                drawer-drag-delta(d) => {
-                                    root.drawer-drag-delta(d);
-                                }
-                                drawer-drag-released(v) => {
-                                    root.drawer-drag-released(v);
-                                }
-                                list-scrolled(dy) => {
-                                    root.manual-scroll(dy);
-                                }
-                                scroll-released(v) => {
-                                    root.start-kinetic-scroll(v);
-                                }
-                                scroll-interrupted => {
-                                    root.stop-kinetic-scroll();
-                                }
-                                drag-started(id, item, sx, sy) => {
-                                    root.start-drag(id, item, sx, sy);
-                                }
-                                drag-moved(sx, sy) => {
-                                    root.drag-moved(sx, sy);
-                                }
-                                drag-ended(id, sx, sy) => {
-                                    root.drag-ended(id, sx, sy);
-                                }
-                            }
-                        }
+                for app[idx] in root.installed-apps: DrawerAppTile {
+                    x: Math.mod(idx, 4) * list-content.col-w + (list-content.col-w - self.width) / 2;
+                    y: Math.floor(idx / 4) * 116px;
+                    app: app;
+                    base-x: 16px + Math.mod(idx, 4) * list-content.col-w + (list-content.col-w - self.width) / 2;
+                    base-y: 124px + root.scroll-y + Math.floor(idx / 4) * 116px;
+                    scroll-y: root.scroll-y;
+                    drawer-progress: root.drawer-progress;
+                    clicked => {
+                        root.app-clicked(app.id);
                     }
-
-                    // Padding between bottom edge and last app row: navbar (~48-54px) + clearance (~30px) = 84px
-                    Rectangle {
-                        height: 84px;
-                        background: transparent;
+                    drawer-drag-delta(d) => {
+                        root.drawer-drag-delta(d);
+                    }
+                    drawer-drag-released(v) => {
+                        root.drawer-drag-released(v);
+                    }
+                    list-scrolled(dy) => {
+                        root.manual-scroll(dy);
+                    }
+                    scroll-released(v) => {
+                        root.start-kinetic-scroll(v);
+                    }
+                    scroll-interrupted => {
+                        root.stop-kinetic-scroll();
+                    }
+                    drag-started(id, item, sx, sy) => {
+                        root.start-drag(id, item, sx, sy);
+                    }
+                    drag-moved(sx, sy) => {
+                        root.drag-moved(sx, sy);
+                    }
+                    drag-ended(id, sx, sy) => {
+                        root.drag-ended(id, sx, sy);
                     }
                 }
             }

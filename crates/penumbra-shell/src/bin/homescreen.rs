@@ -933,7 +933,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 11. Spring physics engine for overview carousel flick momentum & magnetic snap
     // Underdamped spring-damper system: stiffness 280.0, damping: 26.0 (F = -k*(x - target) - c*v)
-    let spring_state = Rc::new(RefCell::new(Spring::from_physics(280.0, 26.0, 1.0)));
+    let spring_state = Rc::new(RefCell::new(Spring::from_physics(680.0, 44.0, 1.0)));
     let spring_timer = Rc::new(RefCell::new(Timer::default()));
     let last_spring_time = Rc::new(RefCell::new(Instant::now()));
 
@@ -1058,9 +1058,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 12. Spring physics engine for App Drawer deployment (Fluid Material 3 dynamics)
-    // Underdamped spring-damper system matching Quick Settings: stiffness: 300.0, damping: 26.0
+    // Snappy Material 3 Expressive spatial spring: stiffness: 720.0, damping: 44.0
     let drawer_spring = Rc::new(RefCell::new(
-        Spring::from_physics(300.0, 26.0, 1.0)
+        Spring::from_physics(720.0, 44.0, 1.0)
             .with_position(0.0)
             .with_target(0.0),
     ));
@@ -1136,7 +1136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut sp = drawer_spring.borrow_mut();
                 sp.position = new_prog;
                 sp.velocity = 0.0;
-                if new_prog < 0.85 {
+                if new_prog < 0.85 && cur >= 0.85 {
                     let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
                     let _ = std::fs::write(path, "hide");
                 }

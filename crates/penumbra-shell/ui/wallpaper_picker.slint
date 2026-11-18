@@ -57,7 +57,7 @@ export component HomescreenContextMenu inherits Rectangle {
             border-width: 1px;
             border-color: Theme.specular-rim;
             drop-shadow-blur: 24px;
-            drop-shadow-color: #00000088;
+            drop-shadow-color: Theme.glass-scrim-medium;
             clip: true;
 
             VerticalLayout {
@@ -205,7 +205,7 @@ export component WallpaperPicker inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #0A080ECC;
+        background: Theme.glass-scrim-deep;
         z: 100;
 
         // Dismiss backdrop
@@ -267,7 +267,7 @@ export component WallpaperPicker inherits Rectangle {
                         width: 36px;
                         height: 36px;
                         border-radius: 18px;
-                        background: #25202E;
+                        background: Theme.surface-container-highest;
 
                         Text {
                             text: "✕";
@@ -292,7 +292,7 @@ export component WallpaperPicker inherits Rectangle {
                 width: parent.width - 32px;
                 height: 42px;
                 border-radius: 21px;
-                background: #1F1B27;
+                background: Theme.surface-container-low;
 
                 HorizontalLayout {
                     spacing: 4px;
@@ -308,7 +308,7 @@ export component WallpaperPicker inherits Rectangle {
                             text: "🖼️ Gallery";
                             font-size: 13px;
                             font-weight: 700;
-                            color: root.active-tab == 0 ? #000000 : Theme.on-surface;
+                            color: root.active-tab == 0 ? Theme.on-primary : Theme.on-surface;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -328,7 +328,7 @@ export component WallpaperPicker inherits Rectangle {
                             text: "📂 Browse";
                             font-size: 13px;
                             font-weight: 700;
-                            color: root.active-tab == 1 ? #000000 : Theme.on-surface;
+                            color: root.active-tab == 1 ? Theme.on-primary : Theme.on-surface;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -348,7 +348,7 @@ export component WallpaperPicker inherits Rectangle {
                             text: "📁 Folders";
                             font-size: 13px;
                             font-weight: 700;
-                            color: root.active-tab == 2 ? #000000 : Theme.on-surface;
+                            color: root.active-tab == 2 ? Theme.on-primary : Theme.on-surface;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -474,7 +474,7 @@ export component WallpaperPicker inherits Rectangle {
                             width: 86px;
                             height: 28px;
                             border-radius: 14px;
-                            background: #25202E;
+                            background: Theme.surface-container-highest;
 
                             Text {
                                 text: "🔄 Refresh";
@@ -531,7 +531,7 @@ export component WallpaperPicker inherits Rectangle {
                     width: self.card-width;
                     height: 220px;
                     border-radius: 18px;
-                    background: #1F1B27;
+                    background: Theme.surface-container-low;
                     border-width: wp.path == root.current-wallpaper-path ? 3px : 1px;
                     border-color: wp.path == root.current-wallpaper-path ? Theme.primary : #ffffff18;
                     clip: true;
@@ -551,7 +551,7 @@ export component WallpaperPicker inherits Rectangle {
                         y: parent.height - 48px;
                         width: parent.width;
                         height: 48px;
-                        background: #0A080ECC;
+                        background: Theme.glass-scrim-deep;
 
                         VerticalLayout {
                             padding-left: 10px;
@@ -588,7 +588,7 @@ export component WallpaperPicker inherits Rectangle {
                             text: "✓";
                             font-size: 13px;
                             font-weight: 900;
-                            color: #000000;
+                            color: Theme.on-primary;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }

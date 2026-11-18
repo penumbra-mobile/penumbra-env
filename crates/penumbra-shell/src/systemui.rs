@@ -197,7 +197,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Spring Physics Engine (Stiffness: 300.0, Damping: 26.0)
     // -----------------------------------------------------------------------
     let spring_state = Rc::new(RefCell::new(
-        Spring::from_physics(300.0, 26.0, 1.0)
+        Spring::from_physics(700.0, 44.0, 1.0)
             .with_position(-915.0)
             .with_target(-915.0),
     ));

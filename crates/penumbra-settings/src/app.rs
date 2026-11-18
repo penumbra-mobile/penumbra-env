@@ -620,12 +620,34 @@ pub fn setup_app(
         profile.apply();
     });
 
-    // COSMIC Desktop Appearance Accent Color
+    // Appearance & Dynamic Monet Accent Color
     window.on_accent_color_changed(|color_str| {
         info!("Settings: Accent color changed -> {color_str}");
         let mut cfg = DisplayConfig::load();
-        cfg.accent_color = color_str.into();
+        cfg.accent_color = color_str.as_str().into();
         let _ = cfg.save();
+
+        let (r, g, b) = match color_str.as_str() {
+            "lavender" => (208, 188, 255),
+            "mint" => (163, 232, 176),
+            "rose" => (255, 179, 186),
+            "amber" => (255, 204, 128),
+            _ => (125, 216, 252),
+        };
+        let palette = penumbra_services::theme::MonetPalette::from_seed_rgb(r, g, b);
+        let _ = palette.save_to_ipc_path(&penumbra_services::theme::MonetPalette::default_ipc_path());
+    });
+
+    window.on_toggle_dynamic_monet(|enabled| {
+        info!("Settings: Dynamic Monet toggled -> {enabled}");
+    });
+
+    window.on_toggle_themed_icons(|enabled| {
+        info!("Settings: Themed icons toggled -> {enabled}");
+    });
+
+    window.on_icon_shape_changed(|shape| {
+        info!("Settings: App icon shape changed -> {shape}");
     });
 
     // Desktop Window Controls (Close)

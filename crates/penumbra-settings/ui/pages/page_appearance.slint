@@ -1,0 +1,427 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "../icon.slint";
+import { SettingsTile } from "../components/settings_tile.slint";
+import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
+
+component AccentSwatch inherits Rectangle {
+    in property <string> color-id;
+    in property <color> swatch-color;
+    in property <color> check-tint;
+    in property <bool> selected: false;
+    callback clicked();
+
+    width: 48px;
+    height: 48px;
+    background: transparent;
+
+    Rectangle {
+        x: touch.pressed ? 2px : 0px;
+        y: touch.pressed ? 2px : 0px;
+        width: parent.width - (touch.pressed ? 4px : 0px);
+        height: parent.height - (touch.pressed ? 4px : 0px);
+        border-radius: touch.pressed ? 16px : (root.selected ? 18px : 24px);
+        background: root.swatch-color;
+        border-width: root.selected ? 3px : 1px;
+        border-color: root.selected ? Theme.on-surface : #ffffff22;
+
+        animate x, y, width, height, border-radius {
+            duration: 140ms;
+            easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+        }
+
+        if root.selected: Icon {
+            name: "check";
+            icon-size: 20px;
+            icon-color: root.check-tint;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+
+        touch := TouchArea {
+            clicked => { root.clicked(); }
+        }
+    }
+}
+
+component ShapeOptionChip inherits Rectangle {
+    in property <string> label;
+    in property <length> preview-radius;
+    in property <bool> selected: false;
+    in property <color> accent;
+    in property <color> on-accent;
+    callback clicked();
+
+    height: 68px;
+    horizontal-stretch: 1;
+    border-radius: 18px;
+    background: root.selected ? Theme.surface-container-high : Theme.surface-low;
+    border-width: root.selected ? 2px : 1px;
+    border-color: root.selected ? root.accent : #ffffff18;
+
+    animate background, border-color { duration: 150ms; }
+
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 6px;
+
+        Rectangle {
+            width: 28px;
+            height: 28px;
+            border-radius: root.preview-radius;
+            background: root.selected ? root.accent : Theme.surface-highest;
+            x: (parent.width - self.width) / 2;
+
+            if root.selected: Icon {
+                name: "palette";
+                icon-size: 14px;
+                icon-color: root.on-accent;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        Text {
+            text: root.label;
+            font-size: 12px;
+            font-weight: root.selected ? 700 : 500;
+            color: root.selected ? root.accent : Theme.on-surface-variant;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// ==============================================================================
+// Component: PageAppearance (Wallpaper & style)
+// ==============================================================================
+export component PageAppearance inherits Rectangle {
+    in-out property <string> accent-color: "blue"; // "blue", "lavender", "mint", "rose", "amber"
+    in-out property <bool> dark-theme: true;
+    in-out property <bool> dynamic-monet: true;
+    in-out property <bool> themed-icons: false;
+    in-out property <string> icon-shape: "squircle"; // "squircle", "circle", "rounded"
+
+    callback accent-color-changed(string);
+    callback toggle-dark-theme(bool);
+    callback toggle-dynamic-monet(bool);
+    callback toggle-themed-icons(bool);
+    callback icon-shape-changed(string);
+
+    property <color> preview-accent:
+        root.accent-color == "lavender" ? #d0bcff :
+        root.accent-color == "mint" ? #a3e8b0 :
+        root.accent-color == "rose" ? #ffb3ba :
+        root.accent-color == "amber" ? #ffcc80 :
+        #7dd8fc;
+
+    property <color> preview-on-accent:
+        root.accent-color == "lavender" ? #381e72 :
+        root.accent-color == "mint" ? #073919 :
+        root.accent-color == "rose" ? #491019 :
+        root.accent-color == "amber" ? #4e2600 :
+        #00354e;
+
+    property <length> preview-icon-radius:
+        root.icon-shape == "circle" ? 18px :
+        root.icon-shape == "rounded" ? 10px :
+        14px;
+
+    background: Theme.base-surface;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+
+        VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 8px;
+            padding-bottom: 48px;
+            spacing: 20px;
+
+            // 1. Live Material 3 Expressive Preview Card
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 12px;
+
+                    // Mini Phone Preview Frame
+                    Rectangle {
+                        height: 184px;
+                        border-radius: 24px;
+                        background: root.dark-theme ? #0d0c12 : #f4f3f8;
+                        border-width: 1px;
+                        border-color: #ffffff20;
+                        clip: true;
+
+                        animate background { duration: 220ms; }
+
+                        // Subtle Monet radial-like wash
+                        Rectangle {
+                            x: -20px;
+                            y: -30px;
+                            width: 180px;
+                            height: 180px;
+                            border-radius: 90px;
+                            background: root.preview-accent;
+                            opacity: 0.14;
+                        }
+
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 12px;
+                            alignment: space-between;
+
+                            // Mini Clock & QS Pastille Row
+                            HorizontalLayout {
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    Text {
+                                        text: "10:10";
+                                        font-size: 28px;
+                                        font-weight: 700;
+                                        color: root.dark-theme ? #ffffff : #1a1b20;
+                                    }
+                                    Text {
+                                        text: root.dynamic-monet ? "Dynamic Monet" : "Custom palette";
+                                        font-size: 11px;
+                                        font-weight: 600;
+                                        color: root.preview-accent;
+                                    }
+                                }
+
+                                // Mini Active QS Pill
+                                Rectangle {
+                                    width: 108px;
+                                    height: 36px;
+                                    border-radius: 18px;
+                                    background: root.preview-accent;
+                                    y: 4px;
+
+                                    HorizontalLayout {
+                                        padding-left: 12px;
+                                        padding-right: 12px;
+                                        spacing: 6px;
+                                        alignment: center;
+                                        Icon {
+                                            name: "wifi";
+                                            icon-size: 14px;
+                                            icon-color: root.preview-on-accent;
+                                        }
+                                        Text {
+                                            text: "Wi-Fi";
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: root.preview-on-accent;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Mini App Icon Dock Row
+                            Rectangle {
+                                height: 52px;
+                                border-radius: 26px;
+                                background: root.dark-theme ? #23202be0 : #e2e0eb;
+                                border-width: 1px;
+                                border-color: #ffffff18;
+
+                                HorizontalLayout {
+                                    padding-left: 16px;
+                                    padding-right: 16px;
+                                    alignment: space-around;
+
+                                    for ic in ["wifi", "sound", "palette", "settings"]: Rectangle {
+                                        width: 36px;
+                                        height: 36px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: root.preview-icon-radius;
+                                        background: root.themed-icons ? root.preview-accent : (root.dark-theme ? #36343b : #ffffff);
+
+                                        animate border-radius, background { duration: 180ms; }
+
+                                        Icon {
+                                            name: ic;
+                                            icon-size: 18px;
+                                            icon-color: root.themed-icons ? root.preview-on-accent : (root.dark-theme ? #e3e2e6 : #1a1b20);
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Monet Color Palette
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Colors"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 14px;
+                        spacing: 12px;
+
+                        SettingsTile {
+                            title: "Dynamic Monet";
+                            subtitle: "Extract Material 3 Expressive tones from wallpaper";
+                            is-switch: true;
+                            switch-checked <=> root.dynamic-monet;
+                            is-first: true;
+                            is-last: false;
+                            show-divider: true;
+                            toggled(val) => { root.toggle-dynamic-monet(val); }
+                        }
+
+                        HorizontalLayout {
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            spacing: 12px;
+                            alignment: space-around;
+
+                            AccentSwatch {
+                                color-id: "blue";
+                                swatch-color: #7dd8fc;
+                                check-tint: #00354e;
+                                selected: root.accent-color == "blue";
+                                clicked => {
+                                    root.accent-color = "blue";
+                                    root.accent-color-changed("blue");
+                                }
+                            }
+                            AccentSwatch {
+                                color-id: "lavender";
+                                swatch-color: #d0bcff;
+                                check-tint: #381e72;
+                                selected: root.accent-color == "lavender";
+                                clicked => {
+                                    root.accent-color = "lavender";
+                                    root.accent-color-changed("lavender");
+                                }
+                            }
+                            AccentSwatch {
+                                color-id: "mint";
+                                swatch-color: #a3e8b0;
+                                check-tint: #073919;
+                                selected: root.accent-color == "mint";
+                                clicked => {
+                                    root.accent-color = "mint";
+                                    root.accent-color-changed("mint");
+                                }
+                            }
+                            AccentSwatch {
+                                color-id: "rose";
+                                swatch-color: #ffb3ba;
+                                check-tint: #491019;
+                                selected: root.accent-color == "rose";
+                                clicked => {
+                                    root.accent-color = "rose";
+                                    root.accent-color-changed("rose");
+                                }
+                            }
+                            AccentSwatch {
+                                color-id: "amber";
+                                swatch-color: #ffcc80;
+                                check-tint: #4e2600;
+                                selected: root.accent-color == "amber";
+                                clicked => {
+                                    root.accent-color = "amber";
+                                    root.accent-color-changed("amber");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Theme & Icons
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Theme & icons"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+
+                        SettingsTile {
+                            title: "Dark theme";
+                            subtitle: "OLED pitch-black surfaces and tinted containers";
+                            is-switch: true;
+                            switch-checked <=> root.dark-theme;
+                            is-first: true;
+                            is-last: false;
+                            show-divider: true;
+                            toggled(val) => { root.toggle-dark-theme(val); }
+                        }
+
+                        SettingsTile {
+                            title: "Themed icons";
+                            subtitle: "Apply Monet accent colors to supported app icons";
+                            is-switch: true;
+                            switch-checked <=> root.themed-icons;
+                            is-first: false;
+                            is-last: true;
+                            show-divider: false;
+                            toggled(val) => { root.toggle-themed-icons(val); }
+                        }
+                    }
+                }
+            }
+
+            // 4. App Icon Shape
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Icon shape"; }
+                SettingsSectionCard {
+                    HorizontalLayout {
+                        padding: 12px;
+                        spacing: 10px;
+
+                        ShapeOptionChip {
+                            label: "Squircle";
+                            preview-radius: 9px;
+                            selected: root.icon-shape == "squircle";
+                            accent: root.preview-accent;
+                            on-accent: root.preview-on-accent;
+                            clicked => {
+                                root.icon-shape = "squircle";
+                                root.icon-shape-changed("squircle");
+                            }
+                        }
+                        ShapeOptionChip {
+                            label: "Circle";
+                            preview-radius: 14px;
+                            selected: root.icon-shape == "circle";
+                            accent: root.preview-accent;
+                            on-accent: root.preview-on-accent;
+                            clicked => {
+                                root.icon-shape = "circle";
+                                root.icon-shape-changed("circle");
+                            }
+                        }
+                        ShapeOptionChip {
+                            label: "Rounded";
+                            preview-radius: 6px;
+                            selected: root.icon-shape == "rounded";
+                            accent: root.preview-accent;
+                            on-accent: root.preview-on-accent;
+                            clicked => {
+                                root.icon-shape = "rounded";
+                                root.icon-shape-changed("rounded");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

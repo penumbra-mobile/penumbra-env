@@ -6,6 +6,7 @@ import { PageMain, SearchResultData } from "pages/page_main.slint";
 import { PageWifi, WifiApData } from "pages/page_wifi.slint";
 import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
 import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
+import { PageAppearance } from "pages/page_appearance.slint";
 import { PageBattery } from "pages/page_battery.slint";
 import { PageSound } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
@@ -67,6 +68,9 @@ export component SettingsWindow inherits Window {
     in-out property <string> screen-timeout: "2 minutes";
     in property <string> display-resolution: "1920 × 1080";
     in-out property <string> accent-color: "blue";
+    in-out property <bool> dynamic-monet: true;
+    in-out property <bool> themed-icons: false;
+    in-out property <string> icon-shape: "squircle";
 
     in-out property <[DisplayItemData]> displays: [
         {
@@ -110,6 +114,9 @@ export component SettingsWindow inherits Window {
     callback toggle-night-light(bool);
     callback night-light-temp-changed(float);
     callback accent-color-changed(string);
+    callback toggle-dynamic-monet(bool);
+    callback toggle-themed-icons(bool);
+    callback icon-shape-changed(string);
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Battery & Power (UPower / COSMIC Power Profiles)
@@ -229,6 +236,7 @@ export component SettingsWindow inherits Window {
         root.active-page == "wifi" ? "Internet & Wi-Fi" :
         root.active-page == "bluetooth" ? "Connected Devices" :
         root.active-page == "display" ? "Displays & Convergence" :
+        root.active-page == "appearance" ? "Wallpaper & style" :
         root.active-page == "battery" ? "Battery & Power" :
         root.active-page == "sound" ? "Sound & Vibration" :
         root.active-page == "about" ? "About Device" :
@@ -367,6 +375,21 @@ export component SettingsWindow inherits Window {
                     display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
                     toggle-night-light(nl) => { root.toggle-night-light(nl); }
                     night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
+                }
+
+                if root.active-page == "appearance": PageAppearance {
+                    width: 100%; height: 100%;
+                    accent-color <=> root.accent-color;
+                    dark-theme <=> root.dark-theme;
+                    dynamic-monet <=> root.dynamic-monet;
+                    themed-icons <=> root.themed-icons;
+                    icon-shape <=> root.icon-shape;
+
+                    accent-color-changed(c) => { root.accent-color-changed(c); }
+                    toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
+                    toggle-dynamic-monet(v) => { root.toggle-dynamic-monet(v); }
+                    toggle-themed-icons(v) => { root.toggle-themed-icons(v); }
+                    icon-shape-changed(s) => { root.icon-shape-changed(s); }
                 }
 
                 if root.active-page == "battery": PageBattery {
@@ -561,6 +584,21 @@ export component SettingsWindow inherits Window {
                     display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
                     toggle-night-light(nl) => { root.toggle-night-light(nl); }
                     night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
+                }
+
+                if root.active-page == "appearance": PageAppearance {
+                    width: 100%; height: 100%;
+                    accent-color <=> root.accent-color;
+                    dark-theme <=> root.dark-theme;
+                    dynamic-monet <=> root.dynamic-monet;
+                    themed-icons <=> root.themed-icons;
+                    icon-shape <=> root.icon-shape;
+
+                    accent-color-changed(c) => { root.accent-color-changed(c); }
+                    toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
+                    toggle-dynamic-monet(v) => { root.toggle-dynamic-monet(v); }
+                    toggle-themed-icons(v) => { root.toggle-themed-icons(v); }
+                    icon-shape-changed(s) => { root.icon-shape-changed(s); }
                 }
 
                 if root.active-page == "battery": PageBattery {

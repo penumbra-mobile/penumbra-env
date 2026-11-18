@@ -24,23 +24,28 @@ export component NotificationCard inherits Rectangle {
     property <bool> is-swiping: false;
     property <bool> is-pressed: false;
 
-    height: 112px;
+    height: 108px;
     background: transparent;
 
     card := Rectangle {
-        x: root.swipe-x;
-        width: parent.width;
-        height: parent.height;
-        border-radius: 22px;
-        background: root.is-pressed ? #2d3238 : #23282e;
+        property <length> squash-inset-x: (root.is-pressed && !root.is-swiping) ? 3px : 0px;
+        property <length> squash-inset-y: (root.is-pressed && !root.is-swiping) ? 1.5px : 0px;
+
+        x: root.swipe-x + self.squash-inset-x;
+        y: self.squash-inset-y;
+        width: parent.width - 2 * self.squash-inset-x;
+        height: parent.height - 2 * self.squash-inset-y;
+        border-radius: (root.is-pressed && !root.is-swiping) ? Theme.radius-tile-squash : Theme.radius-squircle;
+        background: root.is-pressed ? Theme.surface-container-highest : Theme.surface-container-high;
         border-width: 1px;
-        border-color: Theme.specular-rim;
+        border-color: root.is-pressed ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
         opacity: 1.0 - Math.clamp(Math.abs(root.swipe-x) / 160px, 0.0, 1.0);
 
         animate x { duration: root.is-swiping ? 0ms : 220ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate y, width, height, border-radius { duration: Theme.duration-micro; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
         animate opacity { duration: root.is-swiping ? 0ms : 220ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
-        animate background { duration: 150ms; }
+        animate background { duration: Theme.duration-short; }
 
         TouchArea {
             pointer-event(event) => {
@@ -76,8 +81,8 @@ export component NotificationCard inherits Rectangle {
         }
 
         VerticalLayout {
-            padding-top: 10px;
-            padding-bottom: 10px;
+            padding-top: 12px;
+            padding-bottom: 12px;
             padding-left: 14px;
             padding-right: 14px;
             spacing: 4px;
@@ -91,17 +96,17 @@ export component NotificationCard inherits Rectangle {
                     spacing: 8px;
                     alignment: center;
 
-                    // App icon badge
+                    // App icon badge (Monet primary-container)
                     Rectangle {
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 10px;
-                        background: #a8c7fa;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 11px;
+                        background: Theme.primary-container;
 
                         Icon {
                             name: "bell";
                             icon-size: 12px;
-                            icon-color: #04324a;
+                            icon-color: Theme.on-primary-container;
                             x: (parent.width - self.width) / 2;
                             y: (parent.height - self.height) / 2;
                         }
@@ -109,9 +114,9 @@ export component NotificationCard inherits Rectangle {
 
                     Text {
                         text: root.data.app;
-                        font-size: 12px;
+                        font-size: Theme.font-label;
                         font-weight: 700;
-                        color: #a8c7fa;
+                        color: Theme.primary;
                         vertical-alignment: center;
                     }
 
@@ -124,18 +129,23 @@ export component NotificationCard inherits Rectangle {
 
                     Text {
                         text: root.data.time-text != "" ? root.data.time-text : "now";
-                        font-size: 11px;
+                        font-size: Theme.font-caption;
                         font-weight: 500;
                         color: Theme.on-surface-variant;
                         vertical-alignment: center;
                     }
                 }
 
-                // Dismiss button
-                TouchArea {
+                // Dismiss pill button
+                Rectangle {
                     width: 24px;
                     height: 24px;
-                    clicked => { root.dismiss(root.index); }
+                    border-radius: 12px;
+                    background: dismiss-ta.pressed ? Theme.surface-bright : transparent;
+
+                    dismiss-ta := TouchArea {
+                        clicked => { root.dismiss(root.index); }
+                    }
 
                     Icon {
                         name: "close";
@@ -150,7 +160,7 @@ export component NotificationCard inherits Rectangle {
             // Title
             Text {
                 text: root.data.title;
-                font-size: 13px;
+                font-size: Theme.font-body;
                 font-weight: 700;
                 color: Theme.on-surface;
                 overflow: elide;
@@ -159,7 +169,7 @@ export component NotificationCard inherits Rectangle {
             // Body
             Text {
                 text: root.data.body;
-                font-size: 12px;
+                font-size: Theme.font-label;
                 font-weight: 400;
                 color: Theme.on-surface-variant;
                 overflow: elide;
@@ -197,7 +207,7 @@ export component NotificationEmptyState inherits Rectangle {
             width: 56px;
             height: 56px;
             border-radius: 28px;
-            background: #23282e;
+            background: Theme.surface-container-high;
             border-width: 1px;
             border-color: Theme.specular-rim;
             x: (parent.width - self.width) / 2;
@@ -205,7 +215,7 @@ export component NotificationEmptyState inherits Rectangle {
             Icon {
                 name: "bell";
                 icon-size: 26px;
-                icon-color: #938f99;
+                icon-color: Theme.primary;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
             }
@@ -220,8 +230,8 @@ export component NotificationEmptyState inherits Rectangle {
         }
 
         Text {
-            text: "You're all caught up!";
-            font-size: 12px;
+            text: "You're all caught up";
+            font-size: Theme.font-label;
             font-weight: 400;
             color: Theme.on-surface-variant;
             horizontal-alignment: center;
@@ -239,8 +249,8 @@ export component NotificationStack inherits Rectangle {
     callback open-settings();
     callback swipe-up();
 
-    border-radius: 28px;
-    background: #181c20bb;
+    border-radius: Theme.radius-tile;
+    background: Theme.glass-card;
     border-width: 1px;
     border-color: Theme.specular-rim;
     clip: true;
@@ -254,33 +264,63 @@ export component NotificationStack inherits Rectangle {
             padding: 14px;
             spacing: 10px;
 
-            // Header row: Section Title & Count badge
+            // Header row: Section Title, Count badge & Clear all pill
             HorizontalLayout {
                 alignment: space-between;
                 padding-left: 4px;
                 padding-right: 4px;
 
-                Text {
-                    text: "NOTIFICATIONS";
-                    font-size: 11px;
-                    font-weight: 800;
-                    color: #a8c7fa;
-                    letter-spacing: 0.5px;
-                    vertical-alignment: center;
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    Text {
+                        text: "Notifications";
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                        vertical-alignment: center;
+                    }
+
+                    if root.notifications.length > 0: Rectangle {
+                        height: 20px;
+                        border-radius: Theme.radius-pill;
+                        background: Theme.primary-container;
+                        HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            Text {
+                                text: "\{root.notifications.length}";
+                                font-size: Theme.font-caption;
+                                font-weight: 700;
+                                color: Theme.on-primary-container;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
                 }
 
                 if root.notifications.length > 0: Rectangle {
-                    height: 20px;
-                    border-radius: 10px;
-                    background: #38353d;
+                    height: 26px;
+                    border-radius: Theme.radius-pill;
+                    background: clear-ta.pressed ? Theme.surface-bright : Theme.surface-container-highest;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+
+                    animate background { duration: Theme.duration-micro; }
+
+                    clear-ta := TouchArea {
+                        clicked => { root.clear-all(); }
+                    }
+
                     HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
+                        padding-left: 10px;
+                        padding-right: 10px;
                         Text {
-                            text: "\{root.notifications.length}";
-                            font-size: 11px;
-                            font-weight: 700;
-                            color: #a8c7fa;
+                            text: "Clear all";
+                            font-size: Theme.font-caption;
+                            font-weight: 600;
+                            color: Theme.primary;
                             vertical-alignment: center;
                         }
                     }

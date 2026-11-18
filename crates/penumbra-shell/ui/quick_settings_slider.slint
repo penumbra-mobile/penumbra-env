@@ -20,7 +20,7 @@ export component MarqueeText inherits Rectangle {
     in property <string> text;
     in property <length> font-size: 14px;
     in property <int> font-weight: 500;
-    in property <color> text-color: #ffffff;
+    in property <color> text-color: Theme.on-surface;
 
     width: 100%;
     horizontal-stretch: 1;
@@ -84,10 +84,10 @@ export component QSTile inherits Rectangle {
         y: root.is-down ? 1.5px : 0px;
         width: parent.width - (root.is-down ? 5px : 0px);
         height: parent.height - (root.is-down ? 3px : 0px);
-        border-radius: root.is-down ? 22px : (root.is-active ? 28px : 20px);
-        background: root.is-active ? #a8c7fa : (root.is-down ? #38353d : #23282e);
+        border-radius: root.is-down ? Theme.radius-tile-squash : (root.is-active ? Theme.radius-tile : 20px);
+        background: root.is-active ? Theme.primary : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
         border-width: 1px;
-        border-color: root.is-active ? #ffffff44 : Theme.specular-rim;
+        border-color: root.is-active ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
 
         animate x, y, width, height { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
@@ -109,7 +109,7 @@ export component QSTile inherits Rectangle {
                     if root.icon-name != "": Icon {
                         name: root.icon-name;
                         icon-size: 24px;
-                        icon-color: root.is-active ? #04324a : #e6e0e9;
+                        icon-color: root.is-active ? Theme.on-primary : Theme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                         animate icon-color { duration: 180ms; easing: ease-out; }
@@ -118,7 +118,7 @@ export component QSTile inherits Rectangle {
                         source: root.icon;
                         width: 24px;
                         height: 24px;
-                        colorize: root.is-active ? #04324a : #e6e0e9;
+                        colorize: root.is-active ? Theme.on-primary : Theme.on-surface;
                         animate colorize { duration: 180ms; easing: ease-out; }
                     }
                 }
@@ -134,7 +134,7 @@ export component QSTile inherits Rectangle {
                     text: root.title;
                     font-size: 14px;
                     font-weight: 700;
-                    text-color: root.is-active ? #04324a : #e6e0e9;
+                    text-color: root.is-active ? Theme.on-primary : Theme.on-surface;
                 }
 
                 if root.subtitle != "": MarqueeText {
@@ -142,7 +142,7 @@ export component QSTile inherits Rectangle {
                     text: root.subtitle;
                     font-size: 12px;
                     font-weight: 500;
-                    text-color: root.is-active ? #04324a : #cac4d0;
+                    text-color: root.is-active ? Theme.on-primary : Theme.on-surface-variant;
                 }
             }
         }
@@ -210,9 +210,9 @@ component EditTileItem inherits Rectangle {
         width: parent.width - (root.is-down ? 4px : 0px);
         height: parent.height - (root.is-down ? 3px : 0px);
         border-radius: root.is-down ? 18px : 22px;
-        background: root.is-down ? #38343f : (root.is-removable ? #2b2735 : #1d1b20);
+        background: root.is-down ? Theme.surface-container-highest : (root.is-removable ? Theme.surface-container-high : Theme.surface-container-low);
         border-width: 1px;
-        border-color: root.is-removable ? #ffffff22 : Theme.specular-rim;
+        border-color: root.is-removable ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
 
         animate x, y, width, height { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
@@ -233,7 +233,7 @@ component EditTileItem inherits Rectangle {
                 Icon {
                     name: root.icon-name;
                     icon-size: 22px;
-                    icon-color: root.is-removable ? #d0bcff : #938f99;
+                    icon-color: root.is-removable ? Theme.primary : Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -248,7 +248,7 @@ component EditTileItem inherits Rectangle {
                     text: root.title;
                     font-size: 13px;
                     font-weight: 700;
-                    color: root.is-removable ? #e6e0e9 : #cac4d0;
+                    color: root.is-removable ? Theme.on-surface : Theme.on-surface-variant;
                     overflow: elide;
                 }
 
@@ -256,7 +256,7 @@ component EditTileItem inherits Rectangle {
                     text: root.subtitle;
                     font-size: 11px;
                     font-weight: 500;
-                    color: root.is-removable ? #cac4d0 : #79747e;
+                    color: root.is-removable ? Theme.on-surface-variant : Theme.outline;
                     overflow: elide;
                 }
             }
@@ -266,14 +266,14 @@ component EditTileItem inherits Rectangle {
                 width: 28px;
                 height: 28px;
                 border-radius: 14px;
-                background: root.is-removable ? #492532 : #254070;
+                background: root.is-removable ? Theme.tertiary-container : Theme.primary-container;
                 border-width: 1px;
-                border-color: root.is-removable ? #efb8c840 : #adc6ff40;
+                border-color: Theme.specular-rim;
 
                 Icon {
                     name: root.is-removable ? "minus" : "plus";
                     icon-size: 14px;
-                    icon-color: root.is-removable ? #efb8c8 : #adc6ff;
+                    icon-color: root.is-removable ? Theme.on-tertiary-container : Theme.on-primary-container;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -311,17 +311,18 @@ export component MediaCard inherits Rectangle {
     callback next();
 
     height: 136px;
-    border-radius: 26px;
-    background: #0d3b52;
+    border-radius: Theme.radius-tile;
+    background: Theme.surface-container-high;
     border-width: 1px;
-    border-color: #38bdf833;
+    border-color: Theme.specular-rim-active;
     clip: true;
 
-    // Deep cyan gradient background
+    // Monet tonal gradient backdrop
     Rectangle {
         width: parent.width;
         height: parent.height;
-        background: @linear-gradient(135deg, #093144 0%, #154c64 50%, #0d384c 100%);
+        background: @linear-gradient(135deg, Theme.surface-container-high 0%, Theme.primary-container 65%, Theme.surface-container 100%);
+        opacity: 0.72;
     }
 
     VerticalLayout {
@@ -340,11 +341,11 @@ export component MediaCard inherits Rectangle {
                 width: 24px;
                 height: 24px;
                 border-radius: 12px;
-                background: #ffffff22;
+                background: Theme.primary-container;
                 Icon {
                     name: "music";
                     icon-size: 14px;
-                    icon-color: #e0f2fe;
+                    icon-color: Theme.on-primary-container;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -352,29 +353,29 @@ export component MediaCard inherits Rectangle {
 
             Rectangle {
                 height: 22px;
-                border-radius: 11px;
-                background: #ffffff26;
+                border-radius: Theme.radius-pill;
+                background: Theme.surface-container-highest;
                 border-width: 1px;
-                border-color: #ffffff33;
+                border-color: Theme.specular-rim;
 
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
                     spacing: 4px;
                     alignment: center;
-                    Icon { name: "phone"; icon-size: 11px; icon-color: #ffffff; }
+                    Icon { name: "phone"; icon-size: 11px; icon-color: Theme.on-surface; }
                     Text {
                         text: root.device;
                         font-size: 10px;
                         font-weight: 600;
-                        color: #ffffff;
+                        color: Theme.on-surface;
                         vertical-alignment: center;
                     }
                 }
             }
         }
 
-        // Middle Row: Title + Artist and Large Play Button
+        // Middle Row: Title + Artist and Morphing Play/Pause Button
         HorizontalLayout {
             spacing: 12px;
             alignment: space-between;
@@ -389,34 +390,47 @@ export component MediaCard inherits Rectangle {
                     text: root.title;
                     font-size: 13px;
                     font-weight: 700;
-                    text-color: #ffffff;
+                    text-color: Theme.on-surface;
                 }
                 MarqueeText {
                     height: 15px;
                     text: root.artist;
                     font-size: 11px;
                     font-weight: 500;
-                    text-color: #7dd3fc;
+                    text-color: Theme.primary;
                 }
             }
 
-            // Play / Pause Circle Button
+            // M3E Play / Pause Morphing Button (Circle paused <-> Squircle playing + 0.96x squash)
             Rectangle {
                 width: 44px;
                 height: 44px;
-                border-radius: 22px;
-                background: play-touch.pressed ? #e2e8f0 : #ffffff;
+                background: transparent;
 
-                play-touch := TouchArea {
-                    clicked => { root.play-pause(); }
-                }
+                Rectangle {
+                    x: play-touch.pressed ? 2px : 0px;
+                    y: play-touch.pressed ? 2px : 0px;
+                    width: parent.width - (play-touch.pressed ? 4px : 0px);
+                    height: parent.height - (play-touch.pressed ? 4px : 0px);
+                    border-radius: root.is-playing ? 14px : 22px;
+                    background: play-touch.pressed ? Theme.primary-container : Theme.primary;
 
-                Icon {
-                    name: root.is-playing ? "pause" : "play";
-                    icon-size: 20px;
-                    icon-color: #0f172a;
-                    x: (parent.width - self.width) / 2;
-                    y: (parent.height - self.height) / 2;
+                    animate x, y, width, height, border-radius, background {
+                        duration: Theme.duration-short;
+                        easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                    }
+
+                    play-touch := TouchArea {
+                        clicked => { root.play-pause(); }
+                    }
+
+                    Icon {
+                        name: root.is-playing ? "pause" : "play";
+                        icon-size: 20px;
+                        icon-color: play-touch.pressed ? Theme.on-primary-container : Theme.on-primary;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
                 }
             }
         }
@@ -434,26 +448,43 @@ export component MediaCard inherits Rectangle {
                 Icon {
                     name: "replay-10";
                     icon-size: 16px;
-                    icon-color: #bae6fd;
+                    icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
             }
 
-            // Seekbar
+            // Expressive Seekbar with Pill Thumb
             Rectangle {
                 horizontal-stretch: 1;
-                height: 4px;
-                border-radius: 2px;
-                background: #ffffff33;
+                height: 16px;
+                background: transparent;
 
                 Rectangle {
-                    x: 0px;
-                    y: 0px;
-                    width: parent.width * root.progress;
-                    height: parent.height;
+                    y: (parent.height - self.height) / 2;
+                    width: parent.width;
+                    height: 4px;
                     border-radius: 2px;
-                    background: #38bdf8;
+                    background: Theme.surface-variant;
+
+                    Rectangle {
+                        x: 0px;
+                        y: 0px;
+                        width: parent.width * Math.clamp(root.progress, 0.0, 1.0);
+                        height: parent.height;
+                        border-radius: 2px;
+                        background: Theme.primary;
+                    }
+                }
+
+                // Vertical pill thumb
+                Rectangle {
+                    x: Math.clamp(parent.width * Math.clamp(root.progress, 0.0, 1.0) - 2px, 0px, parent.width - 4px);
+                    y: (parent.height - self.height) / 2;
+                    width: 4px;
+                    height: 14px;
+                    border-radius: 2px;
+                    background: Theme.primary;
                 }
             }
 
@@ -464,7 +495,7 @@ export component MediaCard inherits Rectangle {
                 Icon {
                     name: "forward-10";
                     icon-size: 16px;
-                    icon-color: #bae6fd;
+                    icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -478,7 +509,7 @@ export component MediaCard inherits Rectangle {
                     text: "1x";
                     font-size: 11px;
                     font-weight: 700;
-                    color: #bae6fd;
+                    color: Theme.on-surface-variant;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
@@ -492,7 +523,7 @@ export component MediaCard inherits Rectangle {
                 Icon {
                     name: "skip-next";
                     icon-size: 16px;
-                    icon-color: #bae6fd;
+                    icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -519,18 +550,18 @@ export component QSSquircleTile inherits Rectangle {
         y: root.is-down ? 1px : 0px;
         width: parent.width - (root.is-down ? 4px : 0px);
         height: parent.height - (root.is-down ? 2px : 0px);
-        border-radius: root.is-down ? 18px : 22px;
-        background: root.is-active ? #a8c7fa : (root.is-down ? #38353d : #23282e);
+        border-radius: root.is-down ? 18px : (root.is-active ? 26px : 20px);
+        background: root.is-active ? Theme.primary : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
         border-width: 1px;
-        border-color: root.is-active ? #ffffff44 : Theme.specular-rim;
+        border-color: root.is-active ? Theme.specular-rim-active : Theme.specular-rim;
 
-        animate x, y, width, height { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate x, y, width, height, border-radius { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
         animate background { duration: 180ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
 
         Icon {
             name: root.icon-name;
             icon-size: 22px;
-            icon-color: root.is-active ? #04324a : #e6e0e9;
+            icon-color: root.is-active ? Theme.on-primary : Theme.on-surface;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             animate icon-color { duration: 180ms; }
@@ -571,7 +602,7 @@ component SliderPill inherits Rectangle {
         height: parent.height - 2 * self.squash-y;
 
         border-radius: 22px;
-        background: #23282e;
+        background: Theme.surface-container-high;
         border-width: 1px;
         border-color: root.is-dragging ? Theme.specular-rim-active : Theme.specular-rim;
         clip: true;
@@ -587,12 +618,23 @@ component SliderPill inherits Rectangle {
             y: 0px;
             width: Math.clamp(parent.width * Math.clamp(root.value, 0.05, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), parent.width * 0.05, parent.width);
             height: parent.height;
-            background: #a8c7fa;
+            background: Theme.primary;
             border-radius: 22px;
 
             animate width {
                 duration: root.is-dragging ? 0ms : Theme.duration-short;
                 easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+            }
+
+            // M3E vertical pill handle inside endcap
+            Rectangle {
+                x: parent.width - 10px;
+                y: (parent.height - self.height) / 2;
+                width: 4px;
+                height: 20px;
+                border-radius: 2px;
+                background: Theme.on-primary;
+                opacity: 0.45;
             }
         }
 
@@ -610,7 +652,7 @@ component SliderPill inherits Rectangle {
                     Icon {
                         name: "brightness";
                         icon-size: 18px;
-                        icon-color: root.value > 0.12 ? #04324a : #e6e0e9;
+                        icon-color: root.value > 0.12 ? Theme.on-primary : Theme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -619,7 +661,7 @@ component SliderPill inherits Rectangle {
                     text: root.label;
                     font-size: 13px;
                     font-weight: 700;
-                    color: root.value > 0.38 ? #04324a : #e6e0e9;
+                    color: root.value > 0.38 ? Theme.on-primary : Theme.on-surface;
                     vertical-alignment: center;
                 }
             }
@@ -629,7 +671,7 @@ component SliderPill inherits Rectangle {
                 text: "\{Math.round(Math.clamp(root.value, 0.05, 1.0) * 100.0)}%";
                 font-size: 12px;
                 font-weight: 700;
-                color: root.value > 0.88 ? #04324a : #cac4d0;
+                color: root.value > 0.88 ? Theme.on-primary : Theme.on-surface-variant;
                 vertical-alignment: center;
             }
         }
@@ -681,17 +723,17 @@ component HeaderIconButton inherits Rectangle {
 
     width: 38px;
     height: 38px;
-    border-radius: 19px;
-    background: root.is-accent ? (root.is-down ? #e8def8 : #d0bcff) : (root.is-down ? #38353d : #2b2930);
+    border-radius: root.is-down ? 14px : 19px;
+    background: root.is-accent ? (root.is-down ? Theme.primary-container : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
     border-width: 1px;
-    border-color: root.is-accent ? #ffffff44 : Theme.specular-rim;
+    border-color: root.is-accent ? Theme.specular-rim-active : Theme.specular-rim;
 
     animate background, border-radius { duration: 150ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
 
     Icon {
         name: root.icon-name;
         icon-size: 18px;
-        icon-color: root.is-accent ? #381e72 : #e6e0e9;
+        icon-color: root.is-accent ? (root.is-down ? Theme.on-primary-container : Theme.on-primary) : Theme.on-surface;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
     }
@@ -717,12 +759,12 @@ component PillButton inherits Rectangle {
     property <bool> is-down: false;
 
     height: 36px;
-    border-radius: 18px;
-    background: root.is-accent ? (root.is-down ? #e8def8 : #d0bcff) : (root.is-down ? #38353d : #2b2930);
+    border-radius: root.is-down ? 12px : 18px;
+    background: root.is-accent ? (root.is-down ? Theme.primary-container : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
     border-width: 1px;
-    border-color: root.is-accent ? #ffffff44 : Theme.specular-rim;
+    border-color: root.is-accent ? Theme.specular-rim-active : Theme.specular-rim;
 
-    animate background { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+    animate background, border-radius { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
 
     HorizontalLayout {
         padding-left: 14px;
@@ -733,14 +775,14 @@ component PillButton inherits Rectangle {
         if root.icon-name != "": Icon {
             name: root.icon-name;
             icon-size: 16px;
-            icon-color: root.is-accent ? #381e72 : #e6e0e9;
+            icon-color: root.is-accent ? (root.is-down ? Theme.on-primary-container : Theme.on-primary) : Theme.on-surface;
         }
 
         Text {
             text: root.text;
             font-size: 12px;
             font-weight: 700;
-            color: root.is-accent ? #381e72 : #e6e0e9;
+            color: root.is-accent ? (root.is-down ? Theme.on-primary-container : Theme.on-primary) : Theme.on-surface;
             vertical-alignment: center;
         }
     }
@@ -768,17 +810,17 @@ export component SmallButton inherits Rectangle {
 
     width: root.button-width;
     height: 48px;
-    border-radius: 24px;
-    background: root.accent ? (root.is-down ? #e8def8 : #d0bcff) : (root.is-down ? #38353d : #2b2930);
+    border-radius: root.is-down ? 16px : 24px;
+    background: root.accent ? (root.is-down ? Theme.primary-container : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
     border-width: 1px;
-    border-color: root.accent ? #ffffff33 : Theme.specular-rim;
+    border-color: root.accent ? Theme.specular-rim-active : Theme.specular-rim;
 
-    animate background { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+    animate background, border-radius { duration: 120ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
 
     if root.icon != "": Icon {
         name: root.icon;
         icon-size: 20px;
-        icon-color: root.accent ? #381e72 : #e6e0e9;
+        icon-color: root.accent ? (root.is-down ? Theme.on-primary-container : Theme.on-primary) : Theme.on-surface;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
     }
@@ -786,7 +828,7 @@ export component SmallButton inherits Rectangle {
         text: root.label;
         font-size: 13px;
         font-weight: 700;
-        color: root.accent ? #381e72 : #e6e0e9;
+        color: root.accent ? (root.is-down ? Theme.on-primary-container : Theme.on-primary) : Theme.on-surface;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -926,16 +968,16 @@ export component QuickSettingsSlider inherits Rectangle {
             y: root.edit-mode ? -30px : 0px;
             width: parent.width;
             height: parent.height - 36px;
-            background: #101418e6;
-            border-bottom-left-radius: 32px;
-            border-bottom-right-radius: 32px;
+            background: Theme.glass-scrim-deep;
+            border-bottom-left-radius: Theme.radius-card;
+            border-bottom-right-radius: Theme.radius-card;
             opacity: root.edit-mode ? 0.0 : 1.0;
             visible: !root.edit-mode || self.opacity > 0.01;
             clip: true;
 
             animate opacity, y {
-                duration: 260ms;
-                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                duration: 190ms;
+                easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
             }
 
             // =====================================================================
@@ -952,7 +994,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 date-pill := Rectangle {
                     height: 28px;
                     border-radius: 14px;
-                    background: #23282e;
+                    background: Theme.surface-container-high;
                     border-width: 1px;
                     border-color: Theme.specular-rim;
                     clip: true;
@@ -980,7 +1022,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 status-pill := Rectangle {
                     height: 28px;
                     border-radius: 14px;
-                    background: #23282e;
+                    background: Theme.surface-container-high;
                     border-width: 1px;
                     border-color: Theme.specular-rim;
                     clip: true;
@@ -1014,7 +1056,7 @@ export component QuickSettingsSlider inherits Rectangle {
                             Icon {
                                 name: "battery";
                                 icon-size: 13px;
-                                icon-color: #a8c7fa;
+                                icon-color: Theme.primary;
                             }
                         }
 
@@ -1024,7 +1066,7 @@ export component QuickSettingsSlider inherits Rectangle {
                                 text: "\{root.battery-pct}%";
                                 font-size: 10px;
                                 font-weight: 800;
-                                color: #a8c7fa;
+                                color: Theme.primary;
                                 vertical-alignment: center;
                             }
                         }
@@ -1044,18 +1086,18 @@ export component QuickSettingsSlider inherits Rectangle {
                 visible: self.opacity > 0.01;
 
                 animate x, opacity {
-                    duration: 250ms;
-                    easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                    duration: 190ms;
+                    easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
                 }
 
-                // Giant Android 17 Clock (16:19)
+                // Giant Android 17 Clock
                 Text {
                     x: root.pad + 4px;
                     y: 44px;
                     text: root.time-text;
                     font-size: 56px;
                     font-weight: 300;
-                    color: #ffffff;
+                    color: Theme.on-surface;
                     letter-spacing: -1.0px;
                 }
 
@@ -1098,9 +1140,11 @@ export component QuickSettingsSlider inherits Rectangle {
                         height: 38px;
                         width: 124px;
                         border-radius: 19px;
-                        background: clear-btn-touch.pressed ? #333942 : #23282e;
+                        background: clear-btn-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
                         border-width: 1px;
                         border-color: Theme.specular-rim;
+
+                        animate background { duration: Theme.duration-micro; }
 
                         clear-btn-touch := TouchArea {
                             clicked => { root.clear-notifications(); }
@@ -1110,7 +1154,7 @@ export component QuickSettingsSlider inherits Rectangle {
                             text: "Clear all";
                             font-size: 12px;
                             font-weight: 700;
-                            color: #a8c7fa;
+                            color: Theme.primary;
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
@@ -1136,8 +1180,8 @@ export component QuickSettingsSlider inherits Rectangle {
                 visible: self.opacity > 0.01;
 
                 animate x, opacity {
-                    duration: 250ms;
-                    easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                    duration: 190ms;
+                    easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
                 }
 
                 // Battery Until Sub-indicator (1:1 Android 17 / Pixel SystemUI)
@@ -1147,7 +1191,7 @@ export component QuickSettingsSlider inherits Rectangle {
                     text: "Until 02:00";
                     font-size: 10px;
                     font-weight: 600;
-                    color: #94a3b8;
+                    color: Theme.on-surface-variant;
                     horizontal-alignment: right;
                 }
 
@@ -1168,13 +1212,13 @@ export component QuickSettingsSlider inherits Rectangle {
                             width: 34px;
                             height: 34px;
                             border-radius: 17px;
-                            background: #333942;
+                            background: Theme.surface-container-highest;
                             border-width: 1px;
-                            border-color: #ffffff33;
+                            border-color: Theme.specular-rim-active;
                             Icon {
                                 name: "account";
                                 icon-size: 18px;
-                                icon-color: #a8c7fa;
+                                icon-color: Theme.primary;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
@@ -1252,8 +1296,8 @@ export component QuickSettingsSlider inherits Rectangle {
             visible: root.edit-mode || self.opacity > 0.01;
 
             animate opacity, y {
-                duration: 260ms;
-                easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+                duration: 190ms;
+                easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
             }
 
             // Top App Bar
@@ -1332,15 +1376,15 @@ export component QuickSettingsSlider inherits Rectangle {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "ACTIVE TILES";
-                                font-size: 11px;
-                                font-weight: 800;
-                                color: #d0bcff;
+                                text: "Active tiles";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: Theme.primary;
                             }
                             Rectangle {
                                 height: 20px;
                                 border-radius: 10px;
-                                background: #38353d;
+                                background: Theme.surface-container-highest;
                                 HorizontalLayout {
                                     padding-left: 8px;
                                     padding-right: 8px;
@@ -1348,7 +1392,7 @@ export component QuickSettingsSlider inherits Rectangle {
                                         text: "\{root.active-tiles.length} active";
                                         font-size: 11px;
                                         font-weight: 600;
-                                        color: #cac4d0;
+                                        color: Theme.on-surface-variant;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1357,7 +1401,7 @@ export component QuickSettingsSlider inherits Rectangle {
                         Text {
                             text: "Tiles visible in quick settings. Tap - to remove.";
                             font-size: 11px;
-                            color: #938f99;
+                            color: Theme.on-surface-variant;
                         }
                     }
 
@@ -1382,7 +1426,7 @@ export component QuickSettingsSlider inherits Rectangle {
                     Rectangle {
                         height: 42px;
                         border-radius: 21px;
-                        background: #2b2735;
+                        background: Theme.surface-container-high;
                         border-width: 1px;
                         border-color: Theme.specular-rim;
 
@@ -1391,12 +1435,12 @@ export component QuickSettingsSlider inherits Rectangle {
                             padding-right: 14px;
                             spacing: 10px;
                             alignment: center;
-                            Icon { name: "edit"; icon-size: 16px; icon-color: #d0bcff; }
+                            Icon { name: "edit"; icon-size: 16px; icon-color: Theme.primary; }
                             Text {
                                 text: "Hold and drag tiles to reorder";
                                 font-size: 12px;
                                 font-weight: 600;
-                                color: #e6e0e9;
+                                color: Theme.on-surface;
                                 vertical-alignment: center;
                             }
                         }
@@ -1408,15 +1452,15 @@ export component QuickSettingsSlider inherits Rectangle {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "AVAILABLE TILES";
-                                font-size: 11px;
-                                font-weight: 800;
-                                color: #adc6ff;
+                                text: "Available tiles";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: Theme.secondary;
                             }
                             Rectangle {
                                 height: 20px;
                                 border-radius: 10px;
-                                background: #252836;
+                                background: Theme.primary-container;
                                 HorizontalLayout {
                                     padding-left: 8px;
                                     padding-right: 8px;
@@ -1424,7 +1468,7 @@ export component QuickSettingsSlider inherits Rectangle {
                                         text: "\{root.available-tiles.length} available";
                                         font-size: 11px;
                                         font-weight: 600;
-                                        color: #adc6ff;
+                                        color: Theme.on-primary-container;
                                         vertical-alignment: center;
                                     }
                                 }
@@ -1433,7 +1477,7 @@ export component QuickSettingsSlider inherits Rectangle {
                         Text {
                             text: "Tap + to add tile to your active shade.";
                             font-size: 11px;
-                            color: #938f99;
+                            color: Theme.on-surface-variant;
                         }
                     }
 

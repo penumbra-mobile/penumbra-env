@@ -15,44 +15,61 @@ component KeypadButton inherits Rectangle {
 
     width: 72px;
     height: 72px;
-    border-radius: 36px;
-    background: touch.pressed ? #3b3a42 : (root.is-action && root.action-icon == "check" ? #a8c7fa : #201f26);
+    background: transparent;
 
-    animate background { duration: 100ms; easing: ease-out; }
+    Rectangle {
+        x: touch.pressed ? 2px : 0px;
+        y: touch.pressed ? 2px : 0px;
+        width: parent.width - (touch.pressed ? 4px : 0px);
+        height: parent.height - (touch.pressed ? 4px : 0px);
+        border-radius: touch.pressed ? 20px : 36px;
+        background: touch.pressed
+            ? (root.is-action && root.action-icon == "check" ? Theme.primary-container : Theme.primary-container)
+            : (root.is-action && root.action-icon == "check" ? Theme.primary : Theme.surface-container-high);
+        border-width: 1px;
+        border-color: touch.pressed ? Theme.specular-rim-active : Theme.specular-rim;
 
-    touch := TouchArea {
-        clicked => {
-            root.clicked();
-        }
-    }
-
-    if root.action-icon != "": Icon {
-        name: root.action-icon;
-        icon-size: 26px;
-        icon-color: root.is-action && root.action-icon == "check" ? #042b59 : Theme.on-surface;
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-    }
-
-    if root.action-icon == "": VerticalLayout {
-        alignment: center;
-        spacing: 1px;
-
-        Text {
-            text: root.number;
-            font-size: 28px;
-            font-weight: 500;
-            color: Theme.on-surface;
-            horizontal-alignment: center;
+        animate x, y, width, height, border-radius, background {
+            duration: Theme.duration-micro;
+            easing: cubic-bezier(0.2, 0.0, 0.0, 1.0);
         }
 
-        if root.letters != "": Text {
-            text: root.letters;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1.5px;
-            color: #938f99;
-            horizontal-alignment: center;
+        touch := TouchArea {
+            clicked => {
+                root.clicked();
+            }
+        }
+
+        if root.action-icon != "": Icon {
+            name: root.action-icon;
+            icon-size: 26px;
+            icon-color: touch.pressed
+                ? Theme.on-primary-container
+                : (root.is-action && root.action-icon == "check" ? Theme.on-primary : Theme.on-surface);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+        }
+
+        if root.action-icon == "": VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+
+            Text {
+                text: root.number;
+                font-size: 28px;
+                font-weight: 500;
+                color: touch.pressed ? Theme.on-primary-container : Theme.on-surface;
+                horizontal-alignment: center;
+            }
+
+            if root.letters != "": Text {
+                text: root.letters;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 1.5px;
+                color: touch.pressed ? Theme.on-primary-container : Theme.on-surface-variant;
+                horizontal-alignment: center;
+            }
         }
     }
 }
@@ -66,8 +83,8 @@ component PinDot inherits Rectangle {
 
     width: root.filled ? 16px : 12px;
     height: root.filled ? 16px : 12px;
-    border-radius: 8px;
-    background: root.is-error ? #ffb4ab : (root.filled ? #a8c7fa : #49454f);
+    border-radius: root.filled ? 6px : 6px;
+    background: root.is-error ? Theme.error : (root.filled ? Theme.primary : Theme.surface-variant);
 
     animate width, height { duration: 140ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
     animate background { duration: 140ms; easing: ease-out; }
@@ -79,7 +96,7 @@ component PinDot inherits Rectangle {
 export component Lockscreen inherits Rectangle {
     width: 412px;
     height: 915px;
-    background: #0d0e15;
+    background: Theme.surface-container-lowest;
 
     // Telemetry and status
     in property <string> time-str: "12:00";
@@ -128,9 +145,9 @@ export component Lockscreen inherits Rectangle {
     challenge-container := Rectangle {
         width: 100%;
         height: 100%;
-        background: #0f1017;
+        background: Theme.surface;
         opacity: root.in-challenge ? 1.0 : 0.0;
-        animate opacity { duration: 250ms; easing: ease-out; }
+        animate opacity { duration: 180ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
         VerticalLayout {
             padding-top: 54px;
@@ -149,12 +166,12 @@ export component Lockscreen inherits Rectangle {
                     width: 48px;
                     height: 48px;
                     border-radius: 24px;
-                    background: root.is-error ? #601410 : #1e2638;
+                    background: root.is-error ? Theme.error-container : Theme.primary-container;
 
                     Icon {
                         name: root.is-error ? "lock" : "lock-open";
                         icon-size: 24px;
-                        icon-color: root.is-error ? #ffb4ab : #a8c7fa;
+                        icon-color: root.is-error ? Theme.on-error-container : Theme.on-primary-container;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -164,7 +181,7 @@ export component Lockscreen inherits Rectangle {
                     text: root.status-message != "" ? root.status-message : (root.lock-type == "password" ? "Enter password" : "Enter PIN");
                     font-size: 16px;
                     font-weight: 500;
-                    color: root.is-error ? #ffb4ab : #e2e2e9;
+                    color: root.is-error ? Theme.error : Theme.on-surface;
                     horizontal-alignment: center;
                 }
             }
@@ -245,10 +262,10 @@ export component Lockscreen inherits Rectangle {
 
                 Rectangle {
                     height: 56px;
-                    border-radius: 12px;
-                    background: #1d1b20;
+                    border-radius: Theme.radius-item;
+                    background: Theme.surface-container;
                     border-width: 1px;
-                    border-color: root.is-error ? #ffb4ab : #49454f;
+                    border-color: root.is-error ? Theme.error : Theme.outline-variant;
 
                     HorizontalLayout {
                         padding-left: 16px;
@@ -258,7 +275,7 @@ export component Lockscreen inherits Rectangle {
 
                         pw-input := TextInput {
                             font-size: 16px;
-                            color: #e2e2e9;
+                            color: Theme.on-surface;
                             vertical-alignment: center;
                             text <=> root.entered-password;
                             accepted => {
@@ -270,12 +287,12 @@ export component Lockscreen inherits Rectangle {
                             width: 40px;
                             height: 40px;
                             border-radius: 20px;
-                            background: pw-touch.pressed ? #3b3a42 : transparent;
+                            background: pw-touch.pressed ? Theme.surface-container-highest : transparent;
 
                             Icon {
                                 name: root.password-obscured ? "eye" : "eye-off";
                                 icon-size: 20px;
-                                icon-color: #c4c6d0;
+                                icon-color: Theme.on-surface-variant;
                                 x: (parent.width - self.width) / 2;
                                 y: (parent.height - self.height) / 2;
                             }
@@ -293,7 +310,7 @@ export component Lockscreen inherits Rectangle {
                 Rectangle {
                     height: 48px;
                     border-radius: 24px;
-                    background: kb-touch.pressed ? #384358 : #1f2a3c;
+                    background: kb-touch.pressed ? Theme.surface-container-highest : Theme.primary-container;
 
                     HorizontalLayout {
                         alignment: center;
@@ -303,7 +320,7 @@ export component Lockscreen inherits Rectangle {
                             text: "Show keyboard";
                             font-size: 14px;
                             font-weight: 500;
-                            color: #a8c7fa;
+                            color: Theme.on-primary-container;
                             vertical-alignment: center;
                         }
                     }
@@ -319,13 +336,13 @@ export component Lockscreen inherits Rectangle {
                 Rectangle {
                     height: 52px;
                     border-radius: 26px;
-                    background: submit-touch.pressed ? #79a6eb : #a8c7fa;
+                    background: submit-touch.pressed ? Theme.primary-container : Theme.primary;
 
                     Text {
                         text: "Unlock";
                         font-size: 16px;
                         font-weight: 600;
-                        color: #042b59;
+                        color: submit-touch.pressed ? Theme.on-primary-container : Theme.on-primary;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -346,15 +363,17 @@ export component Lockscreen inherits Rectangle {
                 Rectangle {
                     width: 64px;
                     height: 64px;
-                    border-radius: 32px;
-                    background: fp-touch.pressed ? #384358 : #1a2233;
+                    border-radius: fp-touch.pressed ? 20px : 32px;
+                    background: fp-touch.pressed ? Theme.surface-container-highest : Theme.primary-container;
                     border-width: 1px;
-                    border-color: #2b3952;
+                    border-color: Theme.specular-rim-active;
+
+                    animate border-radius, background { duration: Theme.duration-micro; }
 
                     Icon {
                         name: "fingerprint";
                         icon-size: 32px;
-                        icon-color: root.fp-verifying ? #79a6eb : #a8c7fa;
+                        icon-color: root.fp-verifying ? Theme.primary : Theme.on-primary-container;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -374,7 +393,7 @@ export component Lockscreen inherits Rectangle {
                 Text {
                     text: "Touch fingerprint sensor";
                     font-size: 12px;
-                    color: #8c909c;
+                    color: Theme.on-surface-variant;
                     horizontal-alignment: center;
                 }
             }
@@ -389,13 +408,13 @@ export component Lockscreen inherits Rectangle {
                     height: 40px;
                     width: 120px;
                     border-radius: 20px;
-                    background: em-touch.pressed ? #321616 : transparent;
+                    background: em-touch.pressed ? Theme.error-container : transparent;
 
                     Text {
                         text: "Emergency";
                         font-size: 13px;
                         font-weight: 500;
-                        color: #ffb4ab;
+                        color: Theme.error;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -412,13 +431,13 @@ export component Lockscreen inherits Rectangle {
                     height: 40px;
                     width: 100px;
                     border-radius: 20px;
-                    background: cancel-touch.pressed ? #2d3038 : transparent;
+                    background: cancel-touch.pressed ? Theme.surface-container-highest : transparent;
 
                     Text {
                         text: "Cancel";
                         font-size: 13px;
                         font-weight: 500;
-                        color: #c4c6d0;
+                        color: Theme.on-surface-variant;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -441,9 +460,9 @@ export component Lockscreen inherits Rectangle {
         width: 100%;
         height: 100%;
         y: root.in-challenge ? -915px : root.drag-offset-y;
-        background: #0d0e15;
+        background: Theme.surface-container-lowest;
 
-        animate y { duration: root.is-dragging ? 0ms : 250ms; easing: cubic-bezier(0.2, 0.0, 0.0, 1.0); }
+        animate y { duration: root.is-dragging ? 0ms : 190ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
         VerticalLayout {
             padding-top: 50px;
@@ -461,7 +480,7 @@ export component Lockscreen inherits Rectangle {
                     text: root.carrier-str;
                     font-size: 14px;
                     font-weight: 500;
-                    color: #c4c6d0;
+                    color: Theme.on-surface-variant;
                     vertical-alignment: center;
                 }
 
@@ -472,7 +491,7 @@ export component Lockscreen inherits Rectangle {
                     if root.wifi-connected: Icon {
                         name: "wifi";
                         icon-size: 16px;
-                        icon-color: #c4c6d0;
+                        icon-color: Theme.on-surface-variant;
                         y: (parent.height - self.height) / 2;
                     }
 
@@ -483,7 +502,7 @@ export component Lockscreen inherits Rectangle {
                         Icon {
                             name: "battery";
                             icon-size: 16px;
-                            icon-color: #c4c6d0;
+                            icon-color: Theme.on-surface-variant;
                             y: (parent.height - self.height) / 2;
                         }
 
@@ -491,7 +510,7 @@ export component Lockscreen inherits Rectangle {
                             text: "\{root.battery-pct}%";
                             font-size: 13px;
                             font-weight: 500;
-                            color: #c4c6d0;
+                            color: Theme.on-surface-variant;
                             vertical-alignment: center;
                         }
                     }
@@ -508,7 +527,7 @@ export component Lockscreen inherits Rectangle {
                     text: root.time-str;
                     font-size: 76px;
                     font-weight: 700;
-                    color: #ffffff;
+                    color: Theme.on-surface;
                     horizontal-alignment: center;
                 }
 
@@ -516,7 +535,7 @@ export component Lockscreen inherits Rectangle {
                     text: root.date-str;
                     font-size: 18px;
                     font-weight: 400;
-                    color: #e2e2e9;
+                    color: Theme.primary;
                     horizontal-alignment: center;
                 }
             }
@@ -536,14 +555,14 @@ export component Lockscreen inherits Rectangle {
                     width: 54px;
                     height: 54px;
                     border-radius: 27px;
-                    background: cover-fp-touch.pressed ? #384358 : #151d2c;
+                    background: cover-fp-touch.pressed ? Theme.surface-container-highest : Theme.primary-container;
                     border-width: 1px;
-                    border-color: #2b3952;
+                    border-color: Theme.specular-rim-active;
 
                     Icon {
                         name: "fingerprint";
                         icon-size: 28px;
-                        icon-color: #a8c7fa;
+                        icon-color: Theme.on-primary-container;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -568,7 +587,7 @@ export component Lockscreen inherits Rectangle {
                 Icon {
                     name: "chevron-up";
                     icon-size: 20px;
-                    icon-color: #a8c7fa;
+                    icon-color: Theme.primary;
                     x: (parent.width - self.width) / 2;
                 }
 
@@ -576,7 +595,7 @@ export component Lockscreen inherits Rectangle {
                     text: "Swipe up to unlock";
                     font-size: 14px;
                     font-weight: 500;
-                    color: #c4c6d0;
+                    color: Theme.on-surface-variant;
                     horizontal-alignment: center;
                 }
             }
@@ -590,13 +609,13 @@ export component Lockscreen inherits Rectangle {
                     height: 38px;
                     width: 110px;
                     border-radius: 19px;
-                    background: root.em-pressed ? #321616 : #1e1f26;
+                    background: root.em-pressed ? Theme.error-container : Theme.surface-container-high;
 
                     Text {
                         text: "Emergency";
                         font-size: 12px;
                         font-weight: 500;
-                        color: #ffb4ab;
+                        color: Theme.error;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
