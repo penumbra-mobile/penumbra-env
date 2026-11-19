@@ -33,7 +33,10 @@ use tracing_subscriber::FmtSubscriber;
 
 use layer_shell_slint::{Anchor, KeyboardInteractivity, Layer, LayerConfig};
 use physical_detector::detect_active_physical_keyboard;
-use uinput::{UInputKeyboard, KEY_BACKSPACE, KEY_ENTER, KEY_SPACE};
+use uinput::{
+    UInputKeyboard, KEY_BACKSPACE, KEY_DELETE, KEY_DOWN, KEY_END, KEY_ENTER, KEY_ESC, KEY_HOME,
+    KEY_LEFT, KEY_PAGEDOWN, KEY_PAGEUP, KEY_RIGHT, KEY_SPACE, KEY_TAB, KEY_UP,
+};
 
 slint::include_modules!();
 
@@ -101,7 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_namespace("penumbra-keyboard")
         .with_layer(Layer::Top)
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_size(logical_w, 280)
+        .with_size(logical_w, 316)
         .with_exclusive_zone(0)
         .with_keyboard_interactivity(KeyboardInteractivity::None);
 
@@ -117,33 +120,126 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 4. Register Event Callbacks
     {
         let uinput = Arc::clone(&uinput);
+        let ui_weak_k = ui_weak.clone();
         keyboard_window.on_key_clicked(move |text| {
             info!("Virtual key clicked: '{}'", text);
-            uinput.send_text(text.as_str());
+            if let Some(ui) = ui_weak_k.upgrade() {
+                let ctrl = ui.get_ctrl_active();
+                let alt = ui.get_alt_active();
+                let meta = ui.get_super_active();
+                uinput.send_text_with_modifiers(text.as_str(), ctrl, alt, meta);
+                if ctrl {
+                    ui.set_ctrl_active(false);
+                }
+                if alt {
+                    ui.set_alt_active(false);
+                }
+                if meta {
+                    ui.set_super_active(false);
+                }
+                // One-shot Shift (mode 1) returns to lowercase after typing a character
+                if ui.get_layout_mode() == 1 {
+                    ui.set_layout_mode(0);
+                }
+            } else {
+                uinput.send_text(text.as_str());
+            }
         });
     }
 
     {
         let uinput = Arc::clone(&uinput);
+        let ui_weak_s = ui_weak.clone();
+        keyboard_window.on_special_key_clicked(move |key_name| {
+            info!("Virtual special key clicked: '{}'", key_name);
+            let code = match key_name.as_str() {
+                "esc" => KEY_ESC,
+                "tab" => KEY_TAB,
+                "left" => KEY_LEFT,
+                "down" => KEY_DOWN,
+                "up" => KEY_UP,
+                "right" => KEY_RIGHT,
+                "home" => KEY_HOME,
+                "end" => KEY_END,
+                "pgup" => KEY_PAGEUP,
+                "pgdn" => KEY_PAGEDOWN,
+                "del" => KEY_DELETE,
+                _ => return,
+            };
+            if let Some(ui) = ui_weak_s.upgrade() {
+                let ctrl = ui.get_ctrl_active();
+                let alt = ui.get_alt_active();
+                let meta = ui.get_super_active();
+                uinput.click_with_modifiers(code, ctrl, alt, false, meta);
+                if ctrl {
+                    ui.set_ctrl_active(false);
+                }
+                if alt {
+                    ui.set_alt_active(false);
+                }
+                if meta {
+                    ui.set_super_active(false);
+                }
+            } else {
+                uinput.click_key(code);
+            }
+        });
+    }
+
+    {
+        let uinput = Arc::clone(&uinput);
+        let ui_weak_b = ui_weak.clone();
         keyboard_window.on_backspace_clicked(move || {
             info!("Virtual backspace clicked");
-            uinput.click_key(KEY_BACKSPACE);
+            if let Some(ui) = ui_weak_b.upgrade() {
+                let ctrl = ui.get_ctrl_active();
+                let alt = ui.get_alt_active();
+                let meta = ui.get_super_active();
+                uinput.click_with_modifiers(KEY_BACKSPACE, ctrl, alt, false, meta);
+                if ctrl { ui.set_ctrl_active(false); }
+                if alt { ui.set_alt_active(false); }
+                if meta { ui.set_super_active(false); }
+            } else {
+                uinput.click_key(KEY_BACKSPACE);
+            }
         });
     }
 
     {
         let uinput = Arc::clone(&uinput);
+        let ui_weak_sp = ui_weak.clone();
         keyboard_window.on_space_clicked(move || {
             info!("Virtual space clicked");
-            uinput.click_key(KEY_SPACE);
+            if let Some(ui) = ui_weak_sp.upgrade() {
+                let ctrl = ui.get_ctrl_active();
+                let alt = ui.get_alt_active();
+                let meta = ui.get_super_active();
+                uinput.click_with_modifiers(KEY_SPACE, ctrl, alt, false, meta);
+                if ctrl { ui.set_ctrl_active(false); }
+                if alt { ui.set_alt_active(false); }
+                if meta { ui.set_super_active(false); }
+            } else {
+                uinput.click_key(KEY_SPACE);
+            }
         });
     }
 
     {
         let uinput = Arc::clone(&uinput);
+        let ui_weak_e = ui_weak.clone();
         keyboard_window.on_enter_clicked(move || {
             info!("Virtual enter clicked");
-            uinput.click_key(KEY_ENTER);
+            if let Some(ui) = ui_weak_e.upgrade() {
+                let ctrl = ui.get_ctrl_active();
+                let alt = ui.get_alt_active();
+                let meta = ui.get_super_active();
+                uinput.click_with_modifiers(KEY_ENTER, ctrl, alt, false, meta);
+                if ctrl { ui.set_ctrl_active(false); }
+                if alt { ui.set_alt_active(false); }
+                if meta { ui.set_super_active(false); }
+            } else {
+                uinput.click_key(KEY_ENTER);
+            }
         });
     }
 

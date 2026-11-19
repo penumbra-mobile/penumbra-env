@@ -88,8 +88,19 @@ pub const KEY_COMMA: u16 = 51;
 pub const KEY_DOT: u16 = 52;
 pub const KEY_SLASH: u16 = 53;
 pub const KEY_RIGHTSHIFT: u16 = 54;
+pub const KEY_LEFTALT: u16 = 56;
 pub const KEY_SPACE: u16 = 57;
 pub const KEY_CAPSLOCK: u16 = 58;
+pub const KEY_HOME: u16 = 102;
+pub const KEY_UP: u16 = 103;
+pub const KEY_PAGEUP: u16 = 104;
+pub const KEY_LEFT: u16 = 105;
+pub const KEY_RIGHT: u16 = 106;
+pub const KEY_END: u16 = 107;
+pub const KEY_DOWN: u16 = 108;
+pub const KEY_PAGEDOWN: u16 = 109;
+pub const KEY_DELETE: u16 = 111;
+pub const KEY_LEFTMETA: u16 = 125;
 
 #[repr(C)]
 struct InputId {
@@ -190,6 +201,14 @@ impl UInputKeyboard {
 
     fn write_event(&self, type_: u16, code: u16, value: i32) {
         let Some(ref file) = self.file else {
+            if type_ == EV_KEY {
+                let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+                let sock_path = std::path::Path::new(&dir).join("penumbra-vkbd.sock");
+                if let Ok(sock) = std::os::unix::net::UnixDatagram::unbound() {
+                    let msg = format!("{}:{}", code, value);
+                    let _ = sock.send_to(msg.as_bytes(), sock_path);
+                }
+            }
             return;
         };
         let fd = file.as_raw_fd();
@@ -239,6 +258,71 @@ impl UInputKeyboard {
 
         self.write_event(EV_KEY, KEY_LEFTSHIFT, 0);
         self.write_event(EV_SYN, SYN_REPORT, 0);
+    }
+
+    /// Emits a key click wrapped with optional hardware modifiers (Ctrl, Alt, Shift, Super).
+    pub fn click_with_modifiers(
+        &self,
+        code: u16,
+        ctrl: bool,
+        alt: bool,
+        shift: bool,
+        meta: bool,
+    ) {
+        if ctrl {
+            self.write_event(EV_KEY, KEY_LEFTCTRL, 1);
+        }
+        if alt {
+            self.write_event(EV_KEY, KEY_LEFTALT, 1);
+        }
+        if shift {
+            self.write_event(EV_KEY, KEY_LEFTSHIFT, 1);
+        }
+        if meta {
+            self.write_event(EV_KEY, KEY_LEFTMETA, 1);
+        }
+        if ctrl || alt || shift || meta {
+            self.write_event(EV_SYN, SYN_REPORT, 0);
+            sleep(Duration::from_millis(4));
+        }
+
+        self.write_event(EV_KEY, code, 1);
+        self.write_event(EV_SYN, SYN_REPORT, 0);
+        sleep(Duration::from_millis(8));
+        self.write_event(EV_KEY, code, 0);
+        self.write_event(EV_SYN, SYN_REPORT, 0);
+
+        if ctrl || alt || shift || meta {
+            sleep(Duration::from_millis(4));
+        }
+        if meta {
+            self.write_event(EV_KEY, KEY_LEFTMETA, 0);
+        }
+        if shift {
+            self.write_event(EV_KEY, KEY_LEFTSHIFT, 0);
+        }
+        if alt {
+            self.write_event(EV_KEY, KEY_LEFTALT, 0);
+        }
+        if ctrl {
+            self.write_event(EV_KEY, KEY_LEFTCTRL, 0);
+        }
+        if ctrl || alt || shift || meta {
+            self.write_event(EV_SYN, SYN_REPORT, 0);
+        }
+    }
+
+    /// Sends text while applying active sticky modifiers (e.g. Ctrl+C, Alt+F, Ctrl+L).
+    pub fn send_text_with_modifiers(&self, text: &str, ctrl: bool, alt: bool, meta: bool) {
+        if !ctrl && !alt && !meta {
+            self.send_text(text);
+            return;
+        }
+        for ch in text.chars() {
+            if let Some((code, shift)) = char_to_evdev(ch) {
+                self.click_with_modifiers(code, ctrl, alt, shift, meta);
+            }
+        }
     }
 
     /// Translates a character string into corresponding Linux scancodes and emits them.
@@ -369,4 +453,36 @@ impl Drop for UInputKeyboard {
             info!("Destroyed Linux uinput device");
         }
     }
+}
+
+fn char_to_evdev(ch: char) -> Option<(u16, bool)> {
+    Some(match ch {
+        'a' => (KEY_A, false), 'b' => (KEY_B, false), 'c' => (KEY_C, false),
+        'd' => (KEY_D, false), 'e' => (KEY_E, false), 'f' => (KEY_F, false),
+        'g' => (KEY_G, false), 'h' => (KEY_H, false), 'i' => (KEY_I, false),
+        'j' => (KEY_J, false), 'k' => (KEY_K, false), 'l' => (KEY_L, false),
+        'm' => (KEY_M, false), 'n' => (KEY_N, false), 'o' => (KEY_O, false),
+        'p' => (KEY_P, false), 'q' => (KEY_Q, false), 'r' => (KEY_R, false),
+        's' => (KEY_S, false), 't' => (KEY_T, false), 'u' => (KEY_U, false),
+        'v' => (KEY_V, false), 'w' => (KEY_W, false), 'x' => (KEY_X, false),
+        'y' => (KEY_Y, false), 'z' => (KEY_Z, false),
+        'A' => (KEY_A, true), 'B' => (KEY_B, true), 'C' => (KEY_C, true),
+        'D' => (KEY_D, true), 'E' => (KEY_E, true), 'F' => (KEY_F, true),
+        'G' => (KEY_G, true), 'H' => (KEY_H, true), 'I' => (KEY_I, true),
+        'J' => (KEY_J, true), 'K' => (KEY_K, true), 'L' => (KEY_L, true),
+        'M' => (KEY_M, true), 'N' => (KEY_N, true), 'O' => (KEY_O, true),
+        'P' => (KEY_P, true), 'Q' => (KEY_Q, true), 'R' => (KEY_R, true),
+        'S' => (KEY_S, true), 'T' => (KEY_T, true), 'U' => (KEY_U, true),
+        'V' => (KEY_V, true), 'W' => (KEY_W, true), 'X' => (KEY_X, true),
+        'Y' => (KEY_Y, true), 'Z' => (KEY_Z, true),
+        '0' => (KEY_0, false), '1' => (KEY_1, false), '2' => (KEY_2, false),
+        '3' => (KEY_3, false), '4' => (KEY_4, false), '5' => (KEY_5, false),
+        '6' => (KEY_6, false), '7' => (KEY_7, false), '8' => (KEY_8, false),
+        '9' => (KEY_9, false),
+        '-' => (KEY_MINUS, false), '=' => (KEY_EQUAL, false), '[' => (KEY_LEFTBRACE, false),
+        ']' => (KEY_RIGHTBRACE, false), ';' => (KEY_SEMICOLON, false), '\'' => (KEY_APOSTROPHE, false),
+        '`' => (KEY_GRAVE, false), '\\' => (KEY_BACKSLASH, false), ',' => (KEY_COMMA, false),
+        '.' => (KEY_DOT, false), '/' => (KEY_SLASH, false), ' ' => (KEY_SPACE, false),
+        _ => return None,
+    })
 }

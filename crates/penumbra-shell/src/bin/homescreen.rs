@@ -745,6 +745,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ui.on_app_search_focused(|| {
             let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
             let _ = std::fs::write(path, "show");
+            let _ = std::process::Command::new("gdbus")
+                .args([
+                    "call", "--session",
+                    "--dest", "sm.puri.OSK0",
+                    "--object-path", "/sm/puri/OSK0",
+                    "--method", "sm.puri.OSK0.SetVisible",
+                    "true",
+                ])
+                .spawn();
             info!("Search input focused in homescreen -> showing virtual keyboard");
         });
     }

@@ -308,6 +308,70 @@ export component AppDrawer inherits Rectangle {
             height: 106px;
             background: transparent;
 
+            // Header Gesture TouchArea (placed behind search-pill so TextInput receives taps directly,
+            // while still handling drag-down on empty header / drag-handle areas)
+            header-touch := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+
+                property <float> touch-x: 0.0;
+                property <float> touch-y: 0.0;
+                property <float> last-screen-y: 0.0;
+                property <float> velocity: 0.0;
+                property <bool> is-down: false;
+                property <bool> is-dragging-drawer: false;
+
+                pointer-event(event) => {
+                    let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + 8.0 + (header-touch.mouse-y / 1px);
+                    if (event.kind == PointerEventKind.down) {
+                        self.touch-x = header-touch.mouse-x / 1px;
+                        self.touch-y = header-touch.mouse-y / 1px;
+                        self.last-screen-y = cur-screen-y;
+                        self.velocity = 0.0;
+                        self.is-down = true;
+                        self.is-dragging-drawer = false;
+                    } else if (event.kind == PointerEventKind.move) {
+                        if (self.is-down) {
+                            let step-screen-dy = cur-screen-y - self.last-screen-y;
+                            self.last-screen-y = cur-screen-y;
+                            let cur-y = header-touch.mouse-y / 1px;
+                            let total-dy = cur-y - self.touch-y;
+                            let total-dx = (header-touch.mouse-x / 1px) - self.touch-x;
+                            let abs-dy = Math.abs(total-dy);
+                            let abs-dx = Math.abs(total-dx);
+
+                            if (self.is-dragging-drawer) {
+                                self.velocity = self.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            } else if (abs-dy > 6.0 && abs-dy > abs-dx * 0.8) {
+                                self.is-dragging-drawer = true;
+                                self.velocity = ((-step-screen-dy / 873.0) / 0.016);
+                                root.drawer-drag-delta(-step-screen-dy / 873.0);
+                            }
+                        }
+                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                        if (self.is-down) {
+                            self.is-down = false;
+                            if (self.is-dragging-drawer) {
+                                root.drawer-drag-released(self.velocity);
+                            } else {
+                                let dx = Math.abs((header-touch.mouse-x / 1px) - self.touch-x);
+                                let dy = Math.abs((header-touch.mouse-y / 1px) - self.touch-y);
+                                if (dx < 10.0 && dy < 10.0) {
+                                    if (header-touch.mouse-y < 24px && header-touch.mouse-x >= (parent.width - 70px) / 2 && header-touch.mouse-x <= (parent.width + 70px) / 2) {
+                                        root.close-requested();
+                                    } else {
+                                        root.dismiss-keyboard();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Centered Drag Pill Handle
             Rectangle {
                 width: 48px;
@@ -330,6 +394,13 @@ export component AppDrawer inherits Rectangle {
                 border-color: search-input.has-focus ? Theme.primary : Theme.specular-rim;
 
                 animate border-color { duration: 150ms; }
+
+                search-pill-touch := TouchArea {
+                    clicked => {
+                        search-input.focus();
+                        root.search-focused();
+                    }
+                }
 
                 // Search Icon on the left
                 Icon {
@@ -396,79 +467,14 @@ export component AppDrawer inherits Rectangle {
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
-                }
-            }
 
-            // Header Gesture TouchArea:
-            // Intercepts dragging down from the text area / header without breaking tapping on search box!
-            header-touch := TouchArea {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: parent.height;
-
-                property <float> touch-x: 0.0;
-                property <float> touch-y: 0.0;
-                property <float> last-screen-y: 0.0;
-                property <float> velocity: 0.0;
-                property <bool> is-down: false;
-                property <bool> is-dragging-drawer: false;
-
-                pointer-event(event) => {
-                    let cur-screen-y = 42.0 + (1.0 - root.drawer-progress) * 873.0 + 8.0 + (header-touch.mouse-y / 1px);
-                    if (event.kind == PointerEventKind.down) {
-                        self.touch-x = header-touch.mouse-x / 1px;
-                        self.touch-y = header-touch.mouse-y / 1px;
-                        self.last-screen-y = cur-screen-y;
-                        self.velocity = 0.0;
-                        self.is-down = true;
-                        self.is-dragging-drawer = false;
-                    } else if (event.kind == PointerEventKind.move) {
-                        if (self.is-down) {
-                            let step-screen-dy = cur-screen-y - self.last-screen-y;
-                            self.last-screen-y = cur-screen-y;
-                            let cur-y = header-touch.mouse-y / 1px;
-                            let total-dy = cur-y - self.touch-y;
-                            let total-dx = (header-touch.mouse-x / 1px) - self.touch-x;
-                            let abs-dy = Math.abs(total-dy);
-                            let abs-dx = Math.abs(total-dx);
-
-                            if (self.is-dragging-drawer) {
-                                self.velocity = self.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
-                                root.drawer-drag-delta(-step-screen-dy / 873.0);
-                            } else if (abs-dy > 6.0 && abs-dy > abs-dx * 0.8) {
-                                self.is-dragging-drawer = true;
-                                self.velocity = ((-step-screen-dy / 873.0) / 0.016);
-                                root.drawer-drag-delta(-step-screen-dy / 873.0);
-                            }
-                        }
-                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
-                        if (self.is-down) {
-                            self.is-down = false;
-                            if (self.is-dragging-drawer) {
-                                root.drawer-drag-released(self.velocity);
-                            } else {
-                                let dx = Math.abs((header-touch.mouse-x / 1px) - self.touch-x);
-                                let dy = Math.abs((header-touch.mouse-y / 1px) - self.touch-y);
-                                if (dx < 10.0 && dy < 10.0) {
-                                    // Tap check:
-                                    if (header-touch.mouse-y >= 26px && header-touch.mouse-y <= 78px) {
-                                        if (root.search-query != "" && header-touch.mouse-x >= parent.width - 48px) {
-                                            // Clear button tapped
-                                            search-input.text = "";
-                                            root.search-query = "";
-                                            root.search-query-changed("");
-                                        } else {
-                                            search-input.focus();
-                                            root.search-focused();
-                                        }
-                                    } else if (header-touch.mouse-y < 24px && header-touch.mouse-x >= (parent.width - 70px) / 2 && header-touch.mouse-x <= (parent.width + 70px) / 2) {
-                                        root.close-requested();
-                                    } else {
-                                        root.dismiss-keyboard();
-                                    }
-                                }
-                            }
+                    clear-touch := TouchArea {
+                        clicked => {
+                            search-input.text = "";
+                            root.search-query = "";
+                            root.search-query-changed("");
+                            search-input.focus();
+                            root.search-focused();
                         }
                     }
                 }

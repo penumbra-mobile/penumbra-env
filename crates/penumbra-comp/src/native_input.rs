@@ -444,19 +444,14 @@ pub(crate) fn handle(
                                 }
                             }
                             return;
-                        } else if let Some((window, _)) = server.space.element_under(pos) {
-                        let window = window.clone();
-                        if server.root_shell.as_ref() != Some(&window) && !server.is_phone_task(&window) {
+                        } else if let Some((window, surf, _)) = server.desktop_window_under(pos) {
                             server.space.raise_element(&window, true);
-                            if let Some(toplevel) = window.toplevel() {
-                                let surf = toplevel.wl_surface().clone();
-                                let serial = input.next_serial();
-                                if let Some(keyboard) = server.seat.get_keyboard() {
-                                    keyboard.set_focus(server, Some(surf), serial);
-                                }
+                            let serial = input.next_serial();
+                            if let Some(keyboard) = server.seat.get_keyboard() {
+                                keyboard.set_focus(server, Some(surf), serial);
                             }
-                        }
-                    } else if let Some((surf, _)) = server.desktop_focus_under(pos) {
+                            hover(server, input, pos);
+                        } else if let Some((surf, _)) = server.desktop_focus_under(pos) {
                         let serial = input.next_serial();
                         if let Some(keyboard) = server.seat.get_keyboard() {
                             keyboard.set_focus(server, Some(surf), serial);
@@ -643,12 +638,18 @@ pub(crate) fn handle(
                     .find(|l| l.wl_surface() == target_surf)
                     .map(|l| {
                         let ns = l.namespace();
-                        ns.contains("keyboard") || ns.contains("osk") || ns.contains("squeekboard") || ns.contains("maliit")
+                        ns.contains("keyboard") || ns.contains("osk") || ns.contains("squeekboard") || ns.contains("phosh-osk") || ns.contains("stevia") || ns.contains("maliit")
                     })
                     .unwrap_or(false);
                 if !is_kbd {
                     if let Some(keyboard) = server.seat.get_keyboard() {
                         keyboard.set_focus(server, Some(target_surf.clone()), serial);
+                    }
+                    // If a Wayland text_input is already active on this app and the OSK was dismissed,
+                    // tapping the app again should bring the OSK back up automatically.
+                    if server.is_text_input_active() && server.active_osk_height == 0 {
+                        let cmd_path = crate::phone::runtime_path("penumbra-keyboard-cmd");
+                        let _ = std::fs::write(cmd_path, "show");
                     }
                 }
             }

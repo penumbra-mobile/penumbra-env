@@ -187,8 +187,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     qs.set_slide_offset_y(-915.0);
     qs.set_expansion_progress(0.0);
 
-    // Initial hardware telemetry for sliders
-    let init_brightness = read_backlight_ratio().unwrap_or(0.75);
+    // Initial hardware telemetry for sliders (restore saved brightness if available)
+    let init_brightness = if let Some(saved) = penumbra_shell::display::load_saved_brightness() {
+        if let Err(error) = apply_backlight_ratio(saved) {
+            warn!(?error, "Failed to restore saved brightness to system backlight");
+        }
+        saved
+    } else {
+        read_backlight_ratio().unwrap_or(0.75)
+    };
     qs.set_brightness(init_brightness as f32);
     let init_volume = read_volume_ratio();
     qs.set_volume(init_volume as f32);
@@ -774,6 +781,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     qs.on_brightness_changed(|val| {
         info!("QuickSettings: Brightness set to {:.2}", val);
+        penumbra_shell::display::save_brightness(val as f64);
         if let Err(error) = apply_backlight_ratio(val as f64) {
             warn!(?error, "Failed to apply system backlight level");
         }

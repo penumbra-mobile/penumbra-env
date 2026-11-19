@@ -1219,6 +1219,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         input_method_state,
         virtual_keyboard_state,
         last_text_input_active: false,
+        active_osk_height: 0,
         seat,
         space,
         root_shell: None,
@@ -1245,6 +1246,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         next_task_id: 1,
         shell_state: ShellState::default(),
         state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
+        vkbd_socket: PenumbraServerState::bind_vkbd_socket(),
         overview_scroll: 0.0,
         last_tasks_published: String::from("\u{0}"),
         active_desktop_workspace: 1,
@@ -1383,6 +1385,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             tracing::error!(?error, "Wayland client dispatch failed");
         }
         state.server.update_text_input_state();
+        state.server.update_osk_window_layout();
         state.server.space.refresh();
 
         // Shell state arrives through files; poll faster while the overview animates or gesture is active.
@@ -1393,6 +1396,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             || state.server.shell_state.drawer_progress > 0.001;
         if is_overview || is_animating || is_qs_active || state.last_ipc_poll.elapsed() >= Duration::from_millis(16) {
             state.server.poll_shell_ipc();
+        state.server.poll_vkbd_ipc();
             state.last_ipc_poll = Instant::now();
         }
         state.server.advance_animations();

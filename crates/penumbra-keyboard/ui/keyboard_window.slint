@@ -65,7 +65,7 @@ export component KeyboardWindow inherits Window {
 
     // Fixed layer-shell dimensions
     width: 412px;
-    height: 280px;
+    height: 316px;
 
     // --------------------------------------------------------------------------
     // State Properties
@@ -78,10 +78,16 @@ export component KeyboardWindow inherits Window {
     in-out property <string> physical-keyboard-name: "";
     // Layout mode: 0 = Lowercase Letters, 1 = Uppercase/Shift, 2 = CapsLock, 3 = Symbols, 4 = More Symbols
     in-out property <int> layout-mode: 0;
+    // Stevia-style Linux Terminal / Command Bar & Sticky Modifiers
+    in-out property <bool> terminal-bar-visible: true;
+    in-out property <bool> ctrl-active: false;
+    in-out property <bool> alt-active: false;
+    in-out property <bool> super-active: false;
     property <bool> effectively-open: root.is-open && !root.physical-keyboard-connected;
 
     // Callbacks emitted to the Rust Wayland / UInput driver
     callback key-clicked(string);
+    callback special-key-clicked(string);
     callback backspace-clicked();
     callback space-clicked();
     callback enter-clicked();
@@ -96,8 +102,8 @@ export component KeyboardWindow inherits Window {
         // Main Animated Sheet
         keyboard-sheet := Rectangle {
             width: 100%;
-            height: 280px;
-            y: root.effectively-open ? 0px : 280px;
+            height: 316px;
+            y: root.effectively-open ? 0px : 316px;
             background: #141218;
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
@@ -153,7 +159,31 @@ export component KeyboardWindow inherits Window {
                         }
                     }
 
-                    // Right Side: Hide / Toggle Keyboard Button
+                    // Right Side: Terminal Bar Toggle + Hide Keyboard Button
+                    Rectangle {
+                        width: 34px;
+                        height: 24px;
+                        x: parent.width - 78px;
+                        y: 2px;
+                        border-radius: 6px;
+                        background: root.terminal-bar-visible ? #a8c7fa : (term-toggle-touch.pressed ? #36343b : #2b2930);
+
+                        Text {
+                            text: ">_";
+                            font-size: 11px;
+                            font-weight: 700;
+                            color: root.terminal-bar-visible ? #042b59 : #c4c7c5;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        term-toggle-touch := TouchArea {
+                            clicked => {
+                                root.terminal-bar-visible = !root.terminal-bar-visible;
+                            }
+                        }
+                    }
+
                     Rectangle {
                         width: 32px;
                         height: 24px;
@@ -183,6 +213,27 @@ export component KeyboardWindow inherits Window {
                             }
                         }
                     }
+                }
+
+                // ==============================================================
+                // Stevia-style Linux Terminal & Command Toolbar Row
+                // ==============================================================
+                if root.terminal-bar-visible: HorizontalLayout {
+                    spacing: 4px;
+                    height: 30px;
+
+                    KeyButton { text: "Esc"; is-functional: true; horizontal-stretch: 1.1; custom-font-size: 11px; clicked => { root.special-key-clicked("esc"); } }
+                    KeyButton { text: "Tab"; is-functional: true; horizontal-stretch: 1.1; custom-font-size: 11px; clicked => { root.special-key-clicked("tab"); } }
+                    KeyButton { text: "Ctrl"; is-functional: true; is-active: root.ctrl-active; horizontal-stretch: 1.2; custom-font-size: 11px; clicked => { root.ctrl-active = !root.ctrl-active; } }
+                    KeyButton { text: "Alt"; is-functional: true; is-active: root.alt-active; horizontal-stretch: 1.0; custom-font-size: 11px; clicked => { root.alt-active = !root.alt-active; } }
+                    KeyButton { text: "/"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("/"); } }
+                    KeyButton { text: "|"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("|"); } }
+                    KeyButton { text: "~"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("~"); } }
+                    KeyButton { text: "-"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("-"); } }
+                    KeyButton { text: "◀"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("left"); } }
+                    KeyButton { text: "▼"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("down"); } }
+                    KeyButton { text: "▲"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("up"); } }
+                    KeyButton { text: "▶"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("right"); } }
                 }
 
                 // ==============================================================

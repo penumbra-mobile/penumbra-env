@@ -168,6 +168,10 @@ fi
 
 if command -v "$active_keyboard" >/dev/null 2>&1; then
     printf '%s starting active virtual keyboard: %s\n' "$(date -Iseconds)" "$active_keyboard"
+    if [[ "$active_keyboard" != *"penumbra-keyboard"* ]]; then
+        export SQUEEKBOARD_FORCE=1
+        gsettings set org.gnome.desktop.a11y.applications screen-keyboard-enabled true 2>/dev/null || true
+    fi
     "$active_keyboard" &
     shell_pids+=("$!")
 else

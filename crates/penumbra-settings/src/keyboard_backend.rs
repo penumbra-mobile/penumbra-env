@@ -137,12 +137,22 @@ pub fn switch_active_virtual_keyboard(desktop_id: &str) {
     // Terminate existing running virtual keyboard instances
     let _ = std::process::Command::new("pkill").arg("-f").arg("penumbra-keyboard").status();
     let _ = std::process::Command::new("pkill").arg("-f").arg("squeekboard").status();
+    let _ = std::process::Command::new("pkill").arg("-f").arg("phosh-osk-stub").status();
+    let _ = std::process::Command::new("pkill").arg("-f").arg("stevia").status();
     let _ = std::process::Command::new("pkill").arg("-f").arg("maliit-keyboard").status();
     let _ = std::process::Command::new("pkill").arg("-f").arg("wvkbd").status();
 
+    // Ensure GNOME/Phosh a11y OSK setting is enabled so squeekboard / phosh-osk-stub / stevia activate
+    let _ = std::process::Command::new("gsettings")
+        .args(["set", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled", "true"])
+        .status();
+
     // Spawn the newly selected virtual keyboard daemon in the background
     let exec_cmd = target.exec.split_whitespace().next().unwrap_or(&target.exec);
-    match std::process::Command::new(exec_cmd).spawn() {
+    match std::process::Command::new(exec_cmd)
+        .env("SQUEEKBOARD_FORCE", "1")
+        .spawn()
+    {
         Ok(child) => {
             info!("Spawned virtual keyboard daemon '{}' (PID {})", exec_cmd, child.id());
         }
@@ -170,6 +180,9 @@ fn parse_virtual_keyboard_desktop_file(path: &Path) -> Option<VirtualKeyboardEnt
         .to_lowercase();
 
     if file_name.contains("squeekboard")
+        || file_name.contains("phosh-osk")
+        || file_name.contains("stevia")
+        || file_name.contains("osk0")
         || file_name.contains("maliit")
         || file_name.contains("wvkbd")
         || file_name.contains("penumbra-keyboard")
@@ -284,7 +297,9 @@ pub fn detect_virtual_keyboards() -> Vec<VirtualKeyboardEntry> {
     // Also inspect standard system binaries for 3rd party keyboards in case their .desktop file
     // is in a non-standard path or packaged without one:
     let known_binaries = [
-        ("squeekboard", "squeekboard.desktop", "Squeekboard", "Purism Phosh On-Screen Virtual Keyboard"),
+        ("squeekboard", "sm.puri.Squeekboard.desktop", "Squeekboard", "Purism Phosh On-Screen Virtual Keyboard"),
+        ("phosh-osk-stub", "sm.puri.OSK0.desktop", "Phosh OSK Stub", "Phosh On-Screen Keyboard"),
+        ("stevia", "mobi.phosh.Stevia.desktop", "Stevia", "Phosh On-Screen Keyboard"),
         ("maliit-keyboard", "org.maliit.keyboard.desktop", "Maliit Keyboard", "KDE Plasma Mobile Virtual Keyboard"),
         ("wvkbd-mobintl", "wvkbd-mobintl.desktop", "wvkbd", "Lightweight Wayland Virtual Keyboard"),
         ("wvkbd", "wvkbd.desktop", "wvkbd", "Lightweight Wayland Virtual Keyboard"),

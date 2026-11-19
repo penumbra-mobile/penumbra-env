@@ -129,6 +129,7 @@ fn build_dock_entries(
         let mut is_running = false;
         for (idx, (win_app_id, win_title)) in open_windows.iter().enumerate() {
             let win_lower = win_app_id.to_lowercase();
+            let title_lower = win_title.to_lowercase();
             let id_lower = id.to_lowercase();
             let name_lower = name.to_lowercase();
             let exec_bin = app_opt
@@ -138,9 +139,14 @@ fn build_dock_entries(
             if (!win_lower.is_empty()
                 && (win_lower == id_lower
                     || id_lower.contains(&win_lower)
+                    || win_lower.contains(&id_lower)
                     || win_lower == exec_bin
                     || win_lower == name_lower))
-                || (!win_title.is_empty() && win_title.to_lowercase().contains(&name_lower))
+                || (!title_lower.is_empty()
+                    && (title_lower.contains(&name_lower)
+                        || name_lower.contains(&title_lower)
+                        || title_lower.contains(&id_lower)
+                        || id_lower.contains(&title_lower)))
             {
                 is_running = true;
                 matched_open[idx] = true;
@@ -173,7 +179,9 @@ fn build_dock_entries(
             continue;
         }
 
-        if let Some(a) = find_app_for_id(all_apps, win_app_id) {
+        if let Some(a) = find_app_for_id(all_apps, win_app_id)
+            .or_else(|| find_app_for_id(all_apps, win_title))
+        {
             let (icon, has_icon) = icon_cache
                 .get(&a.id)
                 .cloned()
@@ -242,10 +250,10 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Base LayerConfig for initialization
     let primary_config = if run_panel {
-        LayerConfig::top_bar(36)
+        LayerConfig::top_bar(30)
             .with_namespace("penumbra-desktop-panel")
             .with_output(&args.output)
-            .with_exclusive_zone(36)
+            .with_exclusive_zone(30)
     } else if run_dock {
         LayerConfig::bottom_panel(64)
             .with_namespace("penumbra-desktop-dock")
@@ -362,6 +370,7 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     .map(|a| convert_to_slint_entry(a, &icon_cache_search))
                     .collect();
                 apps_model_search.set_vec(new_entries);
+                l.window().request_redraw();
             }
         });
 
@@ -379,6 +388,7 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                     .map(|a| convert_to_slint_entry(a, &icon_cache_cat))
                     .collect();
                 apps_model_cat.set_vec(new_entries);
+                l.window().request_redraw();
             }
         });
 
@@ -629,7 +639,7 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 let wl = wid.to_lowercase();
                 let tl = title.to_lowercase();
                 (!wl.is_empty() && (wl == q || q.contains(&wl) || wl.contains(&q)))
-                    || (!tl.is_empty() && tl.contains(&q))
+                    || (!tl.is_empty() && (tl.contains(&q) || q.contains(&tl)))
             });
             if is_open {
                 let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());

@@ -537,7 +537,6 @@ export component DesktopDockWindow inherits Window {
 // ===========================================================================
 export component DesktopLauncherWindow inherits Window {
     in-out property <bool> is-open: false;
-    in-out property <bool> grid-mode: false; // false = COSMIC Quick Launcher list, true = App Library 5-col grid
     in-out property <string> search-text: "";
     in-out property <string> calc-result: "";
     in-out property <string> active-category: "All";
@@ -547,6 +546,12 @@ export component DesktopLauncherWindow inherits Window {
     callback category-selected(string);
     callback app-clicked(string, string); // (id, exec)
     callback close-requested();
+
+    changed is-open => {
+        if (self.is-open) {
+            search-input.focus();
+        }
+    }
 
     background: transparent;
 
@@ -566,19 +571,19 @@ export component DesktopLauncherWindow inherits Window {
             }
         }
 
-        // Floating Modal COSMIC Launcher / App Library Chassis
+        // Floating Modal COSMIC App Library Grid Chassis
         Rectangle {
-            width: root.grid-mode ? 760px : 580px;
-            height: root.grid-mode ? 560px : 460px;
+            width: 780px;
+            height: 560px;
             x: (parent.width - self.width) / 2;
-            y: (root.grid-mode ? (parent.height - self.height) / 2 : 92px) + (root.is-open ? 0px : 18px);
+            y: (parent.height - self.height) / 2 + (root.is-open ? 0px : 18px);
             border-radius: 22px;
             background: DesktopTheme.modal-bg;
             border-width: 1px;
             border-color: DesktopTheme.specular-rim;
             clip: true;
 
-            animate y, width, height { duration: 170ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
+            animate y { duration: 170ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
             VerticalLayout {
                 padding: 20px;
@@ -598,6 +603,12 @@ export component DesktopLauncherWindow inherits Window {
                         border-width: 1px;
                         border-color: DesktopTheme.border-focused;
 
+                        search-focus-touch := TouchArea {
+                            clicked => {
+                                search-input.focus();
+                            }
+                        }
+
                         HorizontalLayout {
                             padding-left: 16px;
                             padding-right: 16px;
@@ -610,7 +621,7 @@ export component DesktopLauncherWindow inherits Window {
                                 icon-color: DesktopTheme.primary;
                             }
 
-                            TextInput {
+                            search-input := TextInput {
                                 text: root.search-text;
                                 font-size: DesktopTheme.font-title;
                                 color: DesktopTheme.on-surface;
@@ -627,37 +638,6 @@ export component DesktopLauncherWindow inherits Window {
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    // Mode Toggle Pill (Quick Search <-> App Library Grid)
-                    Rectangle {
-                        width: 88px;
-                        height: 44px;
-                        border-radius: 22px;
-                        background: mode-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface;
-                        border-width: 1px;
-                        border-color: DesktopTheme.border-subtle;
-
-                        HorizontalLayout {
-                            alignment: center;
-                            spacing: 6px;
-                            DesktopIcon {
-                                name: root.grid-mode ? "search" : "grid";
-                                icon-size: 14px;
-                                icon-color: DesktopTheme.primary;
-                            }
-                            Text {
-                                text: root.grid-mode ? "List" : "Grid";
-                                font-size: DesktopTheme.font-caption;
-                                font-weight: 600;
-                                color: DesktopTheme.on-surface;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        mode-touch := TouchArea {
-                            clicked => { root.grid-mode = !root.grid-mode; }
                         }
                     }
 
@@ -715,8 +695,8 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Category Filter Tabs (shown in App Library Grid mode) ---
-                if root.grid-mode: HorizontalLayout {
+                // --- Category Filter Tabs ---
+                HorizontalLayout {
                     spacing: 8px;
                     height: 32px;
 
@@ -752,92 +732,12 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Application Results: Quick Launcher List OR 5-Column App Library Grid ---
+                // --- Application Results: 5-Column App Library Grid ---
                 Rectangle {
                     vertical-stretch: 1;
                     clip: true;
 
-                    if !root.grid-mode: Flickable {
-                        width: 100%;
-                        height: 100%;
-
-                        VerticalLayout {
-                            spacing: 6px;
-                            padding-right: 6px;
-
-                            for app[idx] in root.apps: Rectangle {
-                                height: 54px;
-                                border-radius: 12px;
-                                background: idx == 0 && root.search-text != ""
-                                    ? DesktopTheme.primary-container
-                                    : (list-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface);
-                                border-width: 1px;
-                                border-color: idx == 0 && root.search-text != ""
-                                    ? DesktopTheme.primary
-                                    : (list-touch.has-hover ? DesktopTheme.border-focused : DesktopTheme.border-subtle);
-
-                                animate background { duration: 100ms; }
-
-                                HorizontalLayout {
-                                    padding-left: 14px;
-                                    padding-right: 14px;
-                                    spacing: 12px;
-                                    alignment: center;
-
-                                    if app.has-icon: Image {
-                                        source: app.icon;
-                                        width: 30px;
-                                        height: 30px;
-                                        image-fit: contain;
-                                    }
-                                    if !app.has-icon: DesktopIcon {
-                                        name: app.icon-name;
-                                        icon-size: 24px;
-                                        icon-color: DesktopTheme.primary;
-                                    }
-
-                                    VerticalLayout {
-                                        alignment: center;
-                                        spacing: 2px;
-                                        horizontal-stretch: 1;
-
-                                        Text {
-                                            text: app.name;
-                                            font-size: DesktopTheme.font-body;
-                                            font-weight: 600;
-                                            color: idx == 0 && root.search-text != ""
-                                                ? DesktopTheme.on-primary-container
-                                                : DesktopTheme.on-surface;
-                                        }
-
-                                        Text {
-                                            text: app.category != "" ? app.category : app.exec;
-                                            font-size: DesktopTheme.font-caption;
-                                            color: idx == 0 && root.search-text != ""
-                                                ? DesktopTheme.on-primary-container
-                                                : DesktopTheme.on-surface-muted;
-                                        }
-                                    }
-
-                                    if idx < 9: Text {
-                                        text: "Ctrl+" + (idx + 1);
-                                        font-size: 10px;
-                                        font-weight: 600;
-                                        color: DesktopTheme.on-surface-muted;
-                                        vertical-alignment: center;
-                                    }
-                                }
-
-                                list-touch := TouchArea {
-                                    clicked => {
-                                        root.app-clicked(app.id, app.exec);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if root.grid-mode: Flickable {
+                    Flickable {
                         width: 100%;
                         height: 100%;
                         content-height: Math.max(1, Math.ceil(root.apps.length / 5)) * 116px + 16px;

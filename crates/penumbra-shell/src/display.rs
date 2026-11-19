@@ -47,6 +47,34 @@ pub fn apply_backlight_ratio(value: f64) -> io::Result<()> {
     Ok(())
 }
 
+fn saved_brightness_path() -> PathBuf {
+    if let Ok(config_home) = std::env::var("XDG_CONFIG_HOME") {
+        PathBuf::from(config_home).join("penumbra/brightness")
+    } else if let Ok(home) = std::env::var("HOME") {
+        PathBuf::from(home).join(".config/penumbra/brightness")
+    } else {
+        PathBuf::from("/tmp/penumbra-brightness")
+    }
+}
+
+pub fn load_saved_brightness() -> Option<f64> {
+    let content = fs::read_to_string(saved_brightness_path()).ok()?;
+    let val = content.trim().parse::<f64>().ok()?;
+    if val.is_finite() {
+        Some(val.clamp(0.05, 1.0))
+    } else {
+        None
+    }
+}
+
+pub fn save_brightness(value: f64) {
+    let path = saved_brightness_path();
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(path, format!("{:.4}\n", value.clamp(0.05, 1.0)));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -127,6 +127,7 @@ pub struct PenumbraServerState {
     pub input_method_state: InputMethodManagerState,
     pub virtual_keyboard_state: VirtualKeyboardManagerState,
     pub last_text_input_active: bool,
+    pub active_osk_height: i32,
 
     pub seat: Seat<Self>,
     pub space: Space<Window>,
@@ -148,6 +149,7 @@ pub struct PenumbraServerState {
     /// Latest UI state published by penumbra-shell.
     pub shell_state: ShellState,
     pub state_socket: Option<phone::StateSocket>,
+    pub vkbd_socket: Option<std::os::unix::net::UnixDatagram>,
     /// Animated overview carousel position (lerps towards `shell_state.overview_index`).
     pub overview_scroll: f64,
     /// Last task list written to the shell, to avoid redundant writes.
@@ -525,6 +527,35 @@ impl PenumbraServerState {
         false
     }
 
+    /// Hit-tests visible external desktop XDG windows in top-to-bottom z-order,
+    /// skipping minimized windows and windows on inactive workspaces.
+    pub(crate) fn desktop_window_under(
+        &self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) -> Option<(Window, WlSurface, Point<f64, smithay::utils::Logical>)> {
+        for window in self.space.elements().rev() {
+            if Some(window) == self.root_shell.as_ref()
+                || self.is_phone_task(window)
+                || !self.is_desktop_window_visible(window)
+            {
+                continue;
+            }
+            let Some(loc) = self.space.element_location(window) else {
+                continue;
+            };
+            let rel = (pos.x - loc.x as f64, pos.y - loc.y as f64);
+            if let Some((surf, surf_loc)) = window.surface_under(rel, WindowSurfaceType::ALL) {
+                let global_loc: Point<f64, smithay::utils::Logical> = (
+                    (loc.x + surf_loc.x) as f64,
+                    (loc.y + surf_loc.y) as f64,
+                )
+                    .into();
+                return Some((window.clone(), surf, global_loc));
+            }
+        }
+        None
+    }
+
     /// Iterates through active external outputs, layer-shell surfaces, and floating XDG windows in `space`.
     #[allow(dead_code)]
     pub(crate) fn desktop_focus_under(
@@ -554,15 +585,8 @@ impl PenumbraServerState {
             }
 
             // 3. Floating desktop XDG application windows in `space`
-            if let Some((window, rel_pos)) = self.space.element_under(pos) {
-                if self.root_shell.as_ref() != Some(&window)
-                    && !self.is_phone_task(&window)
-                    && self.is_desktop_window_visible(&window)
-                {
-                    if let Some(toplevel) = window.toplevel() {
-                        return Some((toplevel.wl_surface().clone(), rel_pos.to_f64()));
-                    }
-                }
+            if let Some((_, surf, surf_loc)) = self.desktop_window_under(pos) {
+                return Some((surf, surf_loc));
             }
 
             // 4. Bottom layer
@@ -609,7 +633,7 @@ impl PenumbraServerState {
                     toplevel.with_pending_state(|state| {
                         state.states.set(xdg_toplevel::State::Activated);
                         state.states.set(xdg_toplevel::State::Maximized);
-                        state.size = Some((PHONE_W, APP_H).into());
+                        state.size = Some((PHONE_W, self.active_phone_app_height()).into());
                     });
                     toplevel.send_configure();
                 }
@@ -777,7 +801,7 @@ impl PenumbraServerState {
                         toplevel.with_pending_state(|state| {
                             state.states.set(xdg_toplevel::State::Activated);
                             state.states.set(xdg_toplevel::State::Maximized);
-                            state.size = Some((PHONE_W, APP_H).into());
+                            state.size = Some((PHONE_W, self.active_phone_app_height()).into());
                         });
                         toplevel.send_configure();
                         let surf = toplevel.wl_surface().clone();
@@ -1019,7 +1043,7 @@ impl PenumbraServerState {
                                     let aid = d.app_id.as_deref().unwrap_or("").to_lowercase();
                                     let title = d.title.as_deref().unwrap_or("").to_lowercase();
                                     (!aid.is_empty() && (aid == q || q.contains(&aid) || aid.contains(&q)))
-                                        || (!title.is_empty() && title.contains(&q))
+                                        || (!title.is_empty() && (title.contains(&q) || q.contains(&title)))
                                 })
                                 .unwrap_or(false)
                         })
@@ -1066,7 +1090,14 @@ impl PenumbraServerState {
         }
         window
             .toplevel()
-            .map(|t| t.current_state().decoration_mode == Some(DecorationMode::ServerSide))
+            .map(|t| {
+                let state = t.current_state();
+                let is_fullscreen = state
+                    .states
+                    .contains(xdg_toplevel::State::Fullscreen);
+                let is_client_side = state.decoration_mode == Some(DecorationMode::ClientSide);
+                !is_fullscreen && !is_client_side
+            })
             .unwrap_or(false)
     }
 
@@ -1186,6 +1217,116 @@ impl PenumbraServerState {
         }
     }
 
+    pub fn bind_vkbd_socket() -> Option<std::os::unix::net::UnixDatagram> {
+        let path = runtime_path("penumbra-vkbd.sock");
+        let _ = std::fs::remove_file(&path);
+        match std::os::unix::net::UnixDatagram::bind(&path) {
+            Ok(sock) => {
+                let _ = sock.set_nonblocking(true);
+                info!("Bound virtual keyboard IPC socket at {:?}", path);
+                Some(sock)
+            }
+            Err(err) => {
+                tracing::warn!(?err, "Failed to bind virtual keyboard IPC socket");
+                None
+            }
+        }
+    }
+
+    pub fn poll_vkbd_ipc(&mut self) {
+        let Some(ref sock) = self.vkbd_socket else {
+            return;
+        };
+        let mut events = Vec::new();
+        let mut buf = [0u8; 64];
+        while let Ok((n, _)) = sock.recv_from(&mut buf) {
+            if let Ok(s) = std::str::from_utf8(&buf[..n]) {
+                if let Some((code_str, val_str)) = s.trim().split_once(':') {
+                    if let (Ok(code), Ok(val)) = (code_str.parse::<u32>(), val_str.parse::<i32>()) {
+                        events.push((code, val));
+                    }
+                }
+            }
+        }
+        if events.is_empty() {
+            return;
+        }
+        let Some(keyboard) = self.seat.get_keyboard() else {
+            return;
+        };
+        for (code, val) in events {
+            let state = if val == 0 {
+                smithay::backend::input::KeyState::Released
+            } else {
+                smithay::backend::input::KeyState::Pressed
+            };
+            let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+            keyboard.input::<(), _>(
+                self,
+                smithay::input::keyboard::Keycode::new(code + 8),
+                state,
+                serial,
+                0,
+                |_, _, _| FilterResult::Forward,
+            );
+        }
+    }
+
+    pub fn active_phone_app_height(&self) -> i32 {
+        (APP_H - self.active_osk_height).max(240)
+    }
+
+    /// Dynamically resizes the active phone application window when an OSK layer surface
+    /// activates or deactivates on Output A.
+    pub fn update_osk_window_layout(&mut self) {
+        let keyboard_open = {
+            let path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-state");
+            std::fs::read_to_string(path).map(|c| c.contains("open=1")).unwrap_or(false)
+        };
+        let mut osk_h = 0i32;
+        {
+            let map_a = layer_map_for_output(&self.output_a);
+            for l in map_a.layers() {
+                let ns = l.namespace().to_lowercase();
+                let is_penumbra_osk = ns == "penumbra-keyboard";
+                let is_third_party_osk = ns.contains("squeekboard")
+                    || ns.contains("phosh-osk")
+                    || ns.contains("stevia")
+                    || ns.contains("osk")
+                    || ns.contains("maliit")
+                    || ns.contains("wvkbd");
+                if is_penumbra_osk {
+                    if keyboard_open {
+                        let h = map_a.layer_geometry(l).map(|g| g.size.h).unwrap_or(280);
+                        osk_h = osk_h.max(h.clamp(0, 500));
+                    }
+                } else if is_third_party_osk {
+                    let h = map_a.layer_geometry(l).map(|g| g.size.h).unwrap_or(0);
+                    let has_buffer = l.bbox().size.h > 0;
+                    if has_buffer && h > 0 {
+                        // Third-party OSKs anchor to the bottom edge (including nav bar 32px),
+                        // so subtract NAV_BAR_H when shrinking APP_H above the nav bar.
+                        let effective = (h - NAV_BAR_H).max(0);
+                        osk_h = osk_h.max(effective.clamp(0, 500));
+                    }
+                }
+            }
+        }
+        if osk_h != self.active_osk_height {
+            self.active_osk_height = osk_h;
+            let target_h = self.active_phone_app_height();
+            info!(osk_h, target_h, "OSK height changed -> resizing active phone window");
+            if let Some(first) = self.phone_tasks.first() {
+                if let Some(toplevel) = first.window.toplevel() {
+                    toplevel.with_pending_state(|state| {
+                        state.size = Some((PHONE_W, target_h).into());
+                    });
+                    toplevel.send_configure();
+                }
+            }
+        }
+    }
+
     pub fn focus_task_by_id(&mut self, id: u32) {
         if let Some(idx) = self.phone_tasks.iter().position(|t| t.id == id) {
             let task = self.phone_tasks.remove(idx);
@@ -1204,7 +1345,7 @@ impl PenumbraServerState {
                     toplevel.with_pending_state(|state| {
                         state.states.set(xdg_toplevel::State::Activated);
                         state.states.set(xdg_toplevel::State::Maximized);
-                        state.size = Some((PHONE_W, APP_H).into());
+                        state.size = Some((PHONE_W, self.active_phone_app_height()).into());
                     });
                     toplevel.send_configure();
                     let surf = toplevel.wl_surface().clone();
@@ -1764,8 +1905,13 @@ impl WlrLayerShellHandler for PenumbraServerState {
             Some((output_size.w.max(1), STATUS_BAR_H))
         } else if ns.contains("quick") || ns.contains("lock") {
             Some((output_size.w.max(1), output_size.h.max(1)))
-        } else if ns.contains("keyboard") {
-            Some((output_size.w.max(1), 280))
+        } else if ns.contains("keyboard")
+            || ns == "osk"
+            || ns.contains("squeekboard")
+            || ns.contains("phosh-osk")
+            || ns.contains("stevia")
+        {
+            Some((output_size.w.max(1), 316))
         } else {
             None
         };
@@ -2153,6 +2299,7 @@ impl PenumbraCompositor {
             input_method_state,
             virtual_keyboard_state,
             last_text_input_active: false,
+            active_osk_height: 0,
             seat,
             space,
             root_shell: None,
@@ -2185,6 +2332,7 @@ impl PenumbraCompositor {
             next_task_id: 1,
             shell_state: ShellState::default(),
             state_socket: phone::StateSocket::bind(&runtime_path(phone::COMP_STATE_SOCK)).ok(),
+            vkbd_socket: PenumbraServerState::bind_vkbd_socket(),
             overview_scroll: 0.0,
             last_tasks_published: String::from("\u{0}"),
             active_desktop_workspace: 1,
@@ -2568,6 +2716,7 @@ impl PenumbraCompositor {
             // 3. Dispatch & flush clients
             display.dispatch_clients(&mut state)?;
             state.update_text_input_state();
+            state.update_osk_window_layout();
             state.space.refresh();
             let is_overview = state.shell_state.mode == PhoneMode::Overview;
             let is_animating = state.is_nav_animating();
@@ -2576,6 +2725,7 @@ impl PenumbraCompositor {
                 || state.shell_state.drawer_open;
             if is_overview || is_animating || is_qs_active || last_ipc_poll.elapsed() >= Duration::from_millis(16) {
                 state.poll_shell_ipc();
+            state.poll_vkbd_ipc();
                 last_ipc_poll = Instant::now();
             }
             display.flush_clients()?;
