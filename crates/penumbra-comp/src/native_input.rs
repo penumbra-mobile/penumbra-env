@@ -537,7 +537,7 @@ pub(crate) fn handle(
                     let is_overview = server.shell_state.mode == PhoneMode::Overview;
                     let in_overview_zone = is_overview && pos.y >= STATUS_BAR_H as f64;
 
-                    if !server.shell_state.is_locked && ((is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone) {
+                    if !server.shell_state.is_locked && !server.shell_state.drawer_open && ((is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone) {
                         if input.nav_tracker.is_none() {
                             let mut grabbed_card = None;
                             if is_overview {

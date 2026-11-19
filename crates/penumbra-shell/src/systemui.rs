@@ -779,6 +779,98 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    // -----------------------------------------------------------------------
+    // 7b. Live MPRIS2 Media Applet (Firefox YouTube, Spotify, VLC, MPV, etc.)
+    // -----------------------------------------------------------------------
+    let active_mpris_bus = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let qs_weak_mpris = qs_weak.clone();
+        rt.spawn(async move {
+            loop {
+                let state = penumbra_services::mpris::poll_active_media().await;
+                if let Ok(mut guard) = bus_ref.lock() {
+                    *guard = state.as_ref().map(|s| s.bus_name.clone());
+                }
+                let weak = qs_weak_mpris.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        if let Some(s) = state {
+                            ui.set_media_active(true);
+                            ui.set_media_title(s.title.into());
+                            ui.set_media_artist(s.artist.into());
+                            ui.set_media_player(s.player_name.into());
+                            ui.set_media_progress(s.progress);
+                            ui.set_media_playing(s.is_playing);
+                        } else {
+                            ui.set_media_active(false);
+                        }
+                    }
+                });
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+            }
+        });
+    }
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let rt_handle = rt.handle().clone();
+        let qs_weak_pp = qs_weak.clone();
+        qs.on_media_play_pause(move || {
+            if let Some(bus) = bus_ref.lock().ok().and_then(|g| g.clone()) {
+                if let Some(ui) = qs_weak_pp.upgrade() {
+                    ui.set_media_playing(!ui.get_media_playing());
+                }
+                rt_handle.spawn(async move {
+                    penumbra_services::mpris::send_player_command(&bus, "PlayPause").await;
+                });
+            }
+        });
+    }
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let rt_handle = rt.handle().clone();
+        qs.on_media_prev(move || {
+            if let Some(bus) = bus_ref.lock().ok().and_then(|g| g.clone()) {
+                rt_handle.spawn(async move {
+                    penumbra_services::mpris::send_player_command(&bus, "Previous").await;
+                });
+            }
+        });
+    }
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let rt_handle = rt.handle().clone();
+        qs.on_media_next(move || {
+            if let Some(bus) = bus_ref.lock().ok().and_then(|g| g.clone()) {
+                rt_handle.spawn(async move {
+                    penumbra_services::mpris::send_player_command(&bus, "Next").await;
+                });
+            }
+        });
+    }
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let rt_handle = rt.handle().clone();
+        qs.on_media_seek_back(move || {
+            if let Some(bus) = bus_ref.lock().ok().and_then(|g| g.clone()) {
+                rt_handle.spawn(async move {
+                    penumbra_services::mpris::send_player_seek(&bus, -10_000_000).await;
+                });
+            }
+        });
+    }
+    {
+        let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
+        let rt_handle = rt.handle().clone();
+        qs.on_media_seek_forward(move || {
+            if let Some(bus) = bus_ref.lock().ok().and_then(|g| g.clone()) {
+                rt_handle.spawn(async move {
+                    penumbra_services::mpris::send_player_seek(&bus, 10_000_000).await;
+                });
+            }
+        });
+    }
+
     qs.on_brightness_changed(|val| {
         info!("QuickSettings: Brightness set to {:.2}", val);
         penumbra_shell::display::save_brightness(val as f64);

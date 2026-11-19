@@ -29,6 +29,19 @@ export component QuickSettingsWindow inherits Window {
     in property <[TileData]> available-tiles;
     in property <[NotificationData]> notifications;
 
+    in-out property <bool> media-active: false;
+    in-out property <string> media-title: "";
+    in-out property <string> media-artist: "";
+    in-out property <string> media-player: "";
+    in-out property <float> media-progress: 0.0;
+    in-out property <bool> media-playing: false;
+
+    callback media-play-pause();
+    callback media-prev();
+    callback media-next();
+    callback media-seek-back();
+    callback media-seek-forward();
+
     callback close-requested();
     callback power-action();
     callback power-off();
@@ -70,6 +83,18 @@ export component QuickSettingsWindow inherits Window {
         active-tiles: root.active-tiles;
         available-tiles: root.available-tiles;
         notifications: root.notifications;
+        media-active: root.media-active;
+        media-title: root.media-title;
+        media-artist: root.media-artist;
+        media-player: root.media-player;
+        media-progress: root.media-progress;
+        media-playing: root.media-playing;
+
+        media-play-pause => { root.media-play-pause(); }
+        media-prev => { root.media-prev(); }
+        media-next => { root.media-next(); }
+        media-seek-back => { root.media-seek-back(); }
+        media-seek-forward => { root.media-seek-forward(); }
 
         close-requested => { root.close-requested(); }
         power-action => { root.power-action(); }
