@@ -67,29 +67,32 @@ pub async fn poll_mobile_status() -> MobileStatusIndicators {
     )
     .await
     {
-        if let Ok(objects) = mm_proxy
+        match mm_proxy
             .call::<_, _, HashMap<OwnedObjectPath, HashMap<String, HashMap<String, OwnedValue>>>>(
                 "GetManagedObjects",
                 &(),
             )
             .await
         {
-            for (_path, ifaces) in objects {
-                if let Some(modem) = ifaces.get("org.freedesktop.ModemManager1.Modem") {
-                    out.wwan_present = true;
-                    if let Some(sq) = modem.get("SignalQuality") {
-                        if let Ok((pct, _recent)) = <(u32, bool)>::try_from(sq.clone()) {
-                            out.wwan_signal = pct.min(100);
+            Ok(objects) => {
+                for (_path, ifaces) in objects {
+                    if let Some(modem) = ifaces.get("org.freedesktop.ModemManager1.Modem") {
+                        out.wwan_present = true;
+                        if let Some(sq) = modem.get("SignalQuality") {
+                            if let Ok((pct, _recent)) = <(u32, bool)>::try_from(sq.clone()) {
+                                out.wwan_signal = pct.min(100);
+                            }
                         }
-                    }
-                    if let Some(tech) = modem.get("AccessTechnologies") {
-                        if let Ok(mask) = u32::try_from(tech) {
-                            out.wwan_tech = access_tech_label(mask).to_string();
+                        if let Some(tech) = modem.get("AccessTechnologies") {
+                            if let Ok(mask) = u32::try_from(tech) {
+                                out.wwan_tech = access_tech_label(mask).to_string();
+                            }
                         }
+                        break;
                     }
-                    break;
                 }
             }
+            Err(e) => tracing::warn!("ModemManager1 GetManagedObjects failed: {e}"),
         }
     }
 
@@ -102,29 +105,32 @@ pub async fn poll_mobile_status() -> MobileStatusIndicators {
     )
     .await
     {
-        if let Ok(objects) = bz_proxy
+        match bz_proxy
             .call::<_, _, HashMap<OwnedObjectPath, HashMap<String, HashMap<String, OwnedValue>>>>(
                 "GetManagedObjects",
                 &(),
             )
             .await
         {
-            for (_path, ifaces) in objects {
-                if let Some(adapter) = ifaces.get("org.bluez.Adapter1") {
-                    if let Some(val) = adapter.get("Powered") {
-                        if let Ok(true) = bool::try_from(val) {
-                            out.bt_powered = true;
+            Ok(objects) => {
+                for (_path, ifaces) in objects {
+                    if let Some(adapter) = ifaces.get("org.bluez.Adapter1") {
+                        if let Some(val) = adapter.get("Powered") {
+                            if let Ok(true) = bool::try_from(val) {
+                                out.bt_powered = true;
+                            }
                         }
                     }
-                }
-                if let Some(dev) = ifaces.get("org.bluez.Device1") {
-                    if let Some(val) = dev.get("Connected") {
-                        if let Ok(true) = bool::try_from(val) {
-                            out.bt_connected = true;
+                    if let Some(dev) = ifaces.get("org.bluez.Device1") {
+                        if let Some(val) = dev.get("Connected") {
+                            if let Ok(true) = bool::try_from(val) {
+                                out.bt_connected = true;
+                            }
                         }
                     }
                 }
             }
+            Err(e) => tracing::warn!("BlueZ GetManagedObjects failed: {e}"),
         }
     }
 

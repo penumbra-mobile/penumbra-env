@@ -1,5 +1,4 @@
 import { Theme } from "theme.slint";
-import { Icon } from "icon.slint";
 
 export component TopBarWindow inherits Window {
     title: "Penumbra Top Bar";
@@ -7,7 +6,7 @@ export component TopBarWindow inherits Window {
     background: transparent;
     default-font-family: "Droid Sans";
 
-    // Telemetry properties bound to penumbra-services (Phosh-inspired status bar)
+    // Telemetry properties bound to penumbra-services (Material 3 Expressive status bar)
     in-out property <string> time-text: "12:00";
     in-out property <float> battery-pct: 100.0;
     in-out property <bool> is-charging: false;
@@ -66,134 +65,211 @@ export component TopBarWindow inherits Window {
         }
     }
 
-    // Specular subtle bottom border separating the top bar from underlying windows
-    Rectangle {
-        x: 0px;
-        y: parent.height - 1px;
-        width: parent.width;
-        height: 1px;
-        background: Theme.specular-rim;
-        opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
-    }
-
-    // Phosh-inspired Top Bar:
-    // Left: Connectivity (WWAN Cellular, Wi-Fi, VPN, Docked)
-    // Center: Wall Clock
-    // Right: Privacy, DND, Bluetooth, Battery % + Capsule
+    // Material 3 Expressive Top Bar (borderless, transparent, official Material Symbols Rounded)
     Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: parent.height;
+        background: transparent;
         opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
 
-        // Left Indicators
         HorizontalLayout {
-            x: 14px;
+            x: 0px;
             y: 0px;
+            width: parent.width;
             height: parent.height;
-            spacing: 7px;
-            alignment: start;
+            padding-left: 14px;
+            padding-right: 14px;
+            spacing: 0px;
 
-            // Cellular WWAN signal bars + access tech (4G/5G/3G)
-            if root.wwan-present: HorizontalLayout {
-                spacing: 4px;
-                alignment: center;
+            // Left Cluster: Cellular WWAN, Wi-Fi, VPN, Docked
+            HorizontalLayout {
+                horizontal-stretch: 0;
+                height: parent.height;
+                spacing: 6px;
+                alignment: start;
 
+                if root.wwan-present: HorizontalLayout {
+                    spacing: 4px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            width: 15px;
+                            height: 15px;
+                            source: root.wwan-signal >= 75 ? @image-url("icons/signal_cellular_4_bar.svg")
+                                  : root.wwan-signal >= 50 ? @image-url("icons/signal_cellular_3_bar.svg")
+                                  : root.wwan-signal >= 25 ? @image-url("icons/signal_cellular_2_bar.svg")
+                                  : @image-url("icons/signal_cellular_1_bar.svg");
+                            colorize: Theme.on-surface;
+                        }
+                    }
+
+                    if root.wwan-tech != "": VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 15px;
+                            border-radius: 7.5px;
+                            background: Theme.surface-container-highest.with-alpha(0.85);
+                            HorizontalLayout {
+                                padding-left: 5px;
+                                padding-right: 5px;
+                                alignment: center;
+                                Text {
+                                    text: root.wwan-tech;
+                                    color: Theme.on-surface;
+                                    font-size: 9px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.wifi-connected: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 15px;
+                        height: 15px;
+                        source: root.wifi-signal >= 65 ? @image-url("icons/wifi.svg")
+                              : root.wifi-signal >= 35 ? @image-url("icons/wifi_2_bar.svg")
+                              : @image-url("icons/wifi_1_bar.svg");
+                        colorize: Theme.on-surface;
+                    }
+                }
+
+                if root.vpn-active: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/vpn_key.svg");
+                        colorize: Theme.primary;
+                    }
+                }
+
+                if root.docked: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/dock.svg");
+                        colorize: Theme.primary;
+                    }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
+
+            // Right Cluster: Privacy, DND, Bluetooth, Expressive Battery Pill
+            HorizontalLayout {
+                horizontal-stretch: 0;
+                height: parent.height;
+                spacing: 6px;
+                alignment: end;
+
+                if root.privacy-active: VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 16px;
+                        height: 12px;
+                        border-radius: 6px;
+                        background: Theme.privacy-green;
+
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 2px;
+                            padding: 2px;
+
+                            Rectangle {
+                                width: 3px;
+                                height: 3px;
+                                border-radius: 1.5px;
+                                background: #003919;
+                            }
+                            Rectangle {
+                                width: 3px;
+                                height: 3px;
+                                border-radius: 1.5px;
+                                background: #003919;
+                            }
+                        }
+                    }
+                }
+
+                if root.dnd-active: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/do_not_disturb_on.svg");
+                        colorize: Theme.on-surface-variant;
+                    }
+                }
+
+                if root.bt-powered: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: root.bt-connected ? @image-url("icons/bluetooth_connected.svg")
+                              : @image-url("icons/bluetooth.svg");
+                        colorize: root.bt-connected ? Theme.primary : Theme.on-surface;
+                    }
+                }
+
+                // Material 3 Expressive Battery Pill
                 VerticalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 15px;
-                        height: 12px;
-                        background: transparent;
+                        height: 19px;
+                        border-radius: 9.5px;
+                        background: root.is-charging
+                            ? Theme.privacy-green.with-alpha(0.22)
+                            : (root.battery-pct < 20.0
+                                ? Theme.error.with-alpha(0.22)
+                                : Theme.surface-container-highest.with-alpha(0.82));
 
-                        Rectangle {
-                            x: 0px;
-                            y: parent.height - self.height;
-                            width: 2.5px;
-                            height: 3px;
-                            border-radius: 1px;
-                            background: root.wwan-signal >= 10 ? Theme.on-surface : Theme.on-surface.with-alpha(0.28);
-                        }
-                        Rectangle {
-                            x: 4px;
-                            y: parent.height - self.height;
-                            width: 2.5px;
-                            height: 6px;
-                            border-radius: 1px;
-                            background: root.wwan-signal >= 35 ? Theme.on-surface : Theme.on-surface.with-alpha(0.28);
-                        }
-                        Rectangle {
-                            x: 8px;
-                            y: parent.height - self.height;
-                            width: 2.5px;
-                            height: 9px;
-                            border-radius: 1px;
-                            background: root.wwan-signal >= 60 ? Theme.on-surface : Theme.on-surface.with-alpha(0.28);
-                        }
-                        Rectangle {
-                            x: 12px;
-                            y: parent.height - self.height;
-                            width: 2.5px;
-                            height: 12px;
-                            border-radius: 1px;
-                            background: root.wwan-signal >= 80 ? Theme.on-surface : Theme.on-surface.with-alpha(0.28);
+                        HorizontalLayout {
+                            padding-left: 6px;
+                            padding-right: 5px;
+                            spacing: 2px;
+                            alignment: center;
+
+                            Text {
+                                text: "\{Math.round(root.battery-pct)}%";
+                                color: root.battery-pct < 20.0 ? Theme.error
+                                     : (root.is-charging ? Theme.privacy-green : Theme.on-surface);
+                                font-size: 10.5px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 13px;
+                                    height: 13px;
+                                    source: root.is-charging
+                                        ? @image-url("icons/battery_charging_full.svg")
+                                        : @image-url("icons/battery_full.svg");
+                                    colorize: root.battery-pct < 20.0 ? Theme.error
+                                            : (root.is-charging ? Theme.privacy-green : Theme.on-surface);
+                                }
+                            }
                         }
                     }
-                }
-
-                if root.wwan-tech != "": Text {
-                    text: root.wwan-tech;
-                    color: Theme.on-surface-variant;
-                    font-size: 10px;
-                    font-weight: 700;
-                    vertical-alignment: center;
-                }
-            }
-
-            // Native Vector Wi-Fi Icon (Clean Material 3 filled fan)
-            if root.wifi-connected: VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 15px;
-                    height: 12px;
-                    background: transparent;
-
-                    Path {
-                        width: parent.width;
-                        height: parent.height;
-                        viewbox-x: 0;
-                        viewbox-y: 0;
-                        viewbox-width: 24;
-                        viewbox-height: 24;
-                        commands: "M 12 4 C 7.31 4 3.07 5.9 0 8.98 L 12 21 L 24 8.98 C 20.93 5.9 16.69 4 12 4 Z";
-                        fill: Theme.on-surface.with-alpha(0.35 + 0.65 * Math.clamp(root.wifi-signal / 100.0, 0.0, 1.0));
-                    }
-                }
-            }
-
-            // Active VPN Lock/Shield Badge
-            if root.vpn-active: VerticalLayout {
-                alignment: center;
-                Icon {
-                    name: "lock";
-                    icon-size: 12px;
-                    icon-color: Theme.primary;
-                }
-            }
-
-            // Docked External Monitor Indicator
-            if root.docked: VerticalLayout {
-                alignment: center;
-                Icon {
-                    name: "display";
-                    icon-size: 13px;
-                    icon-color: Theme.primary;
                 }
             }
         }
 
-        // Center: Wall Clock (Phosh style)
+        // Center: Wall Clock
         Text {
             x: 0px;
             y: 0px;
@@ -205,130 +281,6 @@ export component TopBarWindow inherits Window {
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
-        }
-
-        // Right Indicators: Privacy, DND, Bluetooth, Battery
-        HorizontalLayout {
-            x: parent.width - self.width - 14px;
-            y: 0px;
-            height: parent.height;
-            spacing: 7px;
-            alignment: end;
-
-            if root.privacy-active: VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 16px;
-                    height: 12px;
-                    border-radius: 6px;
-                    background: Theme.privacy-green;
-
-                    HorizontalLayout {
-                        alignment: center;
-                        spacing: 2px;
-                        padding: 2px;
-
-                        Rectangle {
-                            width: 3px;
-                            height: 3px;
-                            border-radius: 1.5px;
-                            background: #003919;
-                        }
-                        Rectangle {
-                            width: 3px;
-                            height: 3px;
-                            border-radius: 1.5px;
-                            background: #003919;
-                        }
-                    }
-                }
-            }
-
-            if root.dnd-active: VerticalLayout {
-                alignment: center;
-                Icon {
-                    name: "dnd";
-                    icon-size: 13px;
-                    icon-color: Theme.on-surface-variant;
-                }
-            }
-
-            if root.bt-powered: VerticalLayout {
-                alignment: center;
-                Icon {
-                    name: "bluetooth";
-                    icon-size: 13px;
-                    icon-color: root.bt-connected ? Theme.primary : Theme.on-surface-variant;
-                }
-            }
-
-            // Battery Percentage Text
-            VerticalLayout {
-                alignment: center;
-                Text {
-                    text: "\{Math.round(root.battery-pct)}%";
-                    color: Theme.on-surface;
-                    font-size: Theme.font-label;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-            }
-
-            if root.is-charging: VerticalLayout {
-                alignment: center;
-                Path {
-                    width: 9px;
-                    height: 12px;
-                    viewbox-x: 0;
-                    viewbox-y: 0;
-                    viewbox-width: 24;
-                    viewbox-height: 24;
-                    commands: "M 11 1 L 4 13 L 11 13 L 9 23 L 20 10 L 13 10 Z";
-                    fill: #86efac;
-                }
-            }
-
-            // Battery Capsule
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 22px;
-                    height: 12px;
-                    background: transparent;
-
-                    // Battery Fill Box
-                    Rectangle {
-                        x: 0px;
-                        y: 0px;
-                        width: 20px;
-                        height: 12px;
-                        border-radius: 3.5px;
-                        border-width: 1.2px;
-                        border-color: Theme.on-surface;
-                        background: transparent;
-
-                        // Fill
-                        Rectangle {
-                            x: 1.5px;
-                            y: 1.5px;
-                            width: Math.clamp((parent.width - 3px) * (root.battery-pct / 100.0), 2px, parent.width - 3px);
-                            height: parent.height - 3px;
-                            border-radius: 1.5px;
-                            background: root.battery-pct < 20.0 ? #FFB4AB : (root.is-charging ? Theme.privacy-green : Theme.primary);
-                        }
-                    }
-
-                    // Positive Terminal Nodule
-                    Rectangle {
-                        x: 20px;
-                        y: (parent.height - 4px) / 2;
-                        width: 2px;
-                        height: 4px;
-                        border-radius: 1px;
-                        background: Theme.on-surface;
-                    }
-                }
-            }
         }
     }
 }

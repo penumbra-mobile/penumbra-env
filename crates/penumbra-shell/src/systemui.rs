@@ -198,15 +198,27 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     qs.set_brightness(init_brightness as f32);
     qs.set_volume(0.5);
+
+    // layer-shell-slint does not implement EventLoopProxy, so background threads dispatch
+    // UI updates through this mpsc channel drained on the Slint main thread every 80ms.
+    let (ui_tx, ui_rx) = std::sync::mpsc::channel::<Box<dyn FnOnce() + Send>>();
+    let ui_dispatch_timer = Timer::default();
+    ui_dispatch_timer.start(TimerMode::Repeated, Duration::from_millis(80), move || {
+        while let Ok(task) = ui_rx.try_recv() {
+            task();
+        }
+    });
+
     {
         let qs_weak_vol = qs_weak.clone();
+        let tx = ui_tx.clone();
         rt.spawn(async move {
             if let Ok(init_volume) = tokio::task::spawn_blocking(read_volume_ratio).await {
-                let _ = slint::invoke_from_event_loop(move || {
+                let _ = tx.send(Box::new(move || {
                     if let Some(ui) = qs_weak_vol.upgrade() {
                         ui.set_volume(init_volume as f32);
                     }
-                });
+                }));
             }
         });
     }
@@ -793,11 +805,17 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Phosh-inspired system status indicators (ModemManager WWAN, BlueZ, VPN, Docked)
     {
         let top_bar_weak_status = top_bar_weak.clone();
+        let tx = ui_tx.clone();
         rt.spawn(async move {
+            let mut last_st: Option<penumbra_services::status::MobileStatusIndicators> = None;
             loop {
                 let st = penumbra_services::status::poll_mobile_status().await;
+                if last_st.as_ref() != Some(&st) {
+                    info!(?st, "TopBar: mobile status indicators updated");
+                    last_st = Some(st.clone());
+                }
                 let weak = top_bar_weak_status.clone();
-                let _ = slint::invoke_from_event_loop(move || {
+                let _ = tx.send(Box::new(move || {
                     if let Some(bar) = weak.upgrade() {
                         bar.set_wwan_present(st.wwan_present);
                         bar.set_wwan_signal(st.wwan_signal as i32);
@@ -807,7 +825,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         bar.set_vpn_active(st.vpn_active);
                         bar.set_docked(st.docked);
                     }
-                });
+                }));
                 tokio::time::sleep(Duration::from_millis(3000)).await;
             }
         });
@@ -820,6 +838,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         let bus_ref = std::sync::Arc::clone(&active_mpris_bus);
         let qs_weak_mpris = qs_weak.clone();
+        let tx = ui_tx.clone();
         rt.spawn(async move {
             loop {
                 let state = penumbra_services::mpris::poll_active_media().await;
@@ -827,7 +846,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                     *guard = state.as_ref().map(|s| s.bus_name.clone());
                 }
                 let weak = qs_weak_mpris.clone();
-                let _ = slint::invoke_from_event_loop(move || {
+                let _ = tx.send(Box::new(move || {
                     if let Some(ui) = weak.upgrade() {
                         if let Some(s) = state {
                             ui.set_media_active(true);
@@ -840,7 +859,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                             ui.set_media_active(false);
                         }
                     }
-                });
+                }));
                 tokio::time::sleep(Duration::from_millis(1000)).await;
             }
         });
@@ -1286,16 +1305,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
+        let tx = ui_tx.clone();
         rt.spawn(async move {
             let battery_service = BatteryService::new().await;
             let push_bat = |info: penumbra_services::battery::BatteryInfo,
                             tb: &slint::Weak<TopBarWindow>,
                             q: &slint::Weak<QuickSettingsWindow>,
-                            lk: &slint::Weak<LockscreenWindow>| {
+                            lk: &slint::Weak<LockscreenWindow>,
+                            tx: &std::sync::mpsc::Sender<Box<dyn FnOnce() + Send>>| {
                 let tb = tb.clone();
                 let q = q.clone();
                 let lk = lk.clone();
-                let _ = slint::invoke_from_event_loop(move || {
+                let _ = tx.send(Box::new(move || {
                     if let Some(bar) = tb.upgrade() {
                         bar.set_battery_pct(info.percentage as f32);
                         bar.set_is_charging(info.is_charging);
@@ -1307,12 +1328,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         ls.set_battery_pct(info.percentage as i32);
                         ls.set_is_charging(info.is_charging);
                     }
-                });
+                }));
             };
-            push_bat(battery_service.current(), &tb, &q, &lk);
+            push_bat(battery_service.current(), &tb, &q, &lk, &tx);
             let mut bat_rx = battery_service.subscribe();
             while bat_rx.changed().await.is_ok() {
-                push_bat(bat_rx.borrow().clone(), &tb, &q, &lk);
+                push_bat(bat_rx.borrow().clone(), &tb, &q, &lk, &tx);
             }
         });
     }
@@ -1323,13 +1344,15 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
         let tx = tile_sync_tx;
+        let ui_tx = ui_tx.clone();
         rt.spawn(async move {
             let network_service = NetworkService::new().await;
             let push_net = |info: penumbra_services::network::NetworkInfo,
                             tb: &slint::Weak<TopBarWindow>,
                             q: &slint::Weak<QuickSettingsWindow>,
                             lk: &slint::Weak<LockscreenWindow>,
-                            tx: &std::sync::mpsc::Sender<TileSyncMsg>| {
+                            tx: &std::sync::mpsc::Sender<TileSyncMsg>,
+                            ui_tx: &std::sync::mpsc::Sender<Box<dyn FnOnce() + Send>>| {
                 let _ = tx.send(TileSyncMsg::Internet {
                     connected: info.is_connected,
                     ssid: info.ssid.clone(),
@@ -1337,7 +1360,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 let tb = tb.clone();
                 let q = q.clone();
                 let lk = lk.clone();
-                let _ = slint::invoke_from_event_loop(move || {
+                let _ = ui_tx.send(Box::new(move || {
                     if let Some(bar) = tb.upgrade() {
                         bar.set_wifi_connected(info.is_connected);
                         bar.set_wifi_signal(info.signal_strength as i32);
@@ -1351,12 +1374,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         ls.set_wifi_signal(info.signal_strength as i32);
                         ls.set_carrier_str(info.ssid.into());
                     }
-                });
+                }));
             };
-            push_net(network_service.current(), &tb, &q, &lk, &tx);
+            push_net(network_service.current(), &tb, &q, &lk, &tx, &ui_tx);
             let mut net_rx = network_service.subscribe();
             while net_rx.changed().await.is_ok() {
-                push_net(net_rx.borrow().clone(), &tb, &q, &lk, &tx);
+                push_net(net_rx.borrow().clone(), &tb, &q, &lk, &tx, &ui_tx);
             }
         });
     }
