@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
 import { Icon } from "../icon.slint";
-import { SettingsTile } from "../components/settings_tile.slint";
+import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
 
 // ==============================================================================
@@ -12,6 +12,8 @@ export struct BtDeviceData {
     name: string,
     // Unique Bluetooth hardware MAC address (e.g. "AA:BB:CC:DD:EE:FF").
     address: string,
+    // Human-readable device category derived from BlueZ Icon (e.g. "Headphones").
+    device-type: string,
     // Whether an active ACL/profile connection currently exists to this device.
     connected: bool,
     // Whether the device is paired and stored in the adapter's key store.
@@ -23,10 +25,12 @@ export struct BtDeviceData {
 // ==============================================================================
 // Component: PageBluetooth
 // ==============================================================================
-// Bluetooth adapter and peripheral management subpage adhering strictly to Android 17 design.
+// Bluetooth adapter and peripheral management subpage inspired by GNOME Settings.
 export component PageBluetooth inherits Flickable {
     // Current Bluetooth adapter power state.
     in-out property <bool> bt-enabled: true;
+    // Whether the adapter is discoverable by nearby devices.
+    in-out property <bool> discoverable: false;
     // Human-readable broadcast name of the host adapter (e.g. "arch-legion").
     in property <string> adapter-name: "Bluetooth";
     // Real Bluetooth hardware MAC address.
@@ -36,12 +40,23 @@ export component PageBluetooth inherits Flickable {
     // List of paired and discovered Bluetooth accessories.
     in property <[BtDeviceData]> devices: [];
 
+    in-out property <bool> editing-name: false;
+    in-out property <string> rename-input: "";
+
     // Emitted when the user toggles the master Bluetooth power switch.
     callback toggle-bt(bool);
-    // Emitted when the user taps a device row to toggle connect/disconnect.
+    // Emitted when the user taps a device row to toggle connect/disconnect or pair.
     callback toggle-device(string);
+    // Emitted when the user forgets/unpairs a saved device.
+    callback forget-device(string);
     // Emitted when the user taps "Pair new device" to begin discovery scanning.
     callback start-discovery();
+    // Emitted when the user taps to stop discovery scanning.
+    callback stop-discovery();
+    // Emitted when the user toggles adapter discoverability.
+    callback toggle-discoverable(bool);
+    // Emitted when the user renames the Bluetooth adapter.
+    callback rename-adapter(string);
 
     Flickable {
         width: 100%;
@@ -74,93 +89,311 @@ export component PageBluetooth inherits Flickable {
         if root.bt-enabled: VerticalLayout {
             spacing: 12px;
 
-            // Pair New Device Action
+            // Scan / Pair New Device Action
             SettingsSectionCard {
                 SettingsTile {
                     icon-name: "refresh";
-                    icon-bg: #a8c7fa;
+                    icon-bg: root.is-discovering ? Theme.primary : #a8c7fa;
                     icon-tint: #042b59;
-                    title: root.is-discovering ? "Scanning for devices..." : "Pair new device";
-                    subtitle: root.is-discovering ? "Discovery active on " + root.adapter-name : "Scan for nearby Bluetooth accessories";
-                    show-chevron: true;
+                    title: root.is-discovering ? "Scanning for devices... (Tap to stop)" : "Scan for nearby devices";
+                    subtitle: root.is-discovering ? "Discovery active on " + root.adapter-name : "Discover & pair Bluetooth accessories";
+                    show-chevron: !root.is-discovering;
                     show-divider: false;
                     is-first: true;
                     is-last: true;
-                    clicked => { root.start-discovery(); }
-                }
-            }
-
-            // Saved / Discovered Devices
-            VerticalLayout {
-                spacing: 8px;
-                SettingsSectionHeader { title: "Devices"; }
-                SettingsSectionCard {
-                    VerticalLayout {
-                        padding-top: 4px;
-                        padding-bottom: 4px;
-
-                        if root.devices.length == 0: SettingsTile {
-                            icon-name: "devices";
-                            icon-bg: #282a30;
-                            icon-tint: #938f99;
-                            title: root.is-discovering ? "Scanning for nearby devices..." : "No Bluetooth devices found";
-                            subtitle: root.is-discovering ? "Make sure your accessory is in pairing mode" : "Tap Pair new device to search";
-                            show-chevron: false;
-                            is-first: true;
-                            is-last: true;
-                            show-divider: false;
-                        }
-
-                        for dev[idx] in root.devices: SettingsTile {
-                            icon-name: "devices";
-                            icon-bg: dev.connected ? #a3e8b0 : #282a30;
-                            icon-tint: dev.connected ? #073919 : #e6e0e9;
-                            title: dev.name;
-                            subtitle: dev.connected
-                                ? (dev.battery >= 0 ? "Connected • " + dev.battery + "% battery" : "Connected")
-                                : (dev.paired ? "Saved" : "Available to pair");
-                            trailing-text: dev.connected ? "Active" : "";
-                            show-chevron: !dev.connected;
-                            is-first: idx == 0;
-                            is-last: idx == root.devices.length - 1;
-                            show-divider: idx < root.devices.length - 1;
-                            clicked => { root.toggle-device(dev.address); }
+                    clicked => {
+                        if root.is-discovering {
+                            root.stop-discovery();
+                        } else {
+                            root.start-discovery();
                         }
                     }
                 }
             }
 
-            // Device Preferences
+            // Saved & Connected Devices (GNOME Settings style)
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Saved & Connected Devices"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding: 8px;
+                        spacing: 6px;
+
+                        if root.devices.length == 0: Text {
+                            text: root.is-discovering
+                                ? "Scanning for nearby Bluetooth devices..."
+                                : "No Bluetooth devices found. Tap Scan to search.";
+                            font-size: Theme.font-caption;
+                            color: Theme.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+
+                        for dev in root.devices: VerticalLayout {
+                            if dev.paired || dev.connected: Rectangle {
+                                min-height: 62px;
+                                border-radius: 16px;
+                                background: dev.connected ? Theme.primary-container : #1e2025;
+                                border-width: 1px;
+                                border-color: dev.connected ? Theme.primary : Theme.specular-rim;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 10px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 2px;
+                                        horizontal-stretch: 1;
+                                        Text {
+                                            text: dev.name;
+                                            font-size: Theme.font-body;
+                                            font-weight: 600;
+                                            color: dev.connected ? Theme.on-primary-container : Theme.on-surface;
+                                            overflow: elide;
+                                        }
+                                        Text {
+                                            text: (dev.device-type != "" ? dev.device-type + " • " : "")
+                                                + (dev.connected
+                                                    ? (dev.battery >= 0 ? "Connected • " + dev.battery + "%" : "Connected")
+                                                    : "Disconnected");
+                                            font-size: Theme.font-caption;
+                                            color: dev.connected ? Theme.on-primary-container : Theme.on-surface-variant;
+                                            overflow: elide;
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: 64px;
+                                        height: 30px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: 15px;
+                                        background: #5c2020;
+                                        Text {
+                                            text: "Forget";
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: #ffb4ab;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        TouchArea {
+                                            clicked => { root.forget-device(dev.address); }
+                                        }
+                                    }
+                                }
+
+                                TouchArea {
+                                    x: 0px;
+                                    width: parent.width - 80px;
+                                    clicked => { root.toggle-device(dev.address); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Available Nearby Devices
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: "Available Nearby"; }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding: 8px;
+                        spacing: 6px;
+
+                        for dev in root.devices: VerticalLayout {
+                            if !dev.paired && !dev.connected: Rectangle {
+                                min-height: 58px;
+                                border-radius: 16px;
+                                background: #1e2025;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim;
+
+                                HorizontalLayout {
+                                    padding-left: 14px;
+                                    padding-right: 10px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+
+                                    VerticalLayout {
+                                        alignment: center;
+                                        spacing: 2px;
+                                        horizontal-stretch: 1;
+                                        Text {
+                                            text: dev.name;
+                                            font-size: Theme.font-body;
+                                            font-weight: 600;
+                                            color: Theme.on-surface;
+                                            overflow: elide;
+                                        }
+                                        Text {
+                                            text: (dev.device-type != "" ? dev.device-type + " • " : "") + dev.address;
+                                            font-size: Theme.font-caption;
+                                            color: Theme.on-surface-variant;
+                                            overflow: elide;
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: 58px;
+                                        height: 30px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: 15px;
+                                        background: Theme.primary;
+                                        Text {
+                                            text: "Pair";
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: Theme.on-primary;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+
+                                TouchArea {
+                                    clicked => { root.toggle-device(dev.address); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Device Preferences (Discoverability, Rename, MAC)
             VerticalLayout {
                 spacing: 8px;
                 SettingsSectionHeader { title: "Connection preferences"; }
                 SettingsSectionCard {
                     VerticalLayout {
-                        padding-top: 4px;
-                        padding-bottom: 4px;
+                        padding: 14px;
+                        spacing: 12px;
 
-                        SettingsTile {
-                            icon-name: "settings";
-                            icon-bg: #7dd8fc;
-                            icon-tint: #00354e;
-                            title: "Device name";
-                            subtitle: root.adapter-name;
-                            show-chevron: true;
-                            is-first: true;
-                            is-last: false;
-                            show-divider: true;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: "Visible to other devices";
+                                    font-size: Theme.font-body;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                }
+                                Text {
+                                    text: "Allow nearby devices to discover " + root.adapter-name;
+                                    font-size: Theme.font-caption;
+                                    color: Theme.on-surface-variant;
+                                }
+                            }
+                            M3Switch {
+                                y: (parent.height - self.height) / 2;
+                                checked <=> root.discoverable;
+                                toggled(val) => { root.toggle-discoverable(val); }
+                            }
                         }
 
-                        SettingsTile {
-                            icon-name: "network";
-                            icon-bg: #d0bcff;
-                            icon-tint: #381e72;
-                            title: "Bluetooth address";
-                            subtitle: root.bluetooth-mac;
-                            show-chevron: false;
-                            is-first: false;
-                            is-last: true;
-                            show-divider: false;
+                        Rectangle { height: 1px; background: Theme.outline-variant; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            VerticalLayout {
+                                spacing: 2px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: "Device name";
+                                    font-size: Theme.font-body;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                }
+                                Text {
+                                    text: root.adapter-name;
+                                    font-size: Theme.font-caption;
+                                    color: Theme.on-surface-variant;
+                                }
+                            }
+                            Rectangle {
+                                width: 64px;
+                                height: 30px;
+                                y: (parent.height - self.height) / 2;
+                                border-radius: 15px;
+                                background: Theme.surface-highest;
+                                Text {
+                                    text: root.editing-name ? "Close" : "Edit";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.rename-input = root.adapter-name;
+                                        root.editing-name = !root.editing-name;
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.editing-name: HorizontalLayout {
+                            spacing: 8px;
+                            Rectangle {
+                                height: 38px;
+                                horizontal-stretch: 1;
+                                border-radius: 10px;
+                                background: #1e2025;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim;
+                                TextInput {
+                                    x: 10px; width: parent.width - 20px; height: 100%;
+                                    text <=> root.rename-input;
+                                    font-size: Theme.font-body;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Rectangle {
+                                width: 68px;
+                                height: 38px;
+                                border-radius: 10px;
+                                background: Theme.primary;
+                                Text {
+                                    text: "Save";
+                                    font-size: Theme.font-caption;
+                                    font-weight: 700;
+                                    color: Theme.on-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.rename-adapter(root.rename-input);
+                                        root.editing-name = false;
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle { height: 1px; background: Theme.outline-variant; }
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Bluetooth address";
+                                font-size: Theme.font-body;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                            Text {
+                                text: root.bluetooth-mac;
+                                font-size: Theme.font-caption;
+                                color: Theme.on-surface-variant;
+                                vertical-alignment: center;
+                            }
                         }
                     }
                 }

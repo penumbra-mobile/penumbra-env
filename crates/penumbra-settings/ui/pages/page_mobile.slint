@@ -1,0 +1,739 @@
+import { Theme } from "../theme.slint";
+import { Icon } from "../icon.slint";
+import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
+import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
+
+export struct ApnEntryData {
+    path: string,
+    name: string,
+    apn: string,
+    username: string,
+    password: string,
+    is-active: bool,
+}
+
+export struct ESimProfileData {
+    iccid: string,
+    nickname: string,
+    spn: string,
+    name: string,
+    is-enabled: bool,
+}
+
+export component PageMobile inherits Rectangle {
+    // ModemManager / NetworkManager WWAN state
+    in property <bool> modem-present: false;
+    in property <bool> sim-present: false;
+    in property <bool> sim-locked: false;
+    in property <string> lock-reason: "";
+    in property <string> operator-name: "No service";
+    in property <string> access-tech: "";
+    in property <int> signal-percent: 0;
+    in property <string> modem-model: "";
+    in property <string> modem-imei: "";
+    in-out property <bool> mobile-data-enabled: false;
+    in-out property <bool> data-roaming-enabled: false;
+    in-out property <string> network-mode: "auto";
+    in property <[ApnEntryData]> apns: [];
+    in property <string> status-banner: "";
+
+    // eSIM (lpa-gtk / lpac) state
+    in property <bool> esim-available: false;
+    in property <string> esim-eid: "";
+    in property <string> esim-backend: "";
+    in property <string> esim-error: "";
+    in property <[ESimProfileData]> esim-profiles: [];
+
+    // Inline editor state
+    in-out property <bool> show-apn-editor: false;
+    in-out property <string> edit-apn-path: "";
+    in-out property <string> edit-apn-name: "";
+    in-out property <string> edit-apn-apn: "";
+    in-out property <string> edit-apn-user: "";
+    in-out property <string> edit-apn-pass: "";
+    in-out property <string> esim-code-input: "";
+    in-out property <string> sim-pin-input: "";
+
+    callback mobile-data-toggled(bool);
+    callback data-roaming-toggled(bool);
+    callback network-mode-selected(string);
+    callback sim-pin-submitted(string);
+    callback apn-activated(string);
+    callback apn-saved(string, string, string, string, string);
+    callback apn-deleted(string);
+    callback esim-refresh();
+    callback esim-toggle-profile(string, bool);
+    callback esim-delete-profile(string);
+    callback esim-download-profile(string);
+
+    background: Theme.base-surface;
+
+    Flickable {
+        width: 100%;
+        height: 100%;
+        content-height: col.preferred-height + 32px;
+
+        col := VerticalLayout {
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 8px;
+            padding-bottom: 48px;
+            spacing: 14px;
+
+            // --------------------------------------------------------------
+            // 1. Modem & SIM Status Card
+            // --------------------------------------------------------------
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding: 16px;
+                    spacing: 8px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        Text {
+                            text: root.modem-present
+                                ? (root.sim-present ? root.operator-name : "No SIM inserted")
+                                : "No cellular modem detected";
+                            font-size: Theme.font-title;
+                            font-weight: 700;
+                            color: Theme.on-surface;
+                        }
+                        if root.modem-present && root.sim-present && root.access-tech != "": Rectangle {
+                            height: 22px;
+                            border-radius: 11px;
+                            background: Theme.primary-container;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                alignment: center;
+                                Text {
+                                    text: root.access-tech + " • " + root.signal-percent + "%";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: Theme.on-primary-container;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    if root.modem-model != "" || root.modem-imei != "": Text {
+                        text: (root.modem-model != "" ? root.modem-model + "  •  " : "") + (root.modem-imei != "" ? "IMEI " + root.modem-imei : "");
+                        font-size: Theme.font-caption;
+                        color: Theme.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+
+                    if root.status-banner != "": Text {
+                        text: root.status-banner;
+                        font-size: Theme.font-caption;
+                        color: Theme.primary;
+                        wrap: word-wrap;
+                    }
+
+                    // SIM PIN Unlock Card
+                    if root.sim-locked: VerticalLayout {
+                        spacing: 8px;
+                        padding-top: 6px;
+
+                        Text {
+                            text: root.lock-reason != "" ? root.lock-reason : "SIM PIN required";
+                            font-size: Theme.font-body;
+                            font-weight: 600;
+                            color: #FFB4AB;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Rectangle {
+                                height: 40px;
+                                horizontal-stretch: 1;
+                                border-radius: 12px;
+                                background: Theme.surface-container-high;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim;
+                                TextInput {
+                                    x: 12px;
+                                    width: parent.width - 24px;
+                                    height: 100%;
+                                    text <=> root.sim-pin-input;
+                                    input-type: password;
+                                    font-size: Theme.font-body;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            Rectangle {
+                                width: 84px;
+                                height: 40px;
+                                border-radius: 12px;
+                                background: Theme.primary;
+                                Text {
+                                    text: "Unlock";
+                                    font-size: Theme.font-body;
+                                    font-weight: 600;
+                                    color: Theme.on-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.sim-pin-submitted(root.sim-pin-input);
+                                        root.sim-pin-input = "";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --------------------------------------------------------------
+            // 2. Mobile Data & Roaming Toggles
+            // --------------------------------------------------------------
+            SettingsSectionHeader { title: "Mobile Data"; }
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 12px;
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: "Mobile Data";
+                                font-size: Theme.font-body;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                            Text {
+                                text: "Access data using cellular network";
+                                font-size: Theme.font-caption;
+                                color: Theme.on-surface-variant;
+                            }
+                        }
+                        M3Switch {
+                            y: (parent.height - self.height) / 2;
+                            checked <=> root.mobile-data-enabled;
+                            toggled(v) => { root.mobile-data-toggled(v); }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: Theme.outline-variant; }
+
+                    HorizontalLayout {
+                        alignment: space-between;
+                        VerticalLayout {
+                            spacing: 2px;
+                            horizontal-stretch: 1;
+                            Text {
+                                text: "Data Roaming";
+                                font-size: Theme.font-body;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                            Text {
+                                text: "Connect to data services when roaming";
+                                font-size: Theme.font-caption;
+                                color: Theme.on-surface-variant;
+                            }
+                        }
+                        M3Switch {
+                            y: (parent.height - self.height) / 2;
+                            checked <=> root.data-roaming-enabled;
+                            toggled(v) => { root.data-roaming-toggled(v); }
+                        }
+                    }
+                }
+            }
+
+            // --------------------------------------------------------------
+            // 3. Preferred Network Mode (gnome-control-center wwan)
+            // --------------------------------------------------------------
+            SettingsSectionHeader { title: "Preferred Network Mode"; }
+            SettingsSectionCard {
+                HorizontalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    for mode in [
+                        { id: "auto", label: "Auto" },
+                        { id: "4g_3g", label: "4G / 3G" },
+                        { id: "4g_only", label: "4G Only" },
+                        { id: "3g_2g", label: "3G / 2G" },
+                    ]: Rectangle {
+                        height: 36px;
+                        horizontal-stretch: 1;
+                        border-radius: 18px;
+                        background: root.network-mode == mode.id ? Theme.primary : Theme.surface-container-high;
+                        border-width: 1px;
+                        border-color: root.network-mode == mode.id ? Theme.primary : Theme.specular-rim;
+
+                        Text {
+                            text: mode.label;
+                            font-size: Theme.font-caption;
+                            font-weight: 600;
+                            color: root.network-mode == mode.id ? Theme.on-primary : Theme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.network-mode = mode.id;
+                                root.network-mode-selected(mode.id);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --------------------------------------------------------------
+            // 4. Access Point Names (APNs)
+            // --------------------------------------------------------------
+            HorizontalLayout {
+                alignment: space-between;
+                SettingsSectionHeader { title: "Access Point Names (APNs)"; }
+                Rectangle {
+                    width: 80px;
+                    height: 28px;
+                    border-radius: 14px;
+                    background: Theme.primary-container;
+                    Text {
+                        text: "+ Add APN";
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: Theme.on-primary-container;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.edit-apn-path = "";
+                            root.edit-apn-name = "";
+                            root.edit-apn-apn = "";
+                            root.edit-apn-user = "";
+                            root.edit-apn-pass = "";
+                            root.show-apn-editor = true;
+                        }
+                    }
+                }
+            }
+
+            if root.apns.length == 0 && !root.show-apn-editor: SettingsSectionCard {
+                VerticalLayout {
+                    padding: 16px;
+                    Text {
+                        text: "No GSM APN profiles configured. Tap + Add APN to create one.";
+                        font-size: Theme.font-caption;
+                        color: Theme.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+                }
+            }
+
+            if root.apns.length > 0: SettingsSectionCard {
+                VerticalLayout {
+                    padding: 8px;
+                    spacing: 6px;
+
+                    for item in root.apns: Rectangle {
+                        min-height: 58px;
+                        border-radius: 16px;
+                        background: item.is-active ? Theme.primary-container : Theme.surface-container-high;
+                        border-width: 1px;
+                        border-color: item.is-active ? Theme.primary : Theme.specular-rim;
+
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 10px;
+                            spacing: 8px;
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: item.name + (item.is-active ? " (Active)" : "");
+                                    font-size: Theme.font-body;
+                                    font-weight: 600;
+                                    color: item.is-active ? Theme.on-primary-container : Theme.on-surface;
+                                }
+                                Text {
+                                    text: item.apn != "" ? item.apn : "No APN set";
+                                    font-size: Theme.font-caption;
+                                    color: item.is-active ? Theme.on-primary-container : Theme.on-surface-variant;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 52px;
+                                height: 28px;
+                                y: (parent.height - self.height) / 2;
+                                border-radius: 14px;
+                                background: Theme.surface-highest;
+                                Text {
+                                    text: "Edit";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.edit-apn-path = item.path;
+                                        root.edit-apn-name = item.name;
+                                        root.edit-apn-apn = item.apn;
+                                        root.edit-apn-user = item.username;
+                                        root.edit-apn-pass = item.password;
+                                        root.show-apn-editor = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        TouchArea {
+                            x: 0px;
+                            width: parent.width - 68px;
+                            clicked => { root.apn-activated(item.path); }
+                        }
+                    }
+                }
+            }
+
+            if root.show-apn-editor: SettingsSectionCard {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+
+                    Text {
+                        text: root.edit-apn-path == "" ? "New Access Point" : "Edit Access Point";
+                        font-size: Theme.font-body;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                    }
+
+                    for field in [
+                        { label: "Name", kind: "name" },
+                    ]: VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "Profile Name"; font-size: 11px; color: Theme.on-surface-variant; }
+                        Rectangle {
+                            height: 38px;
+                            border-radius: 10px;
+                            background: Theme.surface-container-high;
+                            border-width: 1px;
+                            border-color: Theme.specular-rim;
+                            TextInput {
+                                x: 10px; width: parent.width - 20px; height: 100%;
+                                text <=> root.edit-apn-name;
+                                font-size: Theme.font-body; color: Theme.on-surface; vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: "APN (e.g. internet)"; font-size: 11px; color: Theme.on-surface-variant; }
+                        Rectangle {
+                            height: 38px;
+                            border-radius: 10px;
+                            background: Theme.surface-container-high;
+                            border-width: 1px;
+                            border-color: Theme.specular-rim;
+                            TextInput {
+                                x: 10px; width: parent.width - 20px; height: 100%;
+                                text <=> root.edit-apn-apn;
+                                font-size: Theme.font-body; color: Theme.on-surface; vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Text { text: "Username"; font-size: 11px; color: Theme.on-surface-variant; }
+                            Rectangle {
+                                height: 38px;
+                                border-radius: 10px;
+                                background: Theme.surface-container-high;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim;
+                                TextInput {
+                                    x: 10px; width: parent.width - 20px; height: 100%;
+                                    text <=> root.edit-apn-user;
+                                    font-size: Theme.font-body; color: Theme.on-surface; vertical-alignment: center;
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 4px;
+                            Text { text: "Password"; font-size: 11px; color: Theme.on-surface-variant; }
+                            Rectangle {
+                                height: 38px;
+                                border-radius: 10px;
+                                background: Theme.surface-container-high;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim;
+                                TextInput {
+                                    x: 10px; width: parent.width - 20px; height: 100%;
+                                    text <=> root.edit-apn-pass;
+                                    input-type: password;
+                                    font-size: Theme.font-body; color: Theme.on-surface; vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: end;
+
+                        if root.edit-apn-path != "": Rectangle {
+                            width: 72px;
+                            height: 36px;
+                            border-radius: 18px;
+                            background: #5c2020;
+                            Text {
+                                text: "Delete";
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: #ffb4ab;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    root.apn-deleted(root.edit-apn-path);
+                                    root.show-apn-editor = false;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 72px;
+                            height: 36px;
+                            border-radius: 18px;
+                            background: Theme.surface-highest;
+                            Text {
+                                text: "Cancel";
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => { root.show-apn-editor = false; }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 72px;
+                            height: 36px;
+                            border-radius: 18px;
+                            background: Theme.primary;
+                            Text {
+                                text: "Save";
+                                font-size: Theme.font-caption;
+                                font-weight: 700;
+                                color: Theme.on-primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    root.apn-saved(
+                                        root.edit-apn-path,
+                                        root.edit-apn-name,
+                                        root.edit-apn-apn,
+                                        root.edit-apn-user,
+                                        root.edit-apn-pass,
+                                    );
+                                    root.show-apn-editor = false;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --------------------------------------------------------------
+            // 5. eSIM Manager (inspired by lpa-gtk / lpac)
+            // --------------------------------------------------------------
+            HorizontalLayout {
+                alignment: space-between;
+                SettingsSectionHeader { title: "eSIM Manager (LPA)"; }
+                Rectangle {
+                    width: 68px;
+                    height: 28px;
+                    border-radius: 14px;
+                    background: Theme.surface-container-high;
+                    Text {
+                        text: "Refresh";
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: Theme.on-surface;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea {
+                        clicked => { root.esim-refresh(); }
+                    }
+                }
+            }
+
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+
+                    if !root.esim-available: Text {
+                        text: root.esim-error != "" ? root.esim-error : "eUICC / lpac backend not available";
+                        font-size: Theme.font-caption;
+                        color: Theme.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+
+                    if root.esim-available: VerticalLayout {
+                        spacing: 10px;
+
+                        Text {
+                            text: "EID: " + (root.esim-eid != "" ? root.esim-eid : "Unknown") + "  (" + root.esim-backend + ")";
+                            font-size: 11px;
+                            color: Theme.on-surface-variant;
+                            wrap: word-wrap;
+                        }
+
+                        for prof in root.esim-profiles: Rectangle {
+                            min-height: 62px;
+                            border-radius: 14px;
+                            background: prof.is-enabled ? Theme.primary-container : Theme.surface-container-high;
+                            border-width: 1px;
+                            border-color: prof.is-enabled ? Theme.primary : Theme.specular-rim;
+
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 10px;
+                                spacing: 8px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    alignment: center;
+                                    spacing: 2px;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: (prof.nickname != "" ? prof.nickname : (prof.name != "" ? prof.name : prof.spn)) + (prof.is-enabled ? " • Enabled" : "");
+                                        font-size: Theme.font-body;
+                                        font-weight: 600;
+                                        color: prof.is-enabled ? Theme.on-primary-container : Theme.on-surface;
+                                    }
+                                    Text {
+                                        text: prof.spn + " • " + prof.iccid;
+                                        font-size: 11px;
+                                        color: prof.is-enabled ? Theme.on-primary-container : Theme.on-surface-variant;
+                                        overflow: elide;
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 68px;
+                                    height: 30px;
+                                    y: (parent.height - self.height) / 2;
+                                    border-radius: 15px;
+                                    background: prof.is-enabled ? Theme.surface-highest : Theme.primary;
+                                    Text {
+                                        text: prof.is-enabled ? "Disable" : "Enable";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: prof.is-enabled ? Theme.on-surface : Theme.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => { root.esim-toggle-profile(prof.iccid, !prof.is-enabled); }
+                                    }
+                                }
+
+                                if !prof.is-enabled: Rectangle {
+                                    width: 54px;
+                                    height: 30px;
+                                    y: (parent.height - self.height) / 2;
+                                    border-radius: 15px;
+                                    background: #5c2020;
+                                    Text {
+                                        text: "Del";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: #ffb4ab;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => { root.esim-delete-profile(prof.iccid); }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Download eSIM profile via activation code (LPA:1$...)
+                        VerticalLayout {
+                            spacing: 6px;
+                            padding-top: 4px;
+                            Text {
+                                text: "Download eSIM Profile (Activation Code)";
+                                font-size: 11px;
+                                font-weight: 600;
+                                color: Theme.on-surface-variant;
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Rectangle {
+                                    height: 38px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 10px;
+                                    background: Theme.surface-container-high;
+                                    border-width: 1px;
+                                    border-color: Theme.specular-rim;
+                                    TextInput {
+                                        x: 10px; width: parent.width - 20px; height: 100%;
+                                        text <=> root.esim-code-input;
+                                        font-size: Theme.font-caption;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                Rectangle {
+                                    width: 84px;
+                                    height: 38px;
+                                    border-radius: 10px;
+                                    background: Theme.primary;
+                                    Text {
+                                        text: "Add";
+                                        font-size: Theme.font-body;
+                                        font-weight: 700;
+                                        color: Theme.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => {
+                                            root.esim-download-profile(root.esim-code-input);
+                                            root.esim-code-input = "";
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

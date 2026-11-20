@@ -26,6 +26,8 @@ pub enum Page {
     Main,
     /// Wireless local area network management, scanning, and connection setup.
     Wifi,
+    /// Cellular modem, mobile data, roaming, APN profiles, SIM PIN, and eSIM (LPA).
+    Mobile,
     /// Bluetooth adapter power toggle, active discovery, and paired device management.
     Bluetooth,
     /// Screen brightness sliders, auto-brightness, dark theme, and display metrics.
@@ -53,6 +55,7 @@ impl Page {
         match self {
             Page::Main => "main",
             Page::Wifi => "wifi",
+            Page::Mobile => "mobile",
             Page::Bluetooth => "bluetooth",
             Page::Display => "display",
             Page::Appearance => "appearance",
@@ -73,6 +76,7 @@ impl Page {
         match self {
             Page::Main => "Settings",
             Page::Wifi => "Network & internet",
+            Page::Mobile => "Mobile network & eSIM",
             Page::Bluetooth => "Connected devices",
             Page::Display => "Display",
             Page::Appearance => "Wallpaper & style",
@@ -111,6 +115,7 @@ impl FromStr for Page {
         let normalized = s.trim().to_lowercase();
         let page = match normalized.as_str() {
             "wifi" | "wi-fi" | "network" | "internet" | "wlan" => Page::Wifi,
+            "mobile" | "cellular" | "wwan" | "apn" | "sim" | "esim" | "modem" => Page::Mobile,
             "bluetooth" | "bt" => Page::Bluetooth,
             "display" | "brightness" | "screen" => Page::Display,
             "appearance" | "style" | "theme" | "wallpaper" | "personalization" | "monet" => {

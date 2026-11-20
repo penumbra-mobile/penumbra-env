@@ -181,6 +181,24 @@ pub fn registry() -> Vec<TileDefinition> {
     ]
 }
 
+/// Fast, non-blocking tile registry initialization (pure sysfs + saved state, no subprocesses).
+/// Hardware radio states (`internet`, `bluetooth`, `airplane`) are refreshed asynchronously after startup.
+pub fn registry_fast() -> Vec<TileDefinition> {
+    let torch_on = is_torch_active();
+    let saver_on = is_battery_saver_active();
+    let state = crate::ipc::ShellState::load();
+
+    vec![
+        TileDefinition::new("internet", "Internet", "wifi", "Connected", "Off", true),
+        TileDefinition::new("bluetooth", "Bluetooth", "bluetooth", "On", "Off", false),
+        TileDefinition::new("flashlight", "Flashlight", "flashlight", "On", "Off", torch_on),
+        TileDefinition::new("battery_saver", "Battery Saver", "battery", "On", "Off", saver_on),
+        TileDefinition::new("dnd", "Do Not Disturb", "dnd", "Priority only", "Off", state.dnd_active),
+        TileDefinition::new("rotation", "Auto-rotate", "rotation", "Auto-rotate", "Portrait", state.auto_rotate),
+        TileDefinition::new("airplane", "Airplane mode", "airplane", "On", "Off", false),
+    ]
+}
+
 pub fn default_active_ids() -> Vec<String> {
     [
         "internet",

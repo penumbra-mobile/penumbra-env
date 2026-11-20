@@ -4,6 +4,7 @@ import { TopBarNav } from "components/top_bar_nav.slint";
 import { DesktopSidebar } from "components/desktop_sidebar.slint";
 import { PageMain, SearchResultData } from "pages/page_main.slint";
 import { PageWifi, WifiApData } from "pages/page_wifi.slint";
+import { PageMobile, ApnEntryData, ESimProfileData } from "pages/page_mobile.slint";
 import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
 import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
 import { PageAppearance } from "pages/page_appearance.slint";
@@ -13,7 +14,7 @@ import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
 import { PageSecurity } from "pages/page_security.slint";
 
-export { WifiApData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData }
+export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData }
 
 // ==============================================================================
 // Component: SettingsWindow
@@ -49,15 +50,64 @@ export component SettingsWindow inherits Window {
     in-out property <bool> wifi-enabled: true;
     in property <string> connected-ssid: "";
     in property <int> signal-strength: 0;
+    in property <string> wifi-ip-address: "";
+    in-out property <bool> hotspot-active: false;
     in property <[WifiApData]> wifi-access-points: [];
+
+    callback disconnect-wifi();
+    callback forget-wifi-network(string);
+    callback start-hotspot(string, string);
+    callback stop-hotspot();
+
+    // --------------------------------------------------------------------------
+    // Reactive Hardware Properties - Mobile / Modem / APN / eSIM
+    // --------------------------------------------------------------------------
+    in property <string> mobile-status: "Mobile data, APNs & eSIM";
+    in property <bool> mobile-modem-present: false;
+    in property <bool> mobile-sim-present: false;
+    in property <bool> mobile-sim-locked: false;
+    in property <string> mobile-lock-reason: "";
+    in property <string> mobile-operator-name: "No service";
+    in property <string> mobile-access-tech: "";
+    in property <int> mobile-signal-percent: 0;
+    in property <string> mobile-modem-model: "";
+    in property <string> mobile-modem-imei: "";
+    in-out property <bool> mobile-data-enabled: false;
+    in-out property <bool> mobile-data-roaming: false;
+    in-out property <string> mobile-network-mode: "auto";
+    in property <[ApnEntryData]> mobile-apns: [];
+    in property <string> mobile-status-banner: "";
+    in property <bool> esim-available: false;
+    in property <string> esim-eid: "";
+    in property <string> esim-backend: "";
+    in property <string> esim-error: "";
+    in property <[ESimProfileData]> esim-profiles: [];
+
+    callback mobile-data-toggled(bool);
+    callback mobile-roaming-toggled(bool);
+    callback mobile-network-mode-selected(string);
+    callback mobile-sim-pin-submitted(string);
+    callback mobile-apn-activated(string);
+    callback mobile-apn-saved(string, string, string, string, string);
+    callback mobile-apn-deleted(string);
+    callback esim-refresh();
+    callback esim-toggle-profile(string, bool);
+    callback esim-delete-profile(string);
+    callback esim-download-profile(string);
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Bluetooth (BlueZ)
     // --------------------------------------------------------------------------
     in-out property <bool> bt-enabled: true;
+    in-out property <bool> bt-discoverable: false;
     in property <string> adapter-name: "Bluetooth";
     in property <bool> is-discovering: false;
     in property <[BtDeviceData]> bt-devices: [];
+
+    callback forget-bt-device(string);
+    callback stop-bt-discovery();
+    callback toggle-bt-discoverable(bool);
+    callback rename-bt-adapter(string);
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Display & Convergence
@@ -234,6 +284,7 @@ export component SettingsWindow inherits Window {
 
     property <string> current-title:
         root.active-page == "wifi" ? "Internet & Wi-Fi" :
+        root.active-page == "mobile" ? "Mobile network & eSIM" :
         root.active-page == "bluetooth" ? "Connected Devices" :
         root.active-page == "display" ? "Displays & Convergence" :
         root.active-page == "appearance" ? "Wallpaper & style" :
@@ -329,8 +380,14 @@ export component SettingsWindow inherits Window {
                     connected-ssid: root.connected-ssid;
                     signal-strength: root.signal-strength;
                     wifi-mac: root.wifi-mac;
+                    ip-address: root.wifi-ip-address;
+                    hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
                     toggle-wifi(val) => { root.toggle-wifi(val); }
+                    disconnect-wifi => { root.disconnect-wifi(); }
+                    forget-network(s) => { root.forget-wifi-network(s); }
+                    start-hotspot(s, p) => { root.start-hotspot(s, p); }
+                    stop-hotspot => { root.stop-hotspot(); }
                     connect-ap(ssid) => { root.connect-ap(ssid); }
                     connect-ap-with-password(ssid, pw) => { root.connect-ap-with-password(ssid, pw); }
                     password-input-focused => { root.password-input-focused(); }
@@ -338,16 +395,55 @@ export component SettingsWindow inherits Window {
                     scan-requested => { root.refresh-wifi-scan(); }
                 }
 
+                if root.active-page == "mobile": PageMobile {
+                    width: 100%; height: 100%;
+                    modem-present: root.mobile-modem-present;
+                    sim-present: root.mobile-sim-present;
+                    sim-locked: root.mobile-sim-locked;
+                    lock-reason: root.mobile-lock-reason;
+                    operator-name: root.mobile-operator-name;
+                    access-tech: root.mobile-access-tech;
+                    signal-percent: root.mobile-signal-percent;
+                    modem-model: root.mobile-modem-model;
+                    modem-imei: root.mobile-modem-imei;
+                    mobile-data-enabled <=> root.mobile-data-enabled;
+                    data-roaming-enabled <=> root.mobile-data-roaming;
+                    network-mode <=> root.mobile-network-mode;
+                    apns: root.mobile-apns;
+                    status-banner: root.mobile-status-banner;
+                    esim-available: root.esim-available;
+                    esim-eid: root.esim-eid;
+                    esim-backend: root.esim-backend;
+                    esim-error: root.esim-error;
+                    esim-profiles: root.esim-profiles;
+                    mobile-data-toggled(v) => { root.mobile-data-toggled(v); }
+                    data-roaming-toggled(v) => { root.mobile-roaming-toggled(v); }
+                    network-mode-selected(m) => { root.mobile-network-mode-selected(m); }
+                    sim-pin-submitted(p) => { root.mobile-sim-pin-submitted(p); }
+                    apn-activated(p) => { root.mobile-apn-activated(p); }
+                    apn-saved(p, n, a, u, pw) => { root.mobile-apn-saved(p, n, a, u, pw); }
+                    apn-deleted(p) => { root.mobile-apn-deleted(p); }
+                    esim-refresh => { root.esim-refresh(); }
+                    esim-toggle-profile(i, e) => { root.esim-toggle-profile(i, e); }
+                    esim-delete-profile(i) => { root.esim-delete-profile(i); }
+                    esim-download-profile(c) => { root.esim-download-profile(c); }
+                }
+
                 if root.active-page == "bluetooth": PageBluetooth {
                     width: 100%; height: 100%;
                     bt-enabled <=> root.bt-enabled;
+                    discoverable <=> root.bt-discoverable;
                     adapter-name: root.adapter-name;
                     bluetooth-mac: root.bluetooth-mac;
                     is-discovering: root.is-discovering;
                     devices: root.bt-devices;
                     toggle-bt(val) => { root.toggle-bt(val); }
                     toggle-device(addr) => { root.toggle-bt-device(addr); }
+                    forget-device(addr) => { root.forget-bt-device(addr); }
                     start-discovery => { root.start-bt-discovery(); }
+                    stop-discovery => { root.stop-bt-discovery(); }
+                    toggle-discoverable(v) => { root.toggle-bt-discoverable(v); }
+                    rename-adapter(n) => { root.rename-bt-adapter(n); }
                 }
 
                 if root.active-page == "display" || root.active-page == "main": PageDisplay {
@@ -504,6 +600,7 @@ export component SettingsWindow inherits Window {
                     width: 100%;
                     height: 100%;
                     wifi-status: root.wifi-enabled ? (root.connected-ssid != "" ? root.connected-ssid : (root.wifi-access-points.length > 0 ? (root.wifi-access-points.length + " networks available") : "Scanning...")) : "Disabled";
+                    mobile-status: root.mobile-status;
                     bt-status: root.bt-enabled ? (root.bt-devices.length > 0 ? (root.bt-devices.length + " devices found") : "No devices") : "Disabled";
                     battery-status: root.battery-pct + "% • " + root.battery-state-text;
                     device-summary: root.device-model + " • " + root.os-version;
@@ -536,13 +633,53 @@ export component SettingsWindow inherits Window {
                     connected-ssid: root.connected-ssid;
                     signal-strength: root.signal-strength;
                     wifi-mac: root.wifi-mac;
+                    ip-address: root.wifi-ip-address;
+                    hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
                     toggle-wifi(val) => { root.toggle-wifi(val); }
+                    disconnect-wifi => { root.disconnect-wifi(); }
+                    forget-network(s) => { root.forget-wifi-network(s); }
+                    start-hotspot(s, p) => { root.start-hotspot(s, p); }
+                    stop-hotspot => { root.stop-hotspot(); }
                     connect-ap(ssid) => { root.connect-ap(ssid); }
                     connect-ap-with-password(ssid, pw) => { root.connect-ap-with-password(ssid, pw); }
                     password-input-focused => { root.password-input-focused(); }
                     password-input-dismissed => { root.password-input-dismissed(); }
                     scan-requested => { root.refresh-wifi-scan(); }
+                }
+
+                if root.active-page == "mobile": PageMobile {
+                    width: 100%; height: 100%;
+                    modem-present: root.mobile-modem-present;
+                    sim-present: root.mobile-sim-present;
+                    sim-locked: root.mobile-sim-locked;
+                    lock-reason: root.mobile-lock-reason;
+                    operator-name: root.mobile-operator-name;
+                    access-tech: root.mobile-access-tech;
+                    signal-percent: root.mobile-signal-percent;
+                    modem-model: root.mobile-modem-model;
+                    modem-imei: root.mobile-modem-imei;
+                    mobile-data-enabled <=> root.mobile-data-enabled;
+                    data-roaming-enabled <=> root.mobile-data-roaming;
+                    network-mode <=> root.mobile-network-mode;
+                    apns: root.mobile-apns;
+                    status-banner: root.mobile-status-banner;
+                    esim-available: root.esim-available;
+                    esim-eid: root.esim-eid;
+                    esim-backend: root.esim-backend;
+                    esim-error: root.esim-error;
+                    esim-profiles: root.esim-profiles;
+                    mobile-data-toggled(v) => { root.mobile-data-toggled(v); }
+                    data-roaming-toggled(v) => { root.mobile-roaming-toggled(v); }
+                    network-mode-selected(m) => { root.mobile-network-mode-selected(m); }
+                    sim-pin-submitted(p) => { root.mobile-sim-pin-submitted(p); }
+                    apn-activated(p) => { root.mobile-apn-activated(p); }
+                    apn-saved(p, n, a, u, pw) => { root.mobile-apn-saved(p, n, a, u, pw); }
+                    apn-deleted(p) => { root.mobile-apn-deleted(p); }
+                    esim-refresh => { root.esim-refresh(); }
+                    esim-toggle-profile(i, e) => { root.esim-toggle-profile(i, e); }
+                    esim-delete-profile(i) => { root.esim-delete-profile(i); }
+                    esim-download-profile(c) => { root.esim-download-profile(c); }
                 }
 
                 if root.active-page == "bluetooth": PageBluetooth {

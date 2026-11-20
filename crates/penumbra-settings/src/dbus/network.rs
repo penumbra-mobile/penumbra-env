@@ -29,6 +29,8 @@ pub struct WifiAccessPoint {
     pub security: String,
     /// Whether the device is currently associated and authenticated with this access point.
     pub is_connected: bool,
+    /// Whether a saved NetworkManager connection profile exists for this SSID.
+    pub is_saved: bool,
     /// D-Bus object path of the AccessPoint instance (e.g., `/org/freedesktop/NetworkManager/AccessPoint/42`).
     pub path: String,
 }
@@ -42,6 +44,12 @@ pub struct NetworkState {
     pub connected_ssid: String,
     /// Signal quality percentage of the active connection (`0..=100`).
     pub signal_strength: u8,
+    /// Active IPv4 address on the Wi-Fi interface (e.g. `192.168.0.189`), if assigned.
+    pub ip_address: String,
+    /// Whether a Wi-Fi AP Hotspot (tethering) is currently active.
+    pub hotspot_active: bool,
+    /// Configured Hotspot SSID.
+    pub hotspot_ssid: String,
     /// Deduplicated list of discovered Wi-Fi access points sorted by signal strength.
     pub access_points: Vec<WifiAccessPoint>,
     /// Indicates whether a valid NetworkManager service and Wi-Fi adapter are available.
@@ -87,6 +95,8 @@ trait DeviceProxy {
 
     #[zbus(property)]
     fn interface(&self) -> zbus::Result<String>;
+
+    fn disconnect(&self) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(
@@ -333,6 +343,7 @@ impl NetworkBackend {
                 signal_strength: strength,
                 security,
                 is_connected,
+                is_saved: false,
                 path: ap_path.as_str().to_string(),
             });
         }
@@ -358,6 +369,14 @@ impl NetworkBackend {
         }
 
         let mut final_list: Vec<WifiAccessPoint> = deduplicated.into_values().collect();
+        let (saved_ssids, hotspot_active, hotspot_ssid) =
+            Self::query_saved_and_hotspot(conn).await;
+        for ap in &mut final_list {
+            if saved_ssids.contains(&ap.ssid) {
+                ap.is_saved = true;
+            }
+        }
+        let ip_address = Self::query_device_ip4(conn, w_path).await;
 
         // Sort: active link first, then descending by signal strength
         final_list.sort_by(|a, b| {
@@ -371,6 +390,9 @@ impl NetworkBackend {
             wifi_enabled,
             connected_ssid: active_ssid,
             signal_strength: active_strength,
+            ip_address,
+            hotspot_active,
+            hotspot_ssid,
             access_points: final_list,
             is_available: true,
         };
@@ -563,5 +585,249 @@ impl NetworkBackend {
 
         let enabled = self.state_rx.borrow().wifi_enabled;
         Self::refresh_access_points(conn, &w_path, enabled, &self.state_tx).await;
+    }
+
+    async fn query_saved_and_hotspot(
+        conn: &zbus::Connection,
+    ) -> (std::collections::HashSet<String>, bool, String) {
+        let mut saved = std::collections::HashSet::new();
+        let mut hotspot_active = false;
+        let mut hotspot_ssid = String::new();
+
+        if let Ok(nm_proxy) = zbus::Proxy::new(
+            conn,
+            "org.freedesktop.NetworkManager",
+            "/org/freedesktop/NetworkManager",
+            "org.freedesktop.NetworkManager",
+        )
+        .await
+        {
+            if let Ok(active_conns) = nm_proxy
+                .get_property::<Vec<OwnedObjectPath>>("ActiveConnections")
+                .await
+            {
+                for ac in active_conns {
+                    if let Ok(acp) = zbus::Proxy::new(
+                        conn,
+                        "org.freedesktop.NetworkManager",
+                        ac,
+                        "org.freedesktop.NetworkManager.Connection.Active",
+                    )
+                    .await
+                    {
+                        if let Ok(id) = acp.get_property::<String>("Id").await {
+                            if id == "Hotspot" {
+                                hotspot_active = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Ok(settings_proxy) = SettingsProxyProxy::new(conn).await {
+            if let Ok(connections) = settings_proxy.list_connections().await {
+                for c_path in connections {
+                    if let Ok(builder) = SettingsConnectionProxyProxy::builder(conn).path(&c_path) {
+                        if let Ok(c_proxy) = builder.build().await {
+                            if let Ok(settings) = c_proxy.get_settings().await {
+                                if let Some(wireless) = settings.get("802-11-wireless") {
+                                    let mode = wireless
+                                        .get("mode")
+                                        .and_then(|v| match &**v {
+                                            Value::Str(s) => Some(s.to_string()),
+                                            _ => None,
+                                        })
+                                        .unwrap_or_default();
+                                    let ssid = wireless
+                                        .get("ssid")
+                                        .and_then(|v| match &**v {
+                                            Value::Array(arr) => {
+                                                let bytes: Vec<u8> = arr
+                                                    .iter()
+                                                    .filter_map(|i| match i {
+                                                        Value::U8(u) => Some(*u),
+                                                        _ => None,
+                                                    })
+                                                    .collect();
+                                                Some(String::from_utf8_lossy(&bytes).trim().to_string())
+                                            }
+                                            Value::Str(s) => Some(s.to_string()),
+                                            _ => None,
+                                        })
+                                        .unwrap_or_default();
+                                    if !ssid.is_empty() {
+                                        if mode == "ap" {
+                                            hotspot_ssid = ssid;
+                                        } else {
+                                            saved.insert(ssid);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        (saved, hotspot_active, hotspot_ssid)
+    }
+
+    async fn query_device_ip4(conn: &zbus::Connection, wifi_path: &ObjectPath<'_>) -> String {
+        let Ok(dev_proxy) = zbus::Proxy::new(
+            conn,
+            "org.freedesktop.NetworkManager",
+            wifi_path.as_str(),
+            "org.freedesktop.NetworkManager.Device",
+        )
+        .await
+        else {
+            return String::new();
+        };
+        let Ok(ip4_path) = dev_proxy.get_property::<OwnedObjectPath>("Ip4Config").await else {
+            return String::new();
+        };
+        if ip4_path.as_str() == "/" {
+            return String::new();
+        }
+        let Ok(ip4_proxy) = zbus::Proxy::new(
+            conn,
+            "org.freedesktop.NetworkManager",
+            ip4_path,
+            "org.freedesktop.NetworkManager.IP4Config",
+        )
+        .await
+        else {
+            return String::new();
+        };
+        if let Ok(addrs) = ip4_proxy
+            .get_property::<Vec<HashMap<String, zbus::zvariant::OwnedValue>>>("AddressData")
+            .await
+        {
+            if let Some(first) = addrs.first() {
+                if let Some(ip) = first.get("address").and_then(|v| <&str>::try_from(v).ok()) {
+                    return ip.to_string();
+                }
+            }
+        }
+        String::new()
+    }
+
+    /// Disconnects the currently active Wi-Fi link without forgetting its saved profile.
+    pub async fn disconnect_wifi(&self) {
+        let (Some(ref conn), Some(w_path)) = (&self.conn, self.wireless_device_path.lock().await.clone())
+        else {
+            return;
+        };
+        if let Ok(builder) = DeviceProxyProxy::builder(conn).path(&w_path) {
+            if let Ok(dev) = builder.build().await {
+                let _ = dev.disconnect().await;
+                info!("NetworkBackend: Disconnected Wi-Fi device");
+            }
+        }
+        let enabled = self.state_rx.borrow().wifi_enabled;
+        Self::refresh_access_points(conn, &w_path, enabled, &self.state_tx).await;
+    }
+
+    /// Deletes the saved NetworkManager connection profile for `ssid`.
+    pub async fn forget_network(&self, ssid: &str) {
+        let (Some(ref conn), Some(w_path)) = (&self.conn, self.wireless_device_path.lock().await.clone())
+        else {
+            return;
+        };
+        if let Ok(settings_proxy) = SettingsProxyProxy::new(conn).await {
+            if let Ok(connections) = settings_proxy.list_connections().await {
+                for c_path in connections {
+                    let Ok(c_proxy) = zbus::Proxy::new(
+                        conn,
+                        "org.freedesktop.NetworkManager",
+                        c_path.clone(),
+                        "org.freedesktop.NetworkManager.Settings.Connection",
+                    )
+                    .await
+                    else {
+                        continue;
+                    };
+                    if let Ok(cfg) = c_proxy
+                        .call::<_, _, HashMap<String, HashMap<String, zbus::zvariant::OwnedValue>>>(
+                            "GetSettings",
+                            &(),
+                        )
+                        .await
+                    {
+                        let matches = cfg
+                            .get("802-11-wireless")
+                            .and_then(|w| w.get("ssid"))
+                            .and_then(|v| <Vec<u8>>::try_from(v.clone()).ok())
+                            .map(|b| String::from_utf8_lossy(&b).trim() == ssid)
+                            .unwrap_or(false);
+                        if matches {
+                            let _ = c_proxy.call::<_, _, ()>("Delete", &()).await;
+                            info!("NetworkBackend: Forgot saved Wi-Fi network '{ssid}'");
+                        }
+                    }
+                }
+            }
+        }
+        let enabled = self.state_rx.borrow().wifi_enabled;
+        Self::refresh_access_points(conn, &w_path, enabled, &self.state_tx).await;
+    }
+
+    /// Starts a GNOME-style Wi-Fi AP Hotspot (Tethering) using `802-11-wireless.mode = "ap"`
+    /// and `ipv4.method = "shared"`.
+    pub async fn start_hotspot(&self, ssid: &str, password: &str) {
+        let (Some(ref conn), Some(w_path)) = (&self.conn, self.wireless_device_path.lock().await.clone())
+        else {
+            return;
+        };
+        let Ok(nm) = NetworkManagerProxyProxy::new(conn).await else {
+            return;
+        };
+        let hotspot_ssid = if ssid.trim().is_empty() { "Penumbra-Hotspot" } else { ssid.trim() };
+        let hotspot_pass = if password.len() < 8 { "penumbra123" } else { password };
+
+        let mut connection_setting: HashMap<&str, Value<'_>> = HashMap::new();
+        connection_setting.insert("type", Value::from("802-11-wireless"));
+        connection_setting.insert("id", Value::from("Hotspot"));
+        connection_setting.insert("autoconnect", Value::from(false));
+
+        let mut wireless_setting: HashMap<&str, Value<'_>> = HashMap::new();
+        wireless_setting.insert("ssid", Value::from(hotspot_ssid.as_bytes().to_vec()));
+        wireless_setting.insert("mode", Value::from("ap"));
+        wireless_setting.insert("band", Value::from("bg"));
+
+        let mut sec_setting: HashMap<&str, Value<'_>> = HashMap::new();
+        sec_setting.insert("key-mgmt", Value::from("wpa-psk"));
+        sec_setting.insert("psk", Value::from(hotspot_pass));
+
+        let mut ipv4_setting: HashMap<&str, Value<'_>> = HashMap::new();
+        ipv4_setting.insert("method", Value::from("shared"));
+
+        let mut ipv6_setting: HashMap<&str, Value<'_>> = HashMap::new();
+        ipv6_setting.insert("method", Value::from("ignore"));
+
+        let mut full_settings: HashMap<&str, HashMap<&str, Value<'_>>> = HashMap::new();
+        full_settings.insert("connection", connection_setting);
+        full_settings.insert("802-11-wireless", wireless_setting);
+        full_settings.insert("802-11-wireless-security", sec_setting);
+        full_settings.insert("ipv4", ipv4_setting);
+        full_settings.insert("ipv6", ipv6_setting);
+
+        let root_obj = ObjectPath::try_from("/").unwrap();
+        match nm
+            .add_and_activate_connection(&full_settings, &w_path.as_ref(), &root_obj)
+            .await
+        {
+            Ok(_) => info!("NetworkBackend: Started Wi-Fi Hotspot '{hotspot_ssid}'"),
+            Err(e) => warn!("NetworkBackend: Failed to start hotspot: {e}"),
+        }
+
+        let enabled = self.state_rx.borrow().wifi_enabled;
+        Self::refresh_access_points(conn, &w_path, enabled, &self.state_tx).await;
+    }
+
+    /// Stops any active Wi-Fi Hotspot connection.
+    pub async fn stop_hotspot(&self) {
+        self.disconnect_wifi().await;
     }
 }

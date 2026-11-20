@@ -1,6 +1,6 @@
 import { Theme } from "../theme.slint";
 import { Icon } from "../icon.slint";
-import { SettingsTile } from "../components/settings_tile.slint";
+import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
 
 // ==============================================================================
@@ -16,6 +16,8 @@ export struct WifiApData {
     security: string,
     // Whether this access point corresponds to the currently active connection.
     connected: bool,
+    // Whether a saved NetworkManager connection profile exists for this SSID.
+    saved: bool,
 }
 
 // ==============================================================================
@@ -31,11 +33,24 @@ export component PageWifi inherits Rectangle {
     in property <int> signal-strength: 0;
     // Real Wi-Fi hardware MAC address and interface (e.g. "5c:87:9c:27:10:a0 (wlan0)").
     in property <string> wifi-mac: "Hardware MAC";
+    // Active IPv4 address on Wi-Fi interface.
+    in property <string> ip-address: "";
+    // Wi-Fi Hotspot / Tethering state.
+    in-out property <bool> hotspot-active: false;
+    in-out property <string> hotspot-ssid-input: "Penumbra-Hotspot";
+    in-out property <string> hotspot-pass-input: "penumbra123";
     // Array of available scanned access points from NetworkManager.
     in property <[WifiApData]> access-points: [];
 
     // Emitted when the user toggles the master Wi-Fi power switch.
     callback toggle-wifi(bool);
+    // Emitted when the user disconnects the active Wi-Fi network.
+    callback disconnect-wifi();
+    // Emitted when the user forgets a saved Wi-Fi profile.
+    callback forget-network(string);
+    // Emitted when the user starts or stops Wi-Fi Hotspot tethering.
+    callback start-hotspot(string, string);
+    callback stop-hotspot();
     // Emitted when the user selects an open access point to initiate a connection.
     callback connect-ap(string);
     // Emitted when the user connects to a secured access point with a password.
@@ -87,22 +102,72 @@ export component PageWifi inherits Rectangle {
             if root.wifi-enabled: VerticalLayout {
                 spacing: 12px;
 
-                // Connected Network Card
+                // Connected Network Card (with IPv4, Disconnect & Forget)
                 if root.connected-ssid != "": VerticalLayout {
                     spacing: 8px;
                     SettingsSectionHeader { title: "Connected network"; }
                     SettingsSectionCard {
-                        SettingsTile {
-                            icon-name: "wifi";
-                            icon-bg: #a3e8b0;
-                            icon-tint: #073919;
-                            title: root.connected-ssid;
-                            subtitle: "Connected • " + root.signal-strength + "% Signal";
-                            trailing-text: "Connected";
-                            show-chevron: false;
-                            show-divider: false;
-                            is-first: true;
-                            is-last: true;
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: root.connected-ssid;
+                                        font-size: Theme.font-body;
+                                        font-weight: 700;
+                                        color: Theme.on-surface;
+                                    }
+                                    Text {
+                                        text: "Connected • " + root.signal-strength + "%"
+                                            + (root.ip-address != "" ? " • IP " + root.ip-address : "");
+                                        font-size: Theme.font-caption;
+                                        color: Theme.primary;
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Rectangle {
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 16px;
+                                    background: Theme.surface-highest;
+                                    Text {
+                                        text: "Disconnect";
+                                        font-size: Theme.font-caption;
+                                        font-weight: 600;
+                                        color: Theme.on-surface;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => { root.disconnect-wifi(); }
+                                    }
+                                }
+                                Rectangle {
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 16px;
+                                    background: #5c2020;
+                                    Text {
+                                        text: "Forget";
+                                        font-size: Theme.font-caption;
+                                        font-weight: 600;
+                                        color: #ffb4ab;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => { root.forget-network(root.connected-ssid); }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -133,15 +198,15 @@ export component PageWifi inherits Rectangle {
                                 icon-bg: ap.connected ? #a3e8b0 : #282a30;
                                 icon-tint: ap.connected ? #073919 : #e6e0e9;
                                 title: ap.ssid;
-                                subtitle: ap.security + " • " + ap.signal + "% Signal";
-                                trailing-text: ap.connected ? "Active" : "";
+                                subtitle: (ap.saved ? "Saved • " : "") + ap.security + " • " + ap.signal + "% Signal";
+                                trailing-text: ap.connected ? "Active" : (ap.saved ? "Saved" : "");
                                 show-chevron: !ap.connected;
                                 is-first: idx == 0;
                                 is-last: idx == root.access-points.length - 1;
                                 show-divider: idx < root.access-points.length - 1;
                                 clicked => {
                                     if (!ap.connected) {
-                                        if (ap.security == "Open" || ap.security == "None" || ap.security == "") {
+                                        if (ap.saved || ap.security == "Open" || ap.security == "None" || ap.security == "") {
                                             root.connect-ap(ap.ssid);
                                         } else {
                                             root.selected-ap-ssid = ap.ssid;
@@ -150,6 +215,92 @@ export component PageWifi inherits Rectangle {
                                             root.show-password-text = false;
                                             root.show-password-dialog = true;
                                             root.password-input-focused();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Wi-Fi Hotspot & Tethering (GNOME Network Panel style)
+                VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionHeader { title: "Hotspot & Tethering"; }
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+
+                            HorizontalLayout {
+                                alignment: space-between;
+                                VerticalLayout {
+                                    spacing: 2px;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: "Wi-Fi Hotspot";
+                                        font-size: Theme.font-body;
+                                        font-weight: 600;
+                                        color: Theme.on-surface;
+                                    }
+                                    Text {
+                                        text: root.hotspot-active
+                                            ? "Active • Sharing internet as " + root.hotspot-ssid-input
+                                            : "Share mobile or Ethernet internet over Wi-Fi";
+                                        font-size: Theme.font-caption;
+                                        color: root.hotspot-active ? Theme.primary : Theme.on-surface-variant;
+                                    }
+                                }
+                                M3Switch {
+                                    y: (parent.height - self.height) / 2;
+                                    checked <=> root.hotspot-active;
+                                    toggled(val) => {
+                                        if val {
+                                            root.start-hotspot(root.hotspot-ssid-input, root.hotspot-pass-input);
+                                        } else {
+                                            root.stop-hotspot();
+                                        }
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text { text: "Network Name"; font-size: 11px; color: Theme.on-surface-variant; }
+                                    Rectangle {
+                                        height: 36px;
+                                        border-radius: 10px;
+                                        background: #1e2025;
+                                        border-width: 1px;
+                                        border-color: Theme.specular-rim;
+                                        TextInput {
+                                            x: 10px; width: parent.width - 20px; height: 100%;
+                                            text <=> root.hotspot-ssid-input;
+                                            font-size: Theme.font-caption;
+                                            color: Theme.on-surface;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 4px;
+                                    Text { text: "Password (8+ chars)"; font-size: 11px; color: Theme.on-surface-variant; }
+                                    Rectangle {
+                                        height: 36px;
+                                        border-radius: 10px;
+                                        background: #1e2025;
+                                        border-width: 1px;
+                                        border-color: Theme.specular-rim;
+                                        TextInput {
+                                            x: 10px; width: parent.width - 20px; height: 100%;
+                                            text <=> root.hotspot-pass-input;
+                                            font-size: Theme.font-caption;
+                                            color: Theme.on-surface;
+                                            vertical-alignment: center;
                                         }
                                     }
                                 }

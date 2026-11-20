@@ -29,6 +29,8 @@ export struct SearchResultData {
 export component PageMain inherits Rectangle {
     // Current active Wi-Fi status summary (e.g. "Penumbra-Mesh-5G" or "Disabled").
     in property <string> wifi-status: "Penumbra-Mesh-5G";
+    // Current mobile/cellular & eSIM summary
+    in property <string> mobile-status: "Mobile data, APNs & eSIM";
     // Current Bluetooth connection summary (e.g. "1 active device" or "No devices").
     in property <string> bt-status: "1 active device";
     // Current battery status summary (e.g. "86% • About 14 hr left").
@@ -338,6 +340,18 @@ export component PageMain inherits Rectangle {
                             is-first: true;
                             is-last: false;
                             clicked => { root.navigate-to("wifi"); }
+                        }
+
+                        SettingsTile {
+                            icon-name: "wifi";
+                            icon-bg: #a8c7fa;
+                            icon-tint: #042b59;
+                            title: "Mobile network & eSIM";
+                            subtitle: root.mobile-status;
+                            show-chevron: false;
+                            is-first: false;
+                            is-last: false;
+                            clicked => { root.navigate-to("mobile"); }
                         }
 
                         SettingsTile {

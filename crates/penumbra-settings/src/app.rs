@@ -23,10 +23,10 @@ use penumbra_services::{
     DisplayConfig, DisplaysConfig, FingerprintManager, LockType, PowerProfile, SecurityConfig, SoundConfig,
 };
 
-use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend};
+use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend, WwanBackend};
 use crate::{
-    BtDeviceData, DisplayItemData, PhysicalKeyboardData, SettingsWindow, VirtualKeyboardData,
-    WifiApData,
+    ApnEntryData, BtDeviceData, DisplayItemData, ESimProfileData, PhysicalKeyboardData,
+    SettingsWindow, VirtualKeyboardData, WifiApData,
 };
 
 /// Sets up reactive state bindings and user interaction callbacks for `SettingsWindow`.
@@ -52,6 +52,8 @@ pub fn setup_app(
         window.set_wifi_enabled(net.wifi_enabled);
         window.set_connected_ssid(net.connected_ssid.into());
         window.set_signal_strength(net.signal_strength as i32);
+        window.set_wifi_ip_address(net.ip_address.into());
+        window.set_hotspot_active(net.hotspot_active);
         let ap_models: Vec<WifiApData> = net
             .access_points
             .iter()
@@ -60,6 +62,7 @@ pub fn setup_app(
                 signal: ap.signal_strength as i32,
                 security: ap.security.clone().into(),
                 connected: ap.is_connected,
+                saved: ap.is_saved,
             })
             .collect();
         window.set_wifi_access_points(ModelRc::from(Rc::new(VecModel::from(ap_models))));
@@ -67,6 +70,7 @@ pub fn setup_app(
         let bt = bt_backend.current();
         window.set_bt_enabled(bt.powered);
         window.set_adapter_name(bt.adapter_name.into());
+        window.set_bt_discoverable(bt.discoverable);
         window.set_is_discovering(bt.discovering);
         let bt_models: Vec<BtDeviceData> = bt
             .devices
@@ -74,6 +78,7 @@ pub fn setup_app(
             .map(|dev| BtDeviceData {
                 name: dev.name.clone().into(),
                 address: dev.address.clone().into(),
+                device_type: friendly_bt_type(&dev.icon).into(),
                 connected: dev.is_connected,
                 paired: dev.is_paired,
                 battery: dev.battery_level,
@@ -223,6 +228,8 @@ pub fn setup_app(
                         ui.set_wifi_enabled(net.wifi_enabled);
                         ui.set_connected_ssid(net.connected_ssid.into());
                         ui.set_signal_strength(net.signal_strength as i32);
+                        ui.set_wifi_ip_address(net.ip_address.into());
+                        ui.set_hotspot_active(net.hotspot_active);
                         let ap_models: Vec<WifiApData> = net
                             .access_points
                             .iter()
@@ -231,6 +238,7 @@ pub fn setup_app(
                                 signal: ap.signal_strength as i32,
                                 security: ap.security.clone().into(),
                                 connected: ap.is_connected,
+                                saved: ap.is_saved,
                             })
                             .collect();
                         ui.set_wifi_access_points(ModelRc::from(Rc::new(VecModel::from(ap_models))));
@@ -252,6 +260,7 @@ pub fn setup_app(
                     if let Some(ui) = w.upgrade() {
                         ui.set_bt_enabled(bt.powered);
                         ui.set_adapter_name(bt.adapter_name.into());
+                        ui.set_bt_discoverable(bt.discoverable);
                         ui.set_is_discovering(bt.discovering);
                         let bt_models: Vec<BtDeviceData> = bt
                             .devices
@@ -259,6 +268,7 @@ pub fn setup_app(
                             .map(|dev| BtDeviceData {
                                 name: dev.name.clone().into(),
                                 address: dev.address.clone().into(),
+                                device_type: friendly_bt_type(&dev.icon).into(),
                                 connected: dev.is_connected,
                                 paired: dev.is_paired,
                                 battery: dev.battery_level,
@@ -313,6 +323,53 @@ pub fn setup_app(
             let ssid = ssid.to_string();
             rt.spawn(async move {
                 net.connect_to_network(&ssid, None).await;
+            });
+        });
+    }
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_disconnect_wifi(move || {
+            let net = net.clone();
+            rt.spawn(async move {
+                net.disconnect_wifi().await;
+            });
+        });
+    }
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_forget_wifi_network(move |ssid| {
+            let net = net.clone();
+            let ssid = ssid.to_string();
+            rt.spawn(async move {
+                net.forget_network(&ssid).await;
+            });
+        });
+    }
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_start_hotspot(move |ssid, pass| {
+            let net = net.clone();
+            let ssid = ssid.to_string();
+            let pass = pass.to_string();
+            rt.spawn(async move {
+                net.start_hotspot(&ssid, &pass).await;
+            });
+        });
+    }
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_stop_hotspot(move || {
+            let net = net.clone();
+            rt.spawn(async move {
+                net.stop_hotspot().await;
             });
         });
     }
@@ -393,6 +450,52 @@ pub fn setup_app(
             let bt = bt.clone();
             rt.spawn(async move {
                 bt.start_discovery().await;
+            });
+        });
+    }
+
+    {
+        let bt = bt_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_stop_bt_discovery(move || {
+            let bt = bt.clone();
+            rt.spawn(async move {
+                bt.stop_discovery().await;
+            });
+        });
+    }
+
+    {
+        let bt = bt_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_forget_bt_device(move |addr| {
+            let bt = bt.clone();
+            let addr = addr.to_string();
+            rt.spawn(async move {
+                bt.remove_device(&addr).await;
+            });
+        });
+    }
+
+    {
+        let bt = bt_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_toggle_bt_discoverable(move |val| {
+            let bt = bt.clone();
+            rt.spawn(async move {
+                bt.set_discoverable(val).await;
+            });
+        });
+    }
+
+    {
+        let bt = bt_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_rename_bt_adapter(move |name| {
+            let bt = bt.clone();
+            let name = name.to_string();
+            rt.spawn(async move {
+                bt.set_adapter_alias(&name).await;
             });
         });
     }
@@ -833,6 +936,326 @@ pub fn setup_app(
                 ui.set_hide_sensitive_notifications(hide);
             }
         });
+    }
+
+    // -----------------------------------------------------------------------
+    // 10. Mobile Network / ModemManager / APN & eSIM (LPA)
+    // -----------------------------------------------------------------------
+    let active_modem_path = Arc::new(std::sync::Mutex::new(String::new()));
+    let active_sim_path = Arc::new(std::sync::Mutex::new(String::new()));
+
+    let refresh_mobile = {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let modem_ref = Arc::clone(&active_modem_path);
+        let sim_ref = Arc::clone(&active_sim_path);
+        move || {
+            let weak = ui_weak.clone();
+            let modem_ref = Arc::clone(&modem_ref);
+            let sim_ref = Arc::clone(&sim_ref);
+            rt_handle.spawn(async move {
+                let st = WwanBackend::fetch_state().await;
+                if let Ok(mut g) = modem_ref.lock() {
+                    *g = st.modem_path.clone();
+                }
+                if let Ok(mut g) = sim_ref.lock() {
+                    *g = st.sim_path.clone();
+                }
+                let esim = tokio::task::spawn_blocking(crate::esim::fetch_esim_state)
+                    .await
+                    .unwrap_or_default();
+
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        let summary = if !st.modem_present {
+                            "No modem detected".to_string()
+                        } else if st.sim_locked {
+                            "SIM Locked".to_string()
+                        } else if !st.sim_present {
+                            "No SIM card".to_string()
+                        } else if !st.operator_name.is_empty() {
+                            if st.access_tech.is_empty() {
+                                st.operator_name.clone()
+                            } else {
+                                format!("{} • {}", st.operator_name, st.access_tech)
+                            }
+                        } else {
+                            "Mobile data, APNs & eSIM".to_string()
+                        };
+                        ui.set_mobile_status(summary.into());
+                        ui.set_mobile_modem_present(st.modem_present);
+                        ui.set_mobile_sim_present(st.sim_present);
+                        ui.set_mobile_sim_locked(st.sim_locked);
+                        ui.set_mobile_lock_reason(st.lock_reason.into());
+                        ui.set_mobile_operator_name(
+                            if st.operator_name.is_empty() { "No service".into() } else { st.operator_name.into() },
+                        );
+                        ui.set_mobile_access_tech(st.access_tech.into());
+                        ui.set_mobile_signal_percent(st.signal_percent as i32);
+                        ui.set_mobile_modem_model(st.model.into());
+                        ui.set_mobile_modem_imei(st.imei.into());
+                        ui.set_mobile_data_enabled(st.mobile_data_enabled);
+                        ui.set_mobile_data_roaming(st.data_roaming_enabled);
+                        ui.set_mobile_network_mode(st.network_mode.into());
+                        let apn_models: Vec<ApnEntryData> = st
+                            .apns
+                            .into_iter()
+                            .map(|a| ApnEntryData {
+                                path: a.path.into(),
+                                name: a.name.into(),
+                                apn: a.apn.into(),
+                                username: a.username.into(),
+                                password: a.password.into(),
+                                is_active: a.is_active,
+                            })
+                            .collect();
+                        ui.set_mobile_apns(ModelRc::from(Rc::new(VecModel::from(apn_models))));
+
+                        ui.set_esim_available(esim.available);
+                        ui.set_esim_eid(esim.eid.into());
+                        ui.set_esim_backend(esim.backend_label.into());
+                        ui.set_esim_error(esim.error_message.into());
+                        let esim_models: Vec<ESimProfileData> = esim
+                            .profiles
+                            .into_iter()
+                            .map(|p| ESimProfileData {
+                                iccid: p.iccid.into(),
+                                nickname: p.nickname.into(),
+                                spn: p.spn.into(),
+                                name: p.name.into(),
+                                is_enabled: p.is_enabled,
+                            })
+                            .collect();
+                        ui.set_esim_profiles(ModelRc::from(Rc::new(VecModel::from(esim_models))));
+                    }
+                });
+            });
+        }
+    };
+
+    refresh_mobile();
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_data_toggled(move |enabled| {
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = WwanBackend::set_mobile_data_enabled(enabled).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        if let Err(e) = res {
+                            ui.set_mobile_status_banner(e.into());
+                        } else {
+                            ui.set_mobile_status_banner("".into());
+                        }
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_roaming_toggled(move |roaming| {
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let _ = WwanBackend::set_data_roaming(roaming).await;
+                let _ = slint::invoke_from_event_loop(move || refresh());
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let modem_ref = Arc::clone(&active_modem_path);
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_network_mode_selected(move |mode| {
+            let mpath = modem_ref.lock().ok().map(|g| g.clone()).unwrap_or_default();
+            let mode_s = mode.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = WwanBackend::set_network_mode(&mpath, &mode_s).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let sim_ref = Arc::clone(&active_sim_path);
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_sim_pin_submitted(move |pin| {
+            let spath = sim_ref.lock().ok().map(|g| g.clone()).unwrap_or_default();
+            let pin_s = pin.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = WwanBackend::unlock_sim(&spath, &pin_s).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_apn_activated(move |path| {
+            let p = path.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = WwanBackend::activate_apn(&p).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_apn_saved(move |path, name, apn, user, pass| {
+            let path_opt = if path.is_empty() { None } else { Some(path.to_string()) };
+            let (name, apn, user, pass) = (name.to_string(), apn.to_string(), user.to_string(), pass.to_string());
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = WwanBackend::save_apn(path_opt, &name, &apn, &user, &pass, false).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_mobile_apn_deleted(move |path| {
+            let p = path.to_string();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let _ = WwanBackend::delete_apn(&p).await;
+                let _ = slint::invoke_from_event_loop(move || refresh());
+            });
+        });
+    }
+
+    {
+        let refresh = refresh_mobile.clone();
+        window.on_esim_refresh(move || refresh());
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_esim_toggle_profile(move |iccid, enable| {
+            let id = iccid.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = tokio::task::spawn_blocking(move || {
+                    if enable {
+                        crate::esim::enable_profile(&id)
+                    } else {
+                        crate::esim::disable_profile(&id)
+                    }
+                })
+                .await
+                .unwrap_or_else(|e| Err(e.to_string()));
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_esim_delete_profile(move |iccid| {
+            let id = iccid.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = tokio::task::spawn_blocking(move || crate::esim::delete_profile(&id))
+                    .await
+                    .unwrap_or_else(|e| Err(e.to_string()));
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+
+    {
+        let rt_handle = rt_handle.clone();
+        let ui_weak = ui_weak.clone();
+        let refresh = refresh_mobile.clone();
+        window.on_esim_download_profile(move |code| {
+            let code_s = code.to_string();
+            let weak = ui_weak.clone();
+            let refresh = refresh.clone();
+            rt_handle.spawn(async move {
+                let res = tokio::task::spawn_blocking(move || crate::esim::download_profile(&code_s))
+                    .await
+                    .unwrap_or_else(|e| Err(e.to_string()));
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.set_mobile_status_banner(res.err().unwrap_or_default().into());
+                    }
+                    refresh();
+                });
+            });
+        });
+    }
+}
+
+fn friendly_bt_type(icon: &str) -> &'static str {
+    match icon {
+        "audio-headset" | "audio-headphones" => "Headphones",
+        "audio-card" | "audio-speakers" => "Speaker",
+        "input-keyboard" => "Keyboard",
+        "input-mouse" => "Mouse",
+        "input-gaming" => "Gamepad",
+        "phone" => "Phone",
+        "computer" => "Computer",
+        _ => "Accessory",
     }
 }
 

@@ -74,6 +74,27 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         target_page: "wifi",
         keywords: "airplane flight mode offline disconnect radios",
     },
+    SearchEntry {
+        category: "Network & internet",
+        title: "Mobile network & eSIM",
+        breadcrumb: "Network & internet > Mobile network & eSIM",
+        target_page: "mobile",
+        keywords: "mobile cellular wwan modem 4g 5g lte data roaming sim",
+    },
+    SearchEntry {
+        category: "Network & internet",
+        title: "Access Point Names (APNs)",
+        breadcrumb: "Network & internet > Mobile network & eSIM > APNs",
+        target_page: "mobile",
+        keywords: "apn access point name gsm carrier cellular internet",
+    },
+    SearchEntry {
+        category: "Network & internet",
+        title: "eSIM Manager (LPA)",
+        breadcrumb: "Network & internet > Mobile network & eSIM > eSIM",
+        target_page: "mobile",
+        keywords: "esim lpa lpac euicc eid profile activation code",
+    },
 
     // =========================================================================
     // Connected devices (Bluetooth)

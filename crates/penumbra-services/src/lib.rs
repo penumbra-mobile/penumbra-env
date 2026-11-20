@@ -10,6 +10,7 @@ pub mod network;
 pub mod security;
 pub mod sensor;
 pub mod sound;
+pub mod status;
 pub mod theme;
 
 pub use audio::{adjust_volume_step, apply_volume_ratio, read_volume_ratio};

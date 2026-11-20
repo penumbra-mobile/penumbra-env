@@ -25,6 +25,7 @@
 
 mod app;
 mod dbus;
+pub mod esim;
 pub mod keyboard_backend;
 mod routes;
 mod search;

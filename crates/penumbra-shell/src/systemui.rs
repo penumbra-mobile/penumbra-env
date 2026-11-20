@@ -197,8 +197,19 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         read_backlight_ratio().unwrap_or(0.75)
     };
     qs.set_brightness(init_brightness as f32);
-    let init_volume = read_volume_ratio();
-    qs.set_volume(init_volume as f32);
+    qs.set_volume(0.5);
+    {
+        let qs_weak_vol = qs_weak.clone();
+        rt.spawn(async move {
+            if let Ok(init_volume) = tokio::task::spawn_blocking(read_volume_ratio).await {
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = qs_weak_vol.upgrade() {
+                        ui.set_volume(init_volume as f32);
+                    }
+                });
+            }
+        });
+    }
 
     // -----------------------------------------------------------------------
     // 4. Spring Physics Engine (Stiffness: 300.0, Damping: 26.0)
@@ -495,7 +506,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     // 7. Tile Engine (Registry + Persistent Config)
     // -----------------------------------------------------------------------
-    let registry: Rc<RefCell<Vec<TileDefinition>>> = Rc::new(RefCell::new(tile::registry()));
+    let registry: Rc<RefCell<Vec<TileDefinition>>> = Rc::new(RefCell::new(tile::registry_fast()));
     let qs_config = Rc::new(RefCell::new(QuickSettingsConfig::load()));
 
     let refresh_tiles: Rc<dyn Fn()> = {
@@ -776,6 +787,29 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .arg("--page")
                 .arg("main")
                 .spawn();
+        });
+    }
+
+    // Phosh-inspired system status indicators (ModemManager WWAN, BlueZ, VPN, Docked)
+    {
+        let top_bar_weak_status = top_bar_weak.clone();
+        rt.spawn(async move {
+            loop {
+                let st = penumbra_services::status::poll_mobile_status().await;
+                let weak = top_bar_weak_status.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(bar) = weak.upgrade() {
+                        bar.set_wwan_present(st.wwan_present);
+                        bar.set_wwan_signal(st.wwan_signal as i32);
+                        bar.set_wwan_tech(st.wwan_tech.into());
+                        bar.set_bt_powered(st.bt_powered);
+                        bar.set_bt_connected(st.bt_connected);
+                        bar.set_vpn_active(st.vpn_active);
+                        bar.set_docked(st.docked);
+                    }
+                });
+                tokio::time::sleep(Duration::from_millis(3000)).await;
+            }
         });
     }
 
@@ -1184,63 +1218,80 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         clock_timer.start(TimerMode::Repeated, Duration::from_millis(1000), update_time);
     }
 
-    let (battery_service, network_service) = rt.block_on(async {
-        let bat = BatteryService::new().await;
-        let net = NetworkService::new().await;
-        (bat, net)
-    });
+    top_bar.set_dnd_active(ShellState::load().dnd_active);
+    refresh_tiles();
 
-    // Initial Telemetry push to windows
+    enum TileSyncMsg {
+        Radios { wifi: bool, bt: bool, airplane: bool },
+        Internet { connected: bool, ssid: String },
+    }
+    let (tile_sync_tx, tile_sync_rx) = std::sync::mpsc::channel::<TileSyncMsg>();
+    let tile_sync_timer = Timer::default();
     {
-        let bat_info = battery_service.current();
-        let net_info = network_service.current();
-
-        top_bar.set_battery_pct(bat_info.percentage as f32);
-        top_bar.set_is_charging(bat_info.is_charging);
-        top_bar.set_wifi_connected(net_info.is_connected);
-        top_bar.set_wifi_signal(net_info.signal_strength as i32);
-        top_bar.set_carrier_text(net_info.ssid.clone().into());
-        top_bar.set_dnd_active(ShellState::load().dnd_active);
-
-        qs.set_battery_pct(bat_info.percentage as i32);
-        qs.set_carrier_text(net_info.ssid.clone().into());
-
-        lockscreen.set_battery_pct(bat_info.percentage as i32);
-        lockscreen.set_is_charging(bat_info.is_charging);
-        lockscreen.set_wifi_connected(net_info.is_connected);
-        lockscreen.set_wifi_signal(net_info.signal_strength as i32);
-        lockscreen.set_carrier_str(net_info.ssid.clone().into());
-
-        if let Some(t) = registry
-            .borrow_mut()
-            .iter_mut()
-            .find(|t| t.id == "internet")
-        {
-            t.state = if net_info.is_connected {
-                TileState::Active
-            } else {
-                TileState::Inactive
-            };
-            t.subtitle = if net_info.is_connected {
-                net_info.ssid.clone()
-            } else {
-                "Off".into()
-            };
-        }
-        refresh_tiles();
+        let registry = Rc::clone(&registry);
+        let refresh = Rc::clone(&refresh_tiles);
+        tile_sync_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
+            let mut changed = false;
+            while let Ok(msg) = tile_sync_rx.try_recv() {
+                let mut reg = registry.borrow_mut();
+                match msg {
+                    TileSyncMsg::Radios { wifi, bt, airplane } => {
+                        for (id, active, on_sub, off_sub) in [
+                            ("internet", wifi, "Connected", "Off"),
+                            ("bluetooth", bt, "On", "Off"),
+                            ("airplane", airplane, "On", "Off"),
+                        ] {
+                            if let Some(t) = reg.iter_mut().find(|t| t.id == id) {
+                                t.state = if active { TileState::Active } else { TileState::Inactive };
+                                t.subtitle = if active { on_sub } else { off_sub }.into();
+                            }
+                        }
+                        changed = true;
+                    }
+                    TileSyncMsg::Internet { connected, ssid } => {
+                        if let Some(t) = reg.iter_mut().find(|t| t.id == "internet") {
+                            t.state = if connected { TileState::Active } else { TileState::Inactive };
+                            t.subtitle = if connected { ssid } else { "Off".into() };
+                            changed = true;
+                        }
+                    }
+                }
+            }
+            if changed {
+                refresh();
+            }
+        });
     }
 
-    // Subscribe to async telemetry streams and push simultaneously
+    // Probe initial radio states in background so startup is never blocked by D-Bus/nmcli/bluetoothctl
     {
-        let mut bat_rx = battery_service.subscribe();
+        let tx = tile_sync_tx.clone();
+        rt.spawn(async move {
+            if let Ok((wifi, bt, airplane)) = tokio::task::spawn_blocking(|| {
+                (
+                    tile::is_wifi_active(),
+                    tile::is_bluetooth_active(),
+                    tile::is_airplane_active(),
+                )
+            })
+            .await
+            {
+                let _ = tx.send(TileSyncMsg::Radios { wifi, bt, airplane });
+            }
+        });
+    }
+
+    // Initialize BatteryService asynchronously and subscribe to updates
+    {
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
-        let _keep_bat = battery_service;
         rt.spawn(async move {
-            let _bat = _keep_bat;
-            while bat_rx.changed().await.is_ok() {
-                let info = bat_rx.borrow().clone();
+            let battery_service = BatteryService::new().await;
+            let push_bat = |info: penumbra_services::battery::BatteryInfo,
+                            tb: &slint::Weak<TopBarWindow>,
+                            q: &slint::Weak<QuickSettingsWindow>,
+                            lk: &slint::Weak<LockscreenWindow>| {
                 let tb = tb.clone();
                 let q = q.clone();
                 let lk = lk.clone();
@@ -1257,20 +1308,32 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         ls.set_is_charging(info.is_charging);
                     }
                 });
+            };
+            push_bat(battery_service.current(), &tb, &q, &lk);
+            let mut bat_rx = battery_service.subscribe();
+            while bat_rx.changed().await.is_ok() {
+                push_bat(bat_rx.borrow().clone(), &tb, &q, &lk);
             }
         });
     }
 
+    // Initialize NetworkService asynchronously and subscribe to updates
     {
-        let mut net_rx = network_service.subscribe();
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
-        let _keep_net = network_service;
+        let tx = tile_sync_tx;
         rt.spawn(async move {
-            let _net = _keep_net;
-            while net_rx.changed().await.is_ok() {
-                let info = net_rx.borrow().clone();
+            let network_service = NetworkService::new().await;
+            let push_net = |info: penumbra_services::network::NetworkInfo,
+                            tb: &slint::Weak<TopBarWindow>,
+                            q: &slint::Weak<QuickSettingsWindow>,
+                            lk: &slint::Weak<LockscreenWindow>,
+                            tx: &std::sync::mpsc::Sender<TileSyncMsg>| {
+                let _ = tx.send(TileSyncMsg::Internet {
+                    connected: info.is_connected,
+                    ssid: info.ssid.clone(),
+                });
                 let tb = tb.clone();
                 let q = q.clone();
                 let lk = lk.clone();
@@ -1289,6 +1352,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         ls.set_carrier_str(info.ssid.into());
                     }
                 });
+            };
+            push_net(network_service.current(), &tb, &q, &lk, &tx);
+            let mut net_rx = network_service.subscribe();
+            while net_rx.changed().await.is_ok() {
+                push_net(net_rx.borrow().clone(), &tb, &q, &lk, &tx);
             }
         });
     }

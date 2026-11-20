@@ -3924,6 +3924,8 @@ dependencies = [
  "i-slint-core",
  "libc",
  "penumbra-services",
+ "serde",
+ "serde_json",
  "slint",
  "slint-build",
  "tokio",

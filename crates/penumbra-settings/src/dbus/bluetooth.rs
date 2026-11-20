@@ -45,6 +45,8 @@ pub struct BluetoothDevice {
 pub struct BluetoothState {
     /// Power status of the primary Bluetooth adapter radio.
     pub powered: bool,
+    /// Whether the adapter is currently discoverable by nearby devices.
+    pub discoverable: bool,
     /// User-configured friendly name or alias of the local adapter.
     pub adapter_name: String,
     /// Canonical D-Bus path of the active adapter (`/org/bluez/hci0`).
@@ -104,8 +106,18 @@ trait BluezAdapterProxy {
     #[zbus(property)]
     fn alias(&self) -> zbus::Result<String>;
 
+    #[zbus(property)]
+    fn set_alias(&self, value: &str) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn discoverable(&self) -> zbus::Result<bool>;
+
+    #[zbus(property)]
+    fn set_discoverable(&self, value: bool) -> zbus::Result<()>;
+
     fn start_discovery(&self) -> zbus::Result<()>;
     fn stop_discovery(&self) -> zbus::Result<()>;
+    fn remove_device(&self, device: OwnedObjectPath) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(
@@ -127,6 +139,9 @@ trait BluezDeviceProxy {
 
     #[zbus(property)]
     fn paired(&self) -> zbus::Result<bool>;
+
+    #[zbus(property)]
+    fn set_trusted(&self, value: bool) -> zbus::Result<()>;
 
     #[zbus(property)]
     fn icon(&self) -> zbus::Result<String>;
@@ -264,6 +279,7 @@ impl BluetoothBackend {
         let mut primary_adapter_path = None;
         let mut adapter_name = String::new();
         let mut powered = false;
+        let mut discoverable = false;
         let mut discovering = false;
         let mut devices = Vec::new();
 
@@ -272,6 +288,7 @@ impl BluetoothBackend {
             if let Some(adapter_props) = ifaces.get("org.bluez.Adapter1") {
                 primary_adapter_path = Some(path.clone());
                 powered = extract_bool(adapter_props, "Powered");
+                discoverable = extract_bool(adapter_props, "Discoverable");
                 discovering = extract_bool(adapter_props, "Discovering");
                 adapter_name = extract_str(adapter_props, "Alias")
                     .or_else(|| extract_str(adapter_props, "Name"))
@@ -331,6 +348,7 @@ impl BluetoothBackend {
 
         let updated = BluetoothState {
             powered,
+            discoverable,
             adapter_name,
             adapter_path: primary_adapter_path
                 .map(|p| p.as_str().to_string())
@@ -501,10 +519,10 @@ impl BluetoothBackend {
                 .devices
                 .iter()
                 .find(|d| d.address == address)
-                .map(|d| (d.path.clone(), d.is_connected))
+                .map(|d| (d.path.clone(), d.is_connected, d.is_paired))
         };
 
-        if let Some((path_str, is_connected)) = target_device {
+        if let Some((path_str, is_connected, is_paired)) = target_device {
             if let Ok(d_path) = OwnedObjectPath::try_from(path_str) {
                 if let Ok(builder) = BluezDeviceProxyProxy::builder(conn).path(&d_path) {
                     if let Ok(device) = builder.build().await {
@@ -512,6 +530,13 @@ impl BluetoothBackend {
                             info!("BluetoothBackend: Disconnecting device {address}");
                             let _ = device.disconnect().await;
                         } else {
+                            if !is_paired {
+                                info!("BluetoothBackend: Pairing and trusting device {address}");
+                                if let Err(e) = device.pair().await {
+                                    warn!("BluetoothBackend: Pair returned: {e}");
+                                }
+                                let _ = device.set_trusted(true).await;
+                            }
                             info!("BluetoothBackend: Connecting device {address}");
                             let _ = device.connect().await;
                         }
@@ -520,6 +545,75 @@ impl BluetoothBackend {
             }
         }
 
+        self.refresh_all(conn).await;
+    }
+
+    /// Removes (unpairs/forgets) a known Bluetooth device from the adapter.
+    pub async fn remove_device(&self, address: &str) {
+        let conn = match self.conn {
+            Some(ref c) => c,
+            None => return,
+        };
+        let adapter_path = self.adapter_path.lock().await.clone();
+        let dev_path = {
+            let state = self.state_rx.borrow();
+            state
+                .devices
+                .iter()
+                .find(|d| d.address == address)
+                .map(|d| d.path.clone())
+        };
+        if let (Some(a_path), Some(d_path_str)) = (adapter_path, dev_path) {
+            if let (Ok(builder), Ok(d_path)) = (
+                BluezAdapterProxyProxy::builder(conn).path(a_path),
+                OwnedObjectPath::try_from(d_path_str),
+            ) {
+                if let Ok(adapter) = builder.build().await {
+                    let _ = adapter.remove_device(d_path).await;
+                    info!("BluetoothBackend: Removed/forgot device {address}");
+                }
+            }
+        }
+        self.refresh_all(conn).await;
+    }
+
+    /// Sets adapter discoverability (visible to nearby devices).
+    pub async fn set_discoverable(&self, discoverable: bool) {
+        let conn = match self.conn {
+            Some(ref c) => c,
+            None => return,
+        };
+        let adapter_path = self.adapter_path.lock().await.clone();
+        if let Some(a_path) = adapter_path {
+            if let Ok(builder) = BluezAdapterProxyProxy::builder(conn).path(a_path) {
+                if let Ok(adapter) = builder.build().await {
+                    let _ = adapter.set_discoverable(discoverable).await;
+                    info!("BluetoothBackend: Set adapter discoverable={discoverable}");
+                }
+            }
+        }
+        self.refresh_all(conn).await;
+    }
+
+    /// Renames the Bluetooth adapter's advertised alias.
+    pub async fn set_adapter_alias(&self, alias: &str) {
+        let trimmed = alias.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        let conn = match self.conn {
+            Some(ref c) => c,
+            None => return,
+        };
+        let adapter_path = self.adapter_path.lock().await.clone();
+        if let Some(a_path) = adapter_path {
+            if let Ok(builder) = BluezAdapterProxyProxy::builder(conn).path(a_path) {
+                if let Ok(adapter) = builder.build().await {
+                    let _ = adapter.set_alias(trimmed).await;
+                    info!("BluetoothBackend: Renamed adapter to '{trimmed}'");
+                }
+            }
+        }
         self.refresh_all(conn).await;
     }
 }

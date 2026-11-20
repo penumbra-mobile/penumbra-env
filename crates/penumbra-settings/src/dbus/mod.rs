@@ -20,6 +20,7 @@
 pub mod bluetooth;
 pub mod network;
 pub mod power;
+pub mod wwan;
 
 #[allow(unused_imports)]
 pub use bluetooth::{BluetoothBackend, BluetoothDevice, BluetoothState};
@@ -27,6 +28,8 @@ pub use bluetooth::{BluetoothBackend, BluetoothDevice, BluetoothState};
 pub use network::{NetworkBackend, NetworkState, WifiAccessPoint};
 #[allow(unused_imports)]
 pub use power::{PowerBackend, PowerState};
+#[allow(unused_imports)]
+pub use wwan::{ApnProfile, WwanBackend, WwanState};
 
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{info, warn};
