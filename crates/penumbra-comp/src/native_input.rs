@@ -357,7 +357,9 @@ pub(crate) fn handle(
                 server.pointer_location.x + delta.x,
                 server.pointer_location.y + delta.y,
             );
-            if let Some(drag) = server.window_drag.clone() {
+            if server.window_resize.is_some() {
+                server.handle_window_resize_motion(pos);
+            } else if let Some(drag) = server.window_drag.clone() {
                 let dx = (pos.x - drag.initial_pointer_loc.x).round() as i32;
                 let dy = (pos.y - drag.initial_pointer_loc.y).round() as i32;
                 let target_loc = (drag.initial_window_loc.x + dx, drag.initial_window_loc.y + dy);
@@ -374,6 +376,14 @@ pub(crate) fn handle(
                 event.x_transformed(width),
                 event.y_transformed(height),
             );
+            if server.window_resize.is_some() {
+                server.handle_window_resize_motion(pos);
+            } else if let Some(drag) = server.window_drag.clone() {
+                let dx = (pos.x - drag.initial_pointer_loc.x).round() as i32;
+                let dy = (pos.y - drag.initial_pointer_loc.y).round() as i32;
+                let target_loc = (drag.initial_window_loc.x + dx, drag.initial_window_loc.y + dy);
+                server.handle_window_drag_motion(&drag.window, target_loc);
+            }
             hover(server, input, pos);
         }
         InputEvent::PointerButton { event } => {
@@ -388,13 +398,51 @@ pub(crate) fn handle(
                     let on_top_or_overlay = server.has_desktop_top_or_overlay_at(pos);
 
                     if on_top_or_overlay {
-                        if let Some((surf, _)) = server.desktop_focus_under(pos) {
-                            let serial = input.next_serial();
-                            if let Some(keyboard) = server.seat.get_keyboard() {
-                                keyboard.set_focus(server, Some(surf), serial);
+                        if server.desktop_layer_allows_keyboard(pos) {
+                            if let Some((surf, _)) = server.desktop_focus_under(pos) {
+                                let serial = input.next_serial();
+                                if let Some(keyboard) = server.seat.get_keyboard() {
+                                    keyboard.set_focus(server, Some(surf), serial);
+                                }
                             }
                         }
                     } else {
+                        // Hit-test desktop window resize borders/corners in top-to-bottom z-order
+                        let resize_hit = server
+                            .space
+                            .elements()
+                            .rev()
+                            .filter(|w| {
+                                Some(*w) != server.root_shell.as_ref()
+                                    && !server.is_phone_task(w)
+                                    && server.is_desktop_window_visible(w)
+                            })
+                            .find_map(|w| {
+                                let loc = server.space.element_location(w)?;
+                                let geo = w.geometry();
+                                let has_ssd = server.window_has_ssd(w);
+                                let edges = crate::decorations::hit_test_resize_border(
+                                    (loc.x + geo.loc.x, loc.y + geo.loc.y),
+                                    (geo.size.w, geo.size.h),
+                                    has_ssd,
+                                    (pos.x, pos.y),
+                                )?;
+                                Some((w.clone(), edges))
+                            });
+
+                        if let Some((window, edges)) = resize_hit {
+                            server.space.raise_element(&window, true);
+                            if let Some(toplevel) = window.toplevel() {
+                                let surf = toplevel.wl_surface().clone();
+                                let serial = input.next_serial();
+                                if let Some(keyboard) = server.seat.get_keyboard() {
+                                    keyboard.set_focus(server, Some(surf), serial);
+                                }
+                            }
+                            server.start_window_resize(window, edges, pos);
+                            return;
+                        }
+
                         // Hit-test COSMIC SSD titlebars in top-to-bottom z-order
                         let ssd_hit = server
                             .space
@@ -405,10 +453,10 @@ pub(crate) fn handle(
                             })
                             .find_map(|w| {
                                 let loc = server.space.element_location(w)?;
-                                let w_size = w.geometry().size;
+                                let geo = w.geometry();
                                 let action = crate::decorations::hit_test_titlebar(
-                                    (loc.x, loc.y),
-                                    w_size.w,
+                                    (loc.x + geo.loc.x, loc.y + geo.loc.y),
+                                    geo.size.w,
                                     (pos.x, pos.y),
                                 )?;
                                 Some((w.clone(), loc, action))
@@ -451,16 +499,19 @@ pub(crate) fn handle(
                                 keyboard.set_focus(server, Some(surf), serial);
                             }
                             hover(server, input, pos);
-                        } else if let Some((surf, _)) = server.desktop_focus_under(pos) {
-                        let serial = input.next_serial();
-                        if let Some(keyboard) = server.seat.get_keyboard() {
-                            keyboard.set_focus(server, Some(surf), serial);
+                        } else if server.desktop_layer_allows_keyboard(pos) {
+                            if let Some((surf, _)) = server.desktop_focus_under(pos) {
+                                let serial = input.next_serial();
+                                if let Some(keyboard) = server.seat.get_keyboard() {
+                                    keyboard.set_focus(server, Some(surf), serial);
+                                }
+                            }
                         }
-                    }
                     }
                 }
             } else if event.state() == ButtonState::Released {
                 server.window_drag = None;
+                server.finish_window_resize();
             }
             send_button(server, input, event.button_code(), event.state());
         }

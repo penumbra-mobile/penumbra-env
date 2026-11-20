@@ -8,15 +8,19 @@ use smithay::{
         renderer::{
             element::{
                 memory::{MemoryRenderBuffer, MemoryRenderBufferRenderElement},
+                solid::SolidColorRenderElement,
                 Kind,
             },
-            gles::GlesRenderer,
+            gles::GlesRenderer, Color32F,
         },
     },
+    reexports::wayland_protocols::xdg::shell::server::xdg_toplevel,
     utils::{Logical, Physical, Point, Rectangle, Size, Transform},
 };
 
-pub const SSD_TITLEBAR_H: i32 = 32;
+pub const SSD_TITLEBAR_H: i32 = 34;
+pub const SSD_RESIZE_BORDER: f64 = 7.0;
+pub const SSD_RESIZE_CORNER: f64 = 14.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TitlebarAction {
@@ -52,6 +56,64 @@ pub fn hit_test_titlebar(
         Some(TitlebarAction::Minimize)
     } else {
         Some(TitlebarAction::Drag)
+    }
+}
+
+/// Hit-tests the outer resize border/corners around a desktop window.
+/// Includes the SSD titlebar top edge when `has_ssd` is true.
+pub fn hit_test_resize_border(
+    win_loc: (i32, i32),
+    win_size: (i32, i32),
+    has_ssd: bool,
+    pos: (f64, f64),
+) -> Option<xdg_toplevel::ResizeEdge> {
+    if win_size.0 <= 0 || win_size.1 <= 0 {
+        return None;
+    }
+    let top_pad = if has_ssd { SSD_TITLEBAR_H } else { 0 };
+    let x0 = win_loc.0 as f64;
+    let y0 = (win_loc.1 - top_pad) as f64;
+    let x1 = (win_loc.0 + win_size.0) as f64;
+    let y1 = (win_loc.1 + win_size.1) as f64;
+
+    let b = SSD_RESIZE_BORDER;
+    // Must be within outer [x0 - b .. x1 + b, y0 - b .. y1 + b]
+    if pos.0 < x0 - b || pos.0 >= x1 + b || pos.1 < y0 - b || pos.1 >= y1 + b {
+        return None;
+    }
+
+    let c = SSD_RESIZE_CORNER;
+    let on_left = pos.0 < x0 + b;
+    let on_right = pos.0 >= x1 - b;
+    let on_top = pos.1 < y0 + b;
+    let on_bottom = pos.1 >= y1 - b;
+
+    if !(on_left || on_right || on_top || on_bottom) {
+        return None;
+    }
+
+    // Expand corner hit zones along edges for easier diagonal grabbing
+    let near_left = pos.0 < x0 + c;
+    let near_right = pos.0 >= x1 - c;
+    let near_top = pos.1 < y0 + c;
+    let near_bottom = pos.1 >= y1 - c;
+
+    if (on_top && near_left) || (on_left && near_top) {
+        Some(xdg_toplevel::ResizeEdge::TopLeft)
+    } else if (on_top && near_right) || (on_right && near_top) {
+        Some(xdg_toplevel::ResizeEdge::TopRight)
+    } else if (on_bottom && near_left) || (on_left && near_bottom) {
+        Some(xdg_toplevel::ResizeEdge::BottomLeft)
+    } else if (on_bottom && near_right) || (on_right && near_bottom) {
+        Some(xdg_toplevel::ResizeEdge::BottomRight)
+    } else if on_top {
+        Some(xdg_toplevel::ResizeEdge::Top)
+    } else if on_bottom {
+        Some(xdg_toplevel::ResizeEdge::Bottom)
+    } else if on_left {
+        Some(xdg_toplevel::ResizeEdge::Left)
+    } else {
+        Some(xdg_toplevel::ResizeEdge::Right)
     }
 }
 
@@ -106,6 +168,65 @@ pub fn render_titlebar_element(
     .ok()
 }
 
+/// Renders the left, right, and bottom 2px COSMIC container border elements around an SSD window
+/// so the titlebar and window content form one continuous framed container.
+pub fn render_window_borders(
+    win_size: (i32, i32),
+    focused: bool,
+    ssd_loc: (i32, i32),
+) -> [SolidColorRenderElement; 3] {
+    let color = if focused {
+        Color32F::new(0.388, 0.816, 0.875, 0.72) // #63d0df @ ~72%
+    } else {
+        Color32F::new(1.0, 1.0, 1.0, 0.14)
+    };
+    let b = 2;
+    let (w, h) = (win_size.0.max(1), win_size.1.max(1));
+    let left = SolidColorRenderElement::new(
+        smithay::backend::renderer::element::Id::new(),
+        Rectangle::new((ssd_loc.0, ssd_loc.1).into(), (b, h + b).into()),
+        0,
+        color,
+        Kind::Unspecified,
+    );
+    let right = SolidColorRenderElement::new(
+        smithay::backend::renderer::element::Id::new(),
+        Rectangle::new((ssd_loc.0 + w - b, ssd_loc.1).into(), (b, h + b).into()),
+        0,
+        color,
+        Kind::Unspecified,
+    );
+    let bottom = SolidColorRenderElement::new(
+        smithay::backend::renderer::element::Id::new(),
+        Rectangle::new((ssd_loc.0, ssd_loc.1 + h).into(), (w, b).into()),
+        0,
+        color,
+        Kind::Unspecified,
+    );
+    [left, right, bottom]
+}
+
+/// Fills the top 16px behind an SSD window with the titlebar background color so apps that
+/// draw their own rounded top corners (e.g. GTK4/libadwaita, Firefox) never leave triangular gaps.
+pub fn render_window_corner_fill(
+    win_w: i32,
+    focused: bool,
+    ssd_loc: (i32, i32),
+) -> SolidColorRenderElement {
+    let color = if focused {
+        Color32F::new(0x22 as f32 / 255.0, 0x24 as f32 / 255.0, 0x2e as f32 / 255.0, 0xf8 as f32 / 255.0)
+    } else {
+        Color32F::new(0x16 as f32 / 255.0, 0x17 as f32 / 255.0, 0x1e as f32 / 255.0, 0xf0 as f32 / 255.0)
+    };
+    SolidColorRenderElement::new(
+        smithay::backend::renderer::element::Id::new(),
+        Rectangle::new((ssd_loc.0, ssd_loc.1).into(), (win_w.max(1), 16).into()),
+        0,
+        color,
+        Kind::Unspecified,
+    )
+}
+
 fn set_px(buf: &mut [u8], w: i32, h: i32, x: i32, y: i32, rgba: [u8; 4]) {
     if x < 0 || y < 0 || x >= w || y >= h {
         return;
@@ -133,10 +254,11 @@ fn blend_px(buf: &mut [u8], w: i32, h: i32, x: i32, y: i32, rgba: [u8; 4]) {
 
 fn rasterize_titlebar(w: i32, h: i32, title: &str, focused: bool) -> Vec<u8> {
     let mut buf = vec![0u8; (w * h * 4) as usize];
-    let bg = if focused { [0x1e, 0x1e, 0x28, 0xf6] } else { [0x14, 0x14, 0x1b, 0xee] };
-    let border = if focused { [0xff, 0xff, 0xff, 0x28] } else { [0xff, 0xff, 0xff, 0x16] };
-    let fg = if focused { [0xf4, 0xf4, 0xf8, 0xff] } else { [0xa0, 0xa2, 0xb0, 0xff] };
-    let r = 8;
+    // COSMIC-inspired dark slate header with subtle accent border when focused
+    let bg = if focused { [0x22, 0x24, 0x2e, 0xf8] } else { [0x16, 0x17, 0x1e, 0xf0] };
+    let border = if focused { [0x63, 0xd0, 0xdf, 0x88] } else { [0xff, 0xff, 0xff, 0x18] };
+    let fg = if focused { [0xf4, 0xf5, 0xf8, 0xff] } else { [0x94, 0x98, 0xa8, 0xff] };
+    let r = 10;
 
     for y in 0..h {
         for x in 0..w {
@@ -156,7 +278,8 @@ fn rasterize_titlebar(w: i32, h: i32, title: &str, focused: bool) -> Vec<u8> {
                 continue;
             }
             set_px(&mut buf, w, h, x, y, bg);
-            if y == 0 || x == 0 || x == w - 1 || y == h - 1 {
+            // 2px COSMIC container rim on top, left, and right; bottom edge is open to merge seamlessly with window
+            if y < 2 || x < 2 || x >= w - 2 {
                 blend_px(&mut buf, w, h, x, y, border);
             }
         }

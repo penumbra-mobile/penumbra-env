@@ -53,6 +53,7 @@ export component SettingsWindow inherits Window {
     in property <string> wifi-ip-address: "";
     in-out property <bool> hotspot-active: false;
     in property <[WifiApData]> wifi-access-points: [];
+    in property <[string]> wifi-saved-networks: [];
 
     callback disconnect-wifi();
     callback forget-wifi-network(string);
@@ -383,6 +384,7 @@ export component SettingsWindow inherits Window {
                     ip-address: root.wifi-ip-address;
                     hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
+                    saved-networks: root.wifi-saved-networks;
                     toggle-wifi(val) => { root.toggle-wifi(val); }
                     disconnect-wifi => { root.disconnect-wifi(); }
                     forget-network(s) => { root.forget-wifi-network(s); }
@@ -636,6 +638,7 @@ export component SettingsWindow inherits Window {
                     ip-address: root.wifi-ip-address;
                     hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
+                    saved-networks: root.wifi-saved-networks;
                     toggle-wifi(val) => { root.toggle-wifi(val); }
                     disconnect-wifi => { root.disconnect-wifi(); }
                     forget-network(s) => { root.forget-wifi-network(s); }

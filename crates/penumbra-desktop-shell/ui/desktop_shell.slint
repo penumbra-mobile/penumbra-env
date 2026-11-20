@@ -193,15 +193,13 @@ export component DesktopPanelWindow inherits Window {
             background: DesktopTheme.border-subtle;
         }
 
+        // --- LEFT WING (COSMIC Panel: Workspaces + Applications) ---
         HorizontalLayout {
-            padding-left: 8px;
-            padding-right: 8px;
-            alignment: space-between;
-
-            // --- LEFT WING (COSMIC Panel: Workspaces + Applications) ---
-            HorizontalLayout {
-                spacing: 4px;
-                alignment: center;
+            x: 8px;
+            y: (parent.height - self.height) / 2;
+            height: 24px;
+            spacing: 4px;
+            alignment: start;
 
                 // Workspaces Strip (COSMIC Panel Workspaces Button)
                 HorizontalLayout {
@@ -266,45 +264,50 @@ export component DesktopPanelWindow inherits Window {
                         }
                     }
                 }
-            }
+        }
 
-            // --- CENTER (COSMIC Applet Time) ---
-            Rectangle {
-                height: 22px;
-                border-radius: 6px;
-                background: root.active-applet == "time"
-                    ? DesktopTheme.primary-container
-                    : (clock-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+        // --- CENTER (COSMIC Applet Time) ---
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            height: 22px;
+            border-radius: 6px;
+            background: root.active-applet == "time"
+                ? DesktopTheme.primary-container
+                : (clock-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
-                animate background { duration: 100ms; }
+            animate background { duration: 100ms; }
 
-                HorizontalLayout {
-                    padding-left: 10px;
-                    padding-right: 10px;
-                    spacing: 6px;
-                    alignment: center;
-
-                    Text {
-                        text: root.date-text + "  " + root.time-text;
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-applet == "time" ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
-                        vertical-alignment: center;
-                    }
-                }
-
-                clock-touch := TouchArea {
-                    clicked => {
-                        root.open-applet("time");
-                        root.time-clicked();
-                    }
-                }
-            }
-
-            // --- RIGHT WING (COSMIC Tray Applets: Audio, Network, Battery, Power) ---
             HorizontalLayout {
-                spacing: 2px;
+                padding-left: 10px;
+                padding-right: 10px;
+                spacing: 6px;
                 alignment: center;
+
+                Text {
+                    text: root.date-text + "  " + root.time-text;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: root.active-applet == "time" ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
+                    vertical-alignment: center;
+                }
+            }
+
+            clock-touch := TouchArea {
+                clicked => {
+                    root.open-applet("time");
+                    root.time-clicked();
+                }
+            }
+        }
+
+        // --- RIGHT WING (COSMIC Tray Applets: Audio, Network, Battery, Power) ---
+        HorizontalLayout {
+            x: parent.width - self.width - 8px;
+            y: (parent.height - self.height) / 2;
+            height: 24px;
+            spacing: 2px;
+            alignment: end;
 
                 // Audio Applet
                 Rectangle {
@@ -410,7 +413,6 @@ export component DesktopPanelWindow inherits Window {
                         }
                     }
                 }
-            }
         }
     }
 }
@@ -613,28 +615,49 @@ export component DesktopLauncherWindow inherits Window {
                             padding-left: 16px;
                             padding-right: 16px;
                             spacing: 10px;
-                            alignment: center;
 
-                            DesktopIcon {
-                                name: "search";
-                                icon-size: 18px;
-                                icon-color: DesktopTheme.primary;
+                            VerticalLayout {
+                                alignment: center;
+                                DesktopIcon {
+                                    name: "search";
+                                    icon-size: 18px;
+                                    icon-color: DesktopTheme.primary;
+                                }
                             }
 
-                            search-input := TextInput {
-                                text: root.search-text;
-                                font-size: DesktopTheme.font-title;
-                                color: DesktopTheme.on-surface;
-                                vertical-alignment: center;
-                                single-line: true;
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 100%;
+                                background: transparent;
 
-                                edited => {
-                                    root.search-text = self.text;
-                                    root.search-query-changed(self.text);
+                                if root.search-text == "": Text {
+                                    x: 0px;
+                                    width: parent.width;
+                                    height: parent.height;
+                                    text: "Search apps or =calculate...";
+                                    font-size: DesktopTheme.font-title;
+                                    color: DesktopTheme.on-surface-muted;
+                                    vertical-alignment: center;
                                 }
-                                accepted => {
-                                    if root.apps.length > 0 {
-                                        root.app-clicked(root.apps[0].id, root.apps[0].exec);
+
+                                search-input := TextInput {
+                                    x: 0px;
+                                    width: parent.width;
+                                    height: parent.height;
+                                    text: root.search-text;
+                                    font-size: DesktopTheme.font-title;
+                                    color: DesktopTheme.on-surface;
+                                    vertical-alignment: center;
+                                    single-line: true;
+
+                                    edited => {
+                                        root.search-text = self.text;
+                                        root.search-query-changed(self.text);
+                                    }
+                                    accepted => {
+                                        if root.apps.length > 0 {
+                                            root.app-clicked(root.apps[0].id, root.apps[0].exec);
+                                        }
                                     }
                                 }
                             }
@@ -697,8 +720,9 @@ export component DesktopLauncherWindow inherits Window {
 
                 // --- Category Filter Tabs ---
                 HorizontalLayout {
-                    spacing: 8px;
+                    spacing: 6px;
                     height: 32px;
+                    alignment: center;
 
                     for cat in ["All", "Internet", "Utilities", "System", "Development", "Office", "Multimedia"]: Rectangle {
                         height: 30px;
@@ -763,39 +787,49 @@ export component DesktopLauncherWindow inherits Window {
                                 VerticalLayout {
                                     padding-top: 10px;
                                     padding-bottom: 8px;
-                                    padding-left: 8px;
-                                    padding-right: 8px;
+                                    padding-left: 6px;
+                                    padding-right: 6px;
                                     spacing: 8px;
                                     alignment: center;
 
-                                    // Squircle Icon Container
-                                    Rectangle {
-                                        width: card-touch.pressed ? 52px : 56px;
-                                        height: card-touch.pressed ? 52px : 56px;
-                                        x: (parent.width - self.width) / 2;
-                                        border-radius: 18px;
-                                        background: DesktopTheme.surface;
-                                        border-width: 1px;
-                                        border-color: DesktopTheme.specular-rim;
-                                        clip: true;
+                                    // Fixed 58px Squircle Icon Slot (centered horizontally)
+                                    HorizontalLayout {
+                                        alignment: center;
+                                        Rectangle {
+                                            width: 58px;
+                                            height: 58px;
+                                            background: transparent;
 
-                                        animate width, height { duration: 100ms; }
+                                            Rectangle {
+                                                width: card-touch.pressed ? 52px : 56px;
+                                                height: card-touch.pressed ? 52px : 56px;
+                                                x: (parent.width - self.width) / 2;
+                                                y: (parent.height - self.height) / 2;
+                                                border-radius: 18px;
+                                                background: DesktopTheme.surface;
+                                                border-width: 1px;
+                                                border-color: DesktopTheme.specular-rim;
+                                                clip: true;
 
-                                        if app.has-icon: Image {
-                                            source: app.icon;
-                                            width: parent.width * 0.78;
-                                            height: parent.height * 0.78;
-                                            image-fit: contain;
-                                            x: (parent.width - self.width) / 2;
-                                            y: (parent.height - self.height) / 2;
-                                        }
+                                                animate width, height { duration: 100ms; }
 
-                                        if !app.has-icon: DesktopIcon {
-                                            name: app.icon-name;
-                                            icon-size: 26px;
-                                            icon-color: DesktopTheme.primary;
-                                            x: (parent.width - self.width) / 2;
-                                            y: (parent.height - self.height) / 2;
+                                                if app.has-icon: Image {
+                                                    source: app.icon;
+                                                    width: parent.width * 0.78;
+                                                    height: parent.height * 0.78;
+                                                    image-fit: contain;
+                                                    x: (parent.width - self.width) / 2;
+                                                    y: (parent.height - self.height) / 2;
+                                                }
+
+                                                if !app.has-icon: DesktopIcon {
+                                                    name: app.icon-name;
+                                                    icon-size: 26px;
+                                                    icon-color: DesktopTheme.primary;
+                                                    x: (parent.width - self.width) / 2;
+                                                    y: (parent.height - self.height) / 2;
+                                                }
+                                            }
                                         }
                                     }
 

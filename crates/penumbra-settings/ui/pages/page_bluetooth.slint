@@ -165,29 +165,51 @@ export component PageBluetooth inherits Flickable {
                                         }
                                     }
 
-                                    Rectangle {
-                                        width: 64px;
-                                        height: 30px;
+                                    HorizontalLayout {
+                                        spacing: 6px;
                                         y: (parent.height - self.height) / 2;
-                                        border-radius: 15px;
-                                        background: #5c2020;
-                                        Text {
-                                            text: "Forget";
-                                            font-size: 11px;
-                                            font-weight: 700;
-                                            color: #ffb4ab;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
+
+                                        Rectangle {
+                                            width: dev.connected ? 80px : 66px;
+                                            height: 30px;
+                                            border-radius: 15px;
+                                            background: dev.connected ? Theme.surface-highest : Theme.primary;
+                                            Text {
+                                                text: dev.connected ? "Disconnect" : "Connect";
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                                color: dev.connected ? Theme.on-surface : Theme.on-primary;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                            TouchArea {
+                                                clicked => { root.toggle-device(dev.address); }
+                                            }
                                         }
-                                        TouchArea {
-                                            clicked => { root.forget-device(dev.address); }
+
+                                        Rectangle {
+                                            width: 60px;
+                                            height: 30px;
+                                            border-radius: 15px;
+                                            background: #5c2020;
+                                            Text {
+                                                text: "Forget";
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                                color: #ffb4ab;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                            }
+                                            TouchArea {
+                                                clicked => { root.forget-device(dev.address); }
+                                            }
                                         }
                                     }
                                 }
 
                                 TouchArea {
                                     x: 0px;
-                                    width: parent.width - 80px;
+                                    width: parent.width - 156px;
                                     clicked => { root.toggle-device(dev.address); }
                                 }
                             }

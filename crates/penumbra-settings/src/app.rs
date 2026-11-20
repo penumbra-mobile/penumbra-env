@@ -66,6 +66,8 @@ pub fn setup_app(
             })
             .collect();
         window.set_wifi_access_points(ModelRc::from(Rc::new(VecModel::from(ap_models))));
+        let saved_models: Vec<slint::SharedString> = net.saved_networks.iter().map(|s| s.as_str().into()).collect();
+        window.set_wifi_saved_networks(ModelRc::from(Rc::new(VecModel::from(saved_models))));
 
         let bt = bt_backend.current();
         window.set_bt_enabled(bt.powered);
@@ -242,6 +244,8 @@ pub fn setup_app(
                             })
                             .collect();
                         ui.set_wifi_access_points(ModelRc::from(Rc::new(VecModel::from(ap_models))));
+                        let saved_models: Vec<slint::SharedString> = net.saved_networks.iter().map(|s| s.as_str().into()).collect();
+                        ui.set_wifi_saved_networks(ModelRc::from(Rc::new(VecModel::from(saved_models))));
                     }
                 });
             }

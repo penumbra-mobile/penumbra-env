@@ -41,6 +41,13 @@ export component PageWifi inherits Rectangle {
     in-out property <string> hotspot-pass-input: "penumbra123";
     // Array of available scanned access points from NetworkManager.
     in property <[WifiApData]> access-points: [];
+    // All saved Wi-Fi network SSIDs (including out-of-range profiles).
+    in property <[string]> saved-networks: [];
+
+    // Connection Details modal state
+    in-out property <bool> show-details-dialog: false;
+    in-out property <string> details-ssid: "";
+    in-out property <bool> details-is-connected: false;
 
     // Emitted when the user toggles the master Wi-Fi power switch.
     callback toggle-wifi(bool);
@@ -137,6 +144,27 @@ export component PageWifi inherits Rectangle {
                                     height: 32px;
                                     horizontal-stretch: 1;
                                     border-radius: 16px;
+                                    background: Theme.primary;
+                                    Text {
+                                        text: "Details";
+                                        font-size: Theme.font-caption;
+                                        font-weight: 700;
+                                        color: Theme.on-primary;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    TouchArea {
+                                        clicked => {
+                                            root.details-ssid = root.connected-ssid;
+                                            root.details-is-connected = true;
+                                            root.show-details-dialog = true;
+                                        }
+                                    }
+                                }
+                                Rectangle {
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 16px;
                                     background: Theme.surface-highest;
                                     Text {
                                         text: "Disconnect";
@@ -217,6 +245,36 @@ export component PageWifi inherits Rectangle {
                                             root.password-input-focused();
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Saved Connections (GNOME Settings style)
+                if root.saved-networks.length > 0: VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionHeader { title: "Saved networks"; }
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 4px;
+
+                            for saved_ssid[idx] in root.saved-networks: SettingsTile {
+                                icon-name: "wifi";
+                                icon-bg: saved_ssid == root.connected-ssid ? Theme.primary-container : #282a30;
+                                icon-tint: saved_ssid == root.connected-ssid ? Theme.on-primary-container : #a8c7fa;
+                                title: saved_ssid;
+                                subtitle: saved_ssid == root.connected-ssid ? "Connected • Tap for details" : "Saved • Tap for details or forget";
+                                trailing-text: saved_ssid == root.connected-ssid ? "Active" : "Details";
+                                show-chevron: true;
+                                is-first: idx == 0;
+                                is-last: idx == root.saved-networks.length - 1;
+                                show-divider: idx < root.saved-networks.length - 1;
+                                clicked => {
+                                    root.details-ssid = saved_ssid;
+                                    root.details-is-connected = (saved_ssid == root.connected-ssid);
+                                    root.show-details-dialog = true;
                                 }
                             }
                         }
@@ -529,6 +587,184 @@ export component PageWifi inherits Rectangle {
                                 root.password-input-dismissed();
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    // Connection Details Modal Sheet
+    if root.show-details-dialog: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #00000099;
+
+        TouchArea {
+            clicked => { root.show-details-dialog = false; }
+        }
+
+        Rectangle {
+            width: Math.min(parent.width - 32px, 360px);
+            height: details-col.preferred-height + 40px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 28px;
+            background: #222028;
+            border-width: 1px;
+            border-color: Theme.specular-rim;
+
+            TouchArea {}
+
+            details-col := VerticalLayout {
+                x: 20px;
+                y: 20px;
+                width: parent.width - 40px;
+                spacing: 12px;
+
+                Text {
+                    text: root.details-ssid;
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: Theme.on-surface;
+                }
+
+                Rectangle {
+                    height: details-info.preferred-height + 20px;
+                    border-radius: 16px;
+                    background: #17151d;
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
+
+                    details-info := VerticalLayout {
+                        x: 14px;
+                        y: 10px;
+                        width: parent.width - 28px;
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Status"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text {
+                                text: root.details-is-connected ? "Connected" : "Saved";
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: root.details-is-connected ? Theme.primary : Theme.on-surface;
+                            }
+                        }
+                        if root.details-is-connected: HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Signal strength"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text {
+                                text: root.signal-strength + "%";
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                        }
+                        if root.details-is-connected && root.ip-address != "": HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "IPv4 address"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text {
+                                text: root.ip-address;
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                        }
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text { text: "Hardware MAC"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text {
+                                text: root.wifi-mac;
+                                font-size: Theme.font-caption;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                            }
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    if !root.details-is-connected: Rectangle {
+                        height: 36px;
+                        horizontal-stretch: 1;
+                        border-radius: 18px;
+                        background: Theme.primary;
+                        Text {
+                            text: "Connect";
+                            font-size: Theme.font-caption;
+                            font-weight: 700;
+                            color: Theme.on-primary;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.connect-ap(root.details-ssid);
+                                root.show-details-dialog = false;
+                            }
+                        }
+                    }
+
+                    if root.details-is-connected: Rectangle {
+                        height: 36px;
+                        horizontal-stretch: 1;
+                        border-radius: 18px;
+                        background: Theme.surface-highest;
+                        Text {
+                            text: "Disconnect";
+                            font-size: Theme.font-caption;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.disconnect-wifi();
+                                root.show-details-dialog = false;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 36px;
+                        horizontal-stretch: 1;
+                        border-radius: 18px;
+                        background: #5c2020;
+                        Text {
+                            text: "Forget";
+                            font-size: Theme.font-caption;
+                            font-weight: 600;
+                            color: #ffb4ab;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.forget-network(root.details-ssid);
+                                root.show-details-dialog = false;
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 34px;
+                    border-radius: 17px;
+                    background: transparent;
+                    Text {
+                        text: "Close";
+                        font-size: Theme.font-caption;
+                        font-weight: 600;
+                        color: Theme.primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    TouchArea {
+                        clicked => { root.show-details-dialog = false; }
                     }
                 }
             }

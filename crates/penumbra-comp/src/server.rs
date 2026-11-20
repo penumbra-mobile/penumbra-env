@@ -140,8 +140,10 @@ pub struct PenumbraServerState {
     pub pointer_location: Point<f64, smithay::utils::Logical>,
     pub cursor_status: smithay::input::pointer::CursorImageStatus,
     pub window_drag: Option<WindowDragState>,
+    pub window_resize: Option<WindowResizeState>,
     pub fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer,
     pub titlebar_cache: std::collections::HashMap<crate::decorations::TitlebarCacheKey, smithay::backend::renderer::element::memory::MemoryRenderBuffer>,
+    pub popups: smithay::desktop::PopupManager,
 
     /// Phone (Output A) tasks in MRU order. `[0]` is the active app.
     pub phone_tasks: Vec<PhoneTask>,
@@ -211,6 +213,16 @@ pub static FALLBACK_CURSOR_DATA: &[u8] = include_bytes!("../resources/cursor.rgb
 pub struct WindowDragState {
     pub window: Window,
     pub initial_window_loc: Point<i32, smithay::utils::Logical>,
+    pub initial_pointer_loc: Point<f64, smithay::utils::Logical>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WindowResizeState {
+    pub window: Window,
+    pub edges: xdg_toplevel::ResizeEdge,
+    pub initial_window_loc: Point<i32, smithay::utils::Logical>,
+    pub initial_window_size: smithay::utils::Size<i32, smithay::utils::Logical>,
+    pub last_sent_size: smithay::utils::Size<i32, smithay::utils::Logical>,
     pub initial_pointer_loc: Point<f64, smithay::utils::Logical>,
 }
 
@@ -543,6 +555,33 @@ impl PenumbraServerState {
             let Some(loc) = self.space.element_location(window) else {
                 continue;
             };
+            if let Some(toplevel) = window.toplevel() {
+                let win_geo = window.geometry();
+                for (popup, popup_offset) in
+                    smithay::desktop::PopupManager::popups_for_surface(toplevel.wl_surface())
+                {
+                    let pop_loc = (
+                        loc.x + win_geo.loc.x + popup_offset.x,
+                        loc.y + win_geo.loc.y + popup_offset.y,
+                    );
+                    let pop_rel = (pos.x - pop_loc.0 as f64, pos.y - pop_loc.1 as f64);
+                    if let Some((surf, surf_loc)) =
+                        smithay::desktop::utils::under_from_surface_tree(
+                            popup.wl_surface(),
+                            pop_rel.into(),
+                            (0, 0),
+                            WindowSurfaceType::ALL,
+                        )
+                    {
+                        let global_loc: Point<f64, smithay::utils::Logical> = (
+                            (pop_loc.0 + surf_loc.x) as f64,
+                            (pop_loc.1 + surf_loc.y) as f64,
+                        )
+                            .into();
+                        return Some((window.clone(), surf, global_loc));
+                    }
+                }
+            }
             let rel = (pos.x - loc.x as f64, pos.y - loc.y as f64);
             if let Some((surf, surf_loc)) = window.surface_under(rel, WindowSurfaceType::ALL) {
                 let global_loc: Point<f64, smithay::utils::Logical> = (
@@ -663,9 +702,187 @@ impl PenumbraServerState {
                 self.space.map_element(window.clone(), target_loc, true);
                 self.publish_phone_tasks();
             } else {
-                self.space.map_element(window.clone(), target_loc, false);
+                let top_pad = if self.window_has_ssd(window) {
+                    crate::decorations::SSD_TITLEBAR_H
+                } else {
+                    0
+                };
+                let out_geo = self
+                    .external_outputs
+                    .values()
+                    .next()
+                    .or(self.output_b.as_ref())
+                    .and_then(|o| self.space.output_geometry(o))
+                    .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
+                let geo_loc_y = window.geometry().loc.y;
+                let min_y = out_geo.loc.y + 30 + top_pad - geo_loc_y;
+                let max_y = (out_geo.loc.y + out_geo.size.h - 76 - 24 - geo_loc_y).max(min_y);
+                let clamped_loc = (target_loc.0, target_loc.1.clamp(min_y, max_y));
+                self.space.map_element(window.clone(), clamped_loc, false);
             }
         }
+    }
+
+    /// Starts an interactive desktop window resize from `edges` at `pointer_loc`.
+    pub fn start_window_resize(
+        &mut self,
+        window: Window,
+        edges: xdg_toplevel::ResizeEdge,
+        pointer_loc: Point<f64, smithay::utils::Logical>,
+    ) {
+        if self.is_phone_task(&window) || Some(&window) == self.root_shell.as_ref() {
+            return;
+        }
+        let Some(loc) = self.space.element_location(&window) else {
+            return;
+        };
+        let size = window.geometry().size;
+        if size.w <= 0 || size.h <= 0 {
+            return;
+        }
+        self.space.raise_element(&window, true);
+        if let Some(toplevel) = window.toplevel() {
+            let id = smithay::reexports::wayland_server::Resource::id(toplevel.wl_surface());
+            self.pre_maximize_geometry.remove(&id);
+            toplevel.with_pending_state(|state| {
+                state.states.unset(xdg_toplevel::State::Maximized);
+                state.states.set(xdg_toplevel::State::Resizing);
+            });
+            toplevel.send_configure();
+        }
+        self.window_resize = Some(WindowResizeState {
+            window,
+            edges,
+            initial_window_loc: loc,
+            initial_window_size: size,
+            last_sent_size: size,
+            initial_pointer_loc: pointer_loc,
+        });
+    }
+
+    /// Updates an active interactive desktop window resize on pointer motion (COSMIC-style edge clamping).
+    pub fn handle_window_resize_motion(
+        &mut self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) {
+        let Some(mut resize) = self.window_resize.take() else {
+            return;
+        };
+        let dx = (pos.x - resize.initial_pointer_loc.x).round() as i32;
+        let dy = (pos.y - resize.initial_pointer_loc.y).round() as i32;
+
+        let mut new_w = resize.initial_window_size.w;
+        let mut new_h = resize.initial_window_size.h;
+        let mut new_x = resize.initial_window_loc.x;
+        let mut new_y = resize.initial_window_loc.y;
+
+        let (min_w, min_h, max_w, max_h) = resize
+            .window
+            .toplevel()
+            .map(|t| {
+                smithay::wayland::compositor::with_states(t.wl_surface(), |states| {
+                    let mut cached = states
+                        .cached_state
+                        .get::<smithay::wayland::shell::xdg::SurfaceCachedState>();
+                    let cur = cached.current();
+                    let min_w = if cur.min_size.w > 0 { cur.min_size.w } else { 240 };
+                    let min_h = if cur.min_size.h > 0 { cur.min_size.h } else { 160 };
+                    let max_w = if cur.max_size.w > 0 { cur.max_size.w } else { i32::MAX };
+                    let max_h = if cur.max_size.h > 0 { cur.max_size.h } else { i32::MAX };
+                    (min_w.max(240), min_h.max(160), max_w, max_h)
+                })
+            })
+            .unwrap_or((240, 160, i32::MAX, i32::MAX));
+
+        use xdg_toplevel::ResizeEdge as E;
+        match resize.edges {
+            E::Left | E::TopLeft | E::BottomLeft => {
+                let clamped_w = (resize.initial_window_size.w - dx).clamp(min_w, max_w);
+                new_x = (resize.initial_window_loc.x + (resize.initial_window_size.w - clamped_w))
+                    .max(PHONE_W);
+                new_w = (resize.initial_window_loc.x + resize.initial_window_size.w) - new_x;
+            }
+            E::Right | E::TopRight | E::BottomRight => {
+                new_w = (resize.initial_window_size.w + dx).clamp(min_w, max_w);
+            }
+            _ => {}
+        }
+        match resize.edges {
+            E::Top | E::TopLeft | E::TopRight => {
+                let min_top_y = if self.window_has_ssd(&resize.window) {
+                    30 + crate::decorations::SSD_TITLEBAR_H
+                } else {
+                    30
+                };
+                let clamped_h = (resize.initial_window_size.h - dy).clamp(min_h, max_h);
+                new_y = (resize.initial_window_loc.y + (resize.initial_window_size.h - clamped_h))
+                    .max(min_top_y);
+                new_h = (resize.initial_window_loc.y + resize.initial_window_size.h) - new_y;
+            }
+            E::Bottom | E::BottomLeft | E::BottomRight => {
+                new_h = (resize.initial_window_size.h + dy).clamp(min_h, max_h);
+            }
+            _ => {}
+        }
+
+        let target_size: smithay::utils::Size<i32, smithay::utils::Logical> = (new_w, new_h).into();
+        self.space.map_element(resize.window.clone(), (new_x, new_y), false);
+
+        if target_size != resize.last_sent_size {
+            if let Some(toplevel) = resize.window.toplevel() {
+                toplevel.with_pending_state(|state| {
+                    state.states.set(xdg_toplevel::State::Resizing);
+                    state.size = Some(target_size);
+                });
+                toplevel.send_configure();
+            }
+            resize.last_sent_size = target_size;
+        }
+        self.window_resize = Some(resize);
+    }
+
+    /// Completes an active interactive desktop window resize.
+    pub fn finish_window_resize(&mut self) {
+        if let Some(resize) = self.window_resize.take() {
+            if let Some(toplevel) = resize.window.toplevel() {
+                toplevel.with_pending_state(|state| {
+                    state.states.unset(xdg_toplevel::State::Resizing);
+                });
+                toplevel.send_configure();
+            }
+        }
+    }
+
+    /// Returns true if a desktop layer-shell surface at `pos` wants keyboard focus.
+    pub(crate) fn desktop_layer_allows_keyboard(
+        &self,
+        pos: Point<f64, smithay::utils::Logical>,
+    ) -> bool {
+        use smithay::wayland::shell::wlr_layer::KeyboardInteractivity;
+        for output in self.external_outputs.values() {
+            let Some(output_geo) = self.space.output_geometry(output) else {
+                continue;
+            };
+            if !output_geo.to_f64().contains(pos) {
+                continue;
+            }
+            let rel_p: Point<f64, smithay::utils::Logical> =
+                (pos.x - output_geo.loc.x as f64, pos.y - output_geo.loc.y as f64).into();
+            let map = layer_map_for_output(output);
+            for layer in [Layer::Overlay, Layer::Top] {
+                for ls in map.layers_on(layer).rev() {
+                    if let Some(geo) = map.layer_geometry(ls) {
+                        if geo.to_f64().contains(rel_p) {
+                            let local = (rel_p.x - geo.loc.x as f64, rel_p.y - geo.loc.y as f64);
+                            if ls.surface_under(local, WindowSurfaceType::ALL).is_some() {
+                                return ls.cached_state().keyboard_interactivity != KeyboardInteractivity::None;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
     }
 
     /// Advances all navigation and overview spring animations in lockstep.
@@ -1675,16 +1892,34 @@ impl XdgShellHandler for PenumbraServerState {
         }
     }
 
-    fn new_popup(&mut self, _surface: PopupSurface, _positioner: PositionerState) {}
+    fn new_popup(&mut self, surface: PopupSurface, positioner: PositionerState) {
+        let geo = positioner.get_geometry();
+        surface.with_pending_state(|state| {
+            state.geometry = geo;
+        });
+        if let Err(err) = self
+            .popups
+            .track_popup(smithay::desktop::PopupKind::from(surface.clone()))
+        {
+            tracing::warn!("Failed to track popup: {err}");
+        }
+        let _ = surface.send_configure();
+    }
 
     fn grab(&mut self, _surface: PopupSurface, _seat: wl_seat::WlSeat, _serial: Serial) {}
 
     fn reposition_request(
         &mut self,
-        _surface: PopupSurface,
-        _positioner: PositionerState,
-        _token: u32,
+        surface: PopupSurface,
+        positioner: PositionerState,
+        token: u32,
     ) {
+        surface.with_pending_state(|state| {
+            state.geometry = positioner.get_geometry();
+            state.positioner = positioner;
+        });
+        surface.send_repositioned(token);
+        let _ = surface.send_configure();
     }
 
     fn move_request(
@@ -1707,6 +1942,23 @@ impl XdgShellHandler for PenumbraServerState {
                     initial_pointer_loc: self.pointer_location,
                 });
             }
+        }
+    }
+
+    fn resize_request(
+        &mut self,
+        surface: ToplevelSurface,
+        _seat: wl_seat::WlSeat,
+        _serial: Serial,
+        edges: xdg_toplevel::ResizeEdge,
+    ) {
+        let matched = self
+            .space
+            .elements()
+            .find(|w| w.toplevel().map(|t| t == &surface).unwrap_or(false))
+            .cloned();
+        if let Some(window) = matched {
+            self.start_window_resize(window, edges, self.pointer_location);
         }
     }
 
@@ -1971,6 +2223,7 @@ impl CompositorHandler for PenumbraServerState {
 
     fn commit(&mut self, surface: &WlSurface) {
         on_commit_buffer_handler::<Self>(surface);
+        self.popups.commit(surface);
         for window in self.space.elements() {
             if window
                 .toplevel()
@@ -2016,7 +2269,31 @@ impl SeatHandler for PenumbraServerState {
         &mut self.seat_state
     }
 
-    fn focus_changed(&mut self, _seat: &Seat<Self>, _focused: Option<&WlSurface>) {}
+    fn focus_changed(&mut self, _seat: &Seat<Self>, focused: Option<&WlSurface>) {
+        // Sync XDG toplevel Activated state so CSD and SSD windows reflect keyboard focus
+        for window in self.space.elements() {
+            if Some(window) == self.root_shell.as_ref() || self.is_phone_task(window) {
+                continue;
+            }
+            if let Some(toplevel) = window.toplevel() {
+                let should_activate = focused.map(|f| f == toplevel.wl_surface()).unwrap_or(false);
+                let currently_active = toplevel
+                    .current_state()
+                    .states
+                    .contains(xdg_toplevel::State::Activated);
+                if currently_active != should_activate {
+                    toplevel.with_pending_state(|state| {
+                        if should_activate {
+                            state.states.set(xdg_toplevel::State::Activated);
+                        } else {
+                            state.states.unset(xdg_toplevel::State::Activated);
+                        }
+                    });
+                    toplevel.send_configure();
+                }
+            }
+        }
+    }
     fn cursor_image(
         &mut self,
         _seat: &Seat<Self>,
@@ -2319,6 +2596,7 @@ impl PenumbraCompositor {
                 smithay::input::pointer::CursorIcon::Default,
             ),
             window_drag: None,
+            window_resize: None,
             fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer::from_slice(
                 FALLBACK_CURSOR_DATA,
                 smithay::backend::allocator::Fourcc::Abgr8888,
@@ -2328,6 +2606,7 @@ impl PenumbraCompositor {
                 None,
             ),
             titlebar_cache: std::collections::HashMap::new(),
+            popups: smithay::desktop::PopupManager::default(),
             phone_tasks: Vec::new(),
             next_task_id: 1,
             shell_state: ShellState::default(),

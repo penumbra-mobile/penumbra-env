@@ -52,6 +52,8 @@ pub struct NetworkState {
     pub hotspot_ssid: String,
     /// Deduplicated list of discovered Wi-Fi access points sorted by signal strength.
     pub access_points: Vec<WifiAccessPoint>,
+    /// All saved 802-11-wireless SSIDs in NetworkManager (even if out of range).
+    pub saved_networks: Vec<String>,
     /// Indicates whether a valid NetworkManager service and Wi-Fi adapter are available.
     pub is_available: bool,
 }
@@ -386,6 +388,9 @@ impl NetworkBackend {
                 .then_with(|| a.ssid.cmp(&b.ssid))
         });
 
+        let mut saved_networks: Vec<String> = saved_ssids.into_iter().collect();
+        saved_networks.sort();
+
         let updated = NetworkState {
             wifi_enabled,
             connected_ssid: active_ssid,
@@ -394,6 +399,7 @@ impl NetworkBackend {
             hotspot_active,
             hotspot_ssid,
             access_points: final_list,
+            saved_networks,
             is_available: true,
         };
 

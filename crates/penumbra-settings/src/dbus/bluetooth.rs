@@ -182,6 +182,60 @@ fn extract_i32(props: &HashMap<String, OwnedValue>, key: &str) -> Option<i32> {
     })
 }
 
+struct PenumbraBluetoothAgent;
+
+#[zbus::interface(name = "org.bluez.Agent1")]
+impl PenumbraBluetoothAgent {
+    fn release(&self) {}
+
+    fn request_pin_code(&self, device: OwnedObjectPath) -> zbus::fdo::Result<String> {
+        info!("BluetoothAgent: RequestPinCode for {}", device);
+        Ok("0000".to_string())
+    }
+
+    fn display_pin_code(&self, device: OwnedObjectPath, pincode: &str) {
+        info!("BluetoothAgent: DisplayPinCode for {} -> {}", device, pincode);
+    }
+
+    fn request_passkey(&self, device: OwnedObjectPath) -> zbus::fdo::Result<u32> {
+        info!("BluetoothAgent: RequestPasskey for {}", device);
+        Ok(0)
+    }
+
+    fn display_passkey(&self, device: OwnedObjectPath, passkey: u32, entered: u16) {
+        info!("BluetoothAgent: DisplayPasskey for {} -> {:06} (entered {})", device, passkey, entered);
+    }
+
+    fn request_confirmation(&self, device: OwnedObjectPath, passkey: u32) -> zbus::fdo::Result<()> {
+        info!("BluetoothAgent: Auto-confirming pairing for {} (passkey {:06})", device, passkey);
+        Ok(())
+    }
+
+    fn request_authorization(&self, device: OwnedObjectPath) -> zbus::fdo::Result<()> {
+        info!("BluetoothAgent: Authorizing device {}", device);
+        Ok(())
+    }
+
+    fn authorize_service(&self, device: OwnedObjectPath, uuid: &str) -> zbus::fdo::Result<()> {
+        info!("BluetoothAgent: Authorizing service {} for {}", uuid, device);
+        Ok(())
+    }
+
+    fn cancel(&self) {
+        info!("BluetoothAgent: Pairing canceled");
+    }
+}
+
+#[zbus::proxy(
+    interface = "org.bluez.AgentManager1",
+    default_service = "org.bluez",
+    default_path = "/org/bluez"
+)]
+trait BluezAgentManagerProxy {
+    fn register_agent(&self, agent: &zbus::zvariant::ObjectPath<'_>, capability: &str) -> zbus::Result<()>;
+    fn request_default_agent(&self, agent: &zbus::zvariant::ObjectPath<'_>) -> zbus::Result<()>;
+}
+
 /// Asynchronous controller managing interaction with Linux BlueZ D-Bus services.
 pub struct BluetoothBackend {
     conn: Option<zbus::connection::Connection>,
@@ -215,6 +269,19 @@ impl BluetoothBackend {
         };
 
         if let Some(ref connection) = conn {
+            // Register BlueZ Agent1 so HID/BLE mice & keyboards can pair/authorize cleanly
+            let agent_path = zbus::zvariant::ObjectPath::from_static_str_unchecked("/org/penumbra/bluetooth/agent");
+            if let Err(e) = connection.object_server().at(&agent_path, PenumbraBluetoothAgent).await {
+                warn!("BluetoothBackend: Failed to serve Agent1: {e}");
+            } else if let Ok(am) = BluezAgentManagerProxyProxy::new(connection).await {
+                if let Err(e) = am.register_agent(&agent_path, "KeyboardDisplay").await {
+                    warn!("BluetoothBackend: RegisterAgent failed: {e}");
+                } else {
+                    let _ = am.request_default_agent(&agent_path).await;
+                    info!("BluetoothBackend: Registered org.bluez.Agent1 (KeyboardDisplay)");
+                }
+            }
+
             backend.refresh_all(connection).await;
 
             // Spawn background task listening to BlueZ ObjectManager signal streams
@@ -382,12 +449,32 @@ impl BluetoothBackend {
             Err(_) => return,
         };
 
+        let prop_rule = zbus::MatchRule::builder()
+            .msg_type(zbus::message::Type::Signal)
+            .sender("org.bluez")
+            .and_then(|b| b.interface("org.freedesktop.DBus.Properties"))
+            .and_then(|b| b.member("PropertiesChanged"))
+            .and_then(|b| b.path_namespace("/org/bluez"))
+            .map(|b| b.build());
+        let mut prop_stream = match prop_rule {
+            Ok(rule) => zbus::MessageStream::for_match_rule(rule, &conn, Some(64)).await.ok(),
+            Err(_) => None,
+        };
+
         loop {
             tokio::select! {
                 Some(_) = added_stream.next() => {
                     Self::query_managed_objects(&conn, &adapter_path_lock, &state_tx).await;
                 }
                 Some(_) = removed_stream.next() => {
+                    Self::query_managed_objects(&conn, &adapter_path_lock, &state_tx).await;
+                }
+                Some(_) = async {
+                    match prop_stream.as_mut() {
+                        Some(s) => s.next().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
                     Self::query_managed_objects(&conn, &adapter_path_lock, &state_tx).await;
                 }
                 else => break,
@@ -530,6 +617,7 @@ impl BluetoothBackend {
                             info!("BluetoothBackend: Disconnecting device {address}");
                             let _ = device.disconnect().await;
                         } else {
+                            let _ = device.set_trusted(true).await;
                             if !is_paired {
                                 info!("BluetoothBackend: Pairing and trusting device {address}");
                                 if let Err(e) = device.pair().await {
@@ -538,7 +626,9 @@ impl BluetoothBackend {
                                 let _ = device.set_trusted(true).await;
                             }
                             info!("BluetoothBackend: Connecting device {address}");
-                            let _ = device.connect().await;
+                            if let Err(e) = device.connect().await {
+                                warn!("BluetoothBackend: Connect returned for {address}: {e}");
+                            }
                         }
                     }
                 }

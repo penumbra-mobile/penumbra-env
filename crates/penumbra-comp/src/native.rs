@@ -945,10 +945,15 @@ fn render_external_frame(
     let background = layer_elements_for_output(renderer, &ext.output, Layer::Background);
     let bottom = layer_elements_for_output(renderer, &ext.output, Layer::Bottom);
 
-    let mut window_elements = Vec::new();
-    let mut titlebar_elements = Vec::new();
     let focused_surf = server.seat.get_keyboard().and_then(|kb| kb.current_focus());
-    let mut ssd_windows = Vec::new();
+    struct DesktopWindowDraw<R: smithay::backend::renderer::Renderer> {
+        corner_fill: Option<smithay::backend::renderer::element::solid::SolidColorRenderElement>,
+        surfaces: Vec<smithay::backend::renderer::element::surface::WaylandSurfaceRenderElement<R>>,
+        titlebar: Option<smithay::backend::renderer::element::memory::MemoryRenderBufferRenderElement<GlesRenderer>>,
+        borders: Option<[smithay::backend::renderer::element::solid::SolidColorRenderElement; 3]>,
+        popups: Vec<smithay::backend::renderer::element::surface::WaylandSurfaceRenderElement<R>>,
+    }
+    let mut desktop_windows: Vec<DesktopWindowDraw<GlesRenderer>> = Vec::new();
     for window in server.space.elements() {
         if Some(window) == server.root_shell.as_ref()
             || server.is_phone_task(window)
@@ -958,18 +963,20 @@ fn render_external_frame(
         }
         if let Some(toplevel) = window.toplevel() {
             if let Some(loc) = server.space.element_location(window) {
-                let win_size = window.geometry().size;
+                let geo = window.geometry();
+                let win_size = geo.size;
                 let has_ssd = server.window_has_ssd(window);
                 let top_pad = if has_ssd { crate::decorations::SSD_TITLEBAR_H } else { 0 };
                 let win_rect = Rectangle::new(
-                    (loc.x, loc.y - top_pad).into(),
+                    (loc.x + geo.loc.x, loc.y + geo.loc.y - top_pad).into(),
                     (win_size.w, win_size.h + top_pad).into(),
                 );
                 if win_rect.intersection(output_geo).is_some() {
                     let ext_loc = (loc.x - output_geo.loc.x, loc.y - output_geo.loc.y);
-                    window_elements.extend(surface_elements(renderer, toplevel.wl_surface(), ext_loc, 1.0));
-                    if has_ssd && win_size.w > 0 {
-                        let is_focused = focused_surf.as_ref() == Some(toplevel.wl_surface());
+                    let ssd_loc = (ext_loc.0 + geo.loc.x, ext_loc.1 + geo.loc.y);
+                    let surfaces = surface_elements(renderer, toplevel.wl_surface(), ext_loc, 1.0);
+                    let is_focused = focused_surf.as_ref() == Some(toplevel.wl_surface());
+                    let (corner_fill, titlebar, borders) = if has_ssd && win_size.w > 0 {
                         let title = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
                             states
                                 .data_map
@@ -980,22 +987,44 @@ fn render_external_frame(
                                 })
                         })
                         .unwrap_or_else(|| "Application".to_string());
-                        ssd_windows.push((win_size.w, title, is_focused, ext_loc));
+                        let cf = crate::decorations::render_window_corner_fill(
+                            win_size.w,
+                            is_focused,
+                            ssd_loc,
+                        );
+                        let tb = crate::decorations::render_titlebar_element(
+                            renderer,
+                            &mut server.titlebar_cache,
+                            win_size.w,
+                            &title,
+                            is_focused,
+                            ssd_loc,
+                        );
+                        let bd = crate::decorations::render_window_borders(
+                            (win_size.w, win_size.h),
+                            is_focused,
+                            ssd_loc,
+                        );
+                        (Some(cf), tb, Some(bd))
+                    } else {
+                        (None, None, None)
+                    };
+                    let mut popups = Vec::new();
+                    for (popup, popup_offset) in
+                        smithay::desktop::PopupManager::popups_for_surface(toplevel.wl_surface())
+                    {
+                        let pop_loc = (ssd_loc.0 + popup_offset.x, ssd_loc.1 + popup_offset.y);
+                        popups.extend(surface_elements(renderer, popup.wl_surface(), pop_loc, 1.0));
                     }
+                    desktop_windows.push(DesktopWindowDraw {
+                        corner_fill,
+                        surfaces,
+                        titlebar,
+                        borders,
+                        popups,
+                    });
                 }
             }
-        }
-    }
-    for (w, title, focused, ext_loc) in ssd_windows {
-        if let Some(elem) = crate::decorations::render_titlebar_element(
-            renderer,
-            &mut server.titlebar_cache,
-            w,
-            &title,
-            focused,
-            ext_loc,
-        ) {
-            titlebar_elements.push(elem);
         }
     }
 
@@ -1047,12 +1076,33 @@ fn render_external_frame(
 
     draw_render_elements(&mut frame, 1.0, &background, &[damage])?;
     draw_render_elements(&mut frame, 1.0, &bottom, &[damage])?;
-    draw_render_elements(&mut frame, 1.0, &window_elements, &[damage])?;
-    if !titlebar_elements.is_empty() {
-        draw_render_elements(&mut frame, 1.0, &titlebar_elements, &[damage])?;
+    // Clip desktop windows & titlebars to the work area (between 30px top panel and 76px bottom dock)
+    // and draw per-window in bottom-to-top order so raised/focused windows render on top.
+    let work_area: Rectangle<i32, Physical> = Rectangle::new(
+        (0, 30).into(),
+        (width as i32, (height as i32 - 30 - 76).max(100)).into(),
+    );
+    let mut all_popups = Vec::new();
+    for win in desktop_windows {
+        if let Some(cf) = win.corner_fill {
+            draw_render_elements::<GlesRenderer, f64, _>(&mut frame, 1.0, &[cf], &[work_area])?;
+        }
+        if !win.surfaces.is_empty() {
+            draw_render_elements(&mut frame, 1.0, &win.surfaces, &[work_area])?;
+        }
+        if let Some(bd) = win.borders {
+            draw_render_elements::<GlesRenderer, f64, _>(&mut frame, 1.0, &bd, &[work_area])?;
+        }
+        if let Some(tb) = win.titlebar {
+            draw_render_elements(&mut frame, 1.0, &[tb], &[work_area])?;
+        }
+        all_popups.extend(win.popups);
     }
     draw_render_elements(&mut frame, 1.0, &top, &[damage])?;
     draw_render_elements(&mut frame, 1.0, &overlay, &[damage])?;
+    if !all_popups.is_empty() {
+        draw_render_elements(&mut frame, 1.0, &all_popups, &[damage])?;
+    }
 
     if !cursor_surface_elements.is_empty() {
         draw_render_elements(&mut frame, 1.0, &cursor_surface_elements, &[damage])?;
@@ -1062,6 +1112,25 @@ fn render_external_frame(
     }
 
     frame.finish()?.wait()?;
+
+    let shot_trigger = crate::phone::runtime_path("penumbra-desktop-shot");
+    if shot_trigger.exists() {
+        let _ = std::fs::remove_file(&shot_trigger);
+        use smithay::backend::renderer::ExportMem;
+        let buf_rect = Rectangle::<i32, smithay::utils::Buffer>::from_size((width as i32, height as i32).into());
+        if let Ok(mapping) = renderer.copy_framebuffer(&framebuffer, buf_rect, smithay::backend::allocator::Fourcc::Abgr8888) {
+            if let Ok(pixels) = renderer.map_texture(&mapping) {
+                let _ = image::save_buffer(
+                    "/tmp/penumbra-desktop-shot.png",
+                    pixels,
+                    width as u32,
+                    height as u32,
+                    image::ColorType::Rgba8,
+                );
+                tracing::info!("Saved external desktop screenshot to /tmp/penumbra-desktop-shot.png");
+            }
+        }
+    }
 
     let time = started.elapsed().as_millis() as u32;
     for layer in layer_map_for_output(&ext.output).layers() {
@@ -1233,6 +1302,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             smithay::input::pointer::CursorIcon::Default,
         ),
         window_drag: None,
+        window_resize: None,
         fallback_cursor_buffer: smithay::backend::renderer::element::memory::MemoryRenderBuffer::from_slice(
             crate::server::FALLBACK_CURSOR_DATA,
             smithay::backend::allocator::Fourcc::Abgr8888,
@@ -1242,6 +1312,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             None,
         ),
         titlebar_cache: std::collections::HashMap::new(),
+        popups: smithay::desktop::PopupManager::default(),
         phone_tasks: Vec::new(),
         next_task_id: 1,
         shell_state: ShellState::default(),
