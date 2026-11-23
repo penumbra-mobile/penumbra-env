@@ -205,6 +205,8 @@ pub struct PenumbraServerState {
     pub card_corner_masks: crate::card_rounding::CardCornerMasks,
     /// Progressive blur backdrop pipeline for QuickSettings drawer.
     pub qs_backdrop_pipeline: crate::render::QuickSettingsBackdropPipeline,
+    /// App drawer slide/blur progress (0.0 closed .. 1.0 open), synced from penumbra-homescreen.
+    pub app_drawer_progress: f64,
 }
 
 pub static FALLBACK_CURSOR_DATA: &[u8] = include_bytes!("../resources/cursor.rgba");
@@ -446,13 +448,11 @@ impl PenumbraServerState {
             }
         }
 
-        // 4. Bottom layer
-        if let Some(l) = map_a.layer_under(Layer::Bottom, pos) {
-            let geo = map_a.layer_geometry(l).unwrap_or_default();
-            return Some((
-                l.wl_surface().clone(),
-                (geo.loc.x as f64, geo.loc.y as f64).into(),
-            ));
+        // 4. Bottom layer (respecting wl_surface input_region, e.g. penumbra-app-drawer)
+        if let Some((surf, loc)) =
+            Self::desktop_layer_under(&map_a, Layer::Bottom, (0, 0).into(), pos)
+        {
+            return Some((surf, loc));
         }
 
         // 5. Background layer (e.g. penumbra-homescreen)
@@ -1034,6 +1034,11 @@ impl PenumbraServerState {
     /// Reads shell state + commands and publishes the phone task list.
     pub(crate) fn poll_shell_ipc(&mut self) {
         self.poll_desktop_cmd_ipc();
+        if let Ok(s) = std::fs::read_to_string(runtime_path("penumbra-app-drawer-progress")) {
+            if let Ok(p) = s.trim().parse::<f64>() {
+                self.app_drawer_progress = p.clamp(0.0, 1.0);
+            }
+        }
         let incoming_state = if let Some(sock) = &self.state_socket {
             let mut latest = None;
             while let Some((st, _seq)) = sock.try_recv() {
@@ -2653,6 +2658,7 @@ impl PenumbraCompositor {
             },
             card_corner_masks: crate::card_rounding::CardCornerMasks::default(),
             qs_backdrop_pipeline: crate::render::QuickSettingsBackdropPipeline::new(),
+            app_drawer_progress: 0.0,
         };
 
         // Reset IPC files from any previous session.

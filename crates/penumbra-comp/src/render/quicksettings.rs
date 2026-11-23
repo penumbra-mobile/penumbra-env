@@ -328,7 +328,8 @@ impl QuickSettingsBackdropPipeline {
 
         // Modulate blur dispersion with gesture progress t
         let t = (progress as f32).clamp(0.0, 1.0);
-        let blur_scale = (0.3 + 0.7 * t).clamp(0.3, 1.0);
+        // Aggressive ease-out blur radius: 10% drag already delivers strong diffusion, ramping to 1.30x at full open
+        let blur_scale = (0.65 + 0.65 * t.sqrt()).clamp(0.65, 1.30);
         let offsets = [
             2.0 * blur_scale,
             4.0 * blur_scale,

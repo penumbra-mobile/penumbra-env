@@ -706,10 +706,25 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
     } else {
         0.0
     };
+    let app_drawer_progress = server.app_drawer_progress.clamp(0.0, 1.0);
+    let app_drawer_y_offset = ((1.0 - app_drawer_progress) * 873.0).round() as i32;
+    let blur_progress = qs_progress.max(app_drawer_progress);
 
     // Phone Layer 0: homescreen and wallpaper on the background layer (stationary, unshifted).
     let background = layer_elements(renderer, &server.output_a, canvas, Layer::Background);
-    let bottom = layer_elements(renderer, &server.output_a, canvas, Layer::Bottom);
+    let bottom = if app_drawer_progress > 0.001 {
+        layer_elements_transformed(
+            renderer,
+            &server.output_a,
+            canvas,
+            Layer::Bottom,
+            0,
+            app_drawer_y_offset,
+            1.0,
+        )
+    } else {
+        Vec::new()
+    };
 
     // Phone Layer 0.5: Dual-Kawase Blurred Wallpaper & Dimming Scrim modulated by gesture progress
     let _nav_progress = if server.is_nav_animating() {
@@ -779,9 +794,9 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         canvas.scale
     };
 
-    // 1. Scene Capture Pass (when QuickSettings gesture is active):
-    // Render underlying phone layers (wallpaper, bottom, apps, overview) into offscreen scene_tex
-    let scene_tex_id = if qs_progress > 0.001 {
+    // 1. Scene Capture Pass (when QuickSettings or AppDrawer gesture is active):
+    // Render underlying phone layers (wallpaper, homescreen, apps, overview) into offscreen scene_tex
+    let scene_tex_id = if blur_progress > 0.001 {
         let scene_tex = server.qs_backdrop_pipeline.ensure_scene_texture(renderer, width as i32, height as i32)?;
         let tex_id = scene_tex.tex_id();
         {
@@ -789,7 +804,9 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
             let mut scene_frame = renderer.render(&mut scene_target, size, Transform::Normal)?;
             scene_frame.clear(Color32F::new(0.02, 0.02, 0.03, 1.0), &[damage])?;
             draw_render_elements(&mut scene_frame, scale, &background, &[damage])?;
-            draw_render_elements(&mut scene_frame, scale, &bottom, &[damage])?;
+            if qs_progress > 0.001 && !bottom.is_empty() {
+                draw_render_elements(&mut scene_frame, scale, &bottom, &[damage])?;
+            }
             draw_render_elements(&mut scene_frame, overview_scale, &overview, &[damage])?;
             if let Some((ref expanding_card, expanding_scale)) = expanding_app {
                 draw_render_elements(&mut scene_frame, expanding_scale, expanding_card, &[damage])?;
@@ -812,11 +829,15 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
             server.qs_backdrop_pipeline.render_blur_and_backdrop(
                 gl,
                 scene_id,
-                qs_progress,
+                blur_progress,
                 width as i32,
                 height as i32,
             );
         })?;
+        // When AppDrawer is open without QuickSettings covering it, composite AppDrawer unblurred above the blurred homescreen
+        if qs_progress <= 0.001 && !bottom.is_empty() {
+            draw_render_elements(&mut frame, scale, &bottom, &[damage])?;
+        }
     } else {
         draw_render_elements(&mut frame, scale, &background, &[damage])?;
         draw_render_elements(&mut frame, scale, &bottom, &[damage])?;
@@ -1359,6 +1380,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         },
         card_corner_masks: crate::card_rounding::CardCornerMasks::default(),
         qs_backdrop_pipeline: crate::render::QuickSettingsBackdropPipeline::new(),
+        app_drawer_progress: 0.0,
     };
     let _ = std::fs::remove_file(runtime_path(phone::SHELL_STATE_FILE));
     let _ = std::fs::remove_file(runtime_path(phone::SHELL_CMD_FILE));
@@ -1464,7 +1486,8 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         let is_animating = state.server.is_nav_animating();
         let is_qs_active = state.server.shell_state.drawer_dragging
             || state.server.shell_state.drawer_open
-            || state.server.shell_state.drawer_progress > 0.001;
+            || state.server.shell_state.drawer_progress > 0.001
+            || state.server.app_drawer_progress > 0.001;
         if is_overview || is_animating || is_qs_active || state.last_ipc_poll.elapsed() >= Duration::from_millis(16) {
             state.server.poll_shell_ipc();
         state.server.poll_vkbd_ipc();
