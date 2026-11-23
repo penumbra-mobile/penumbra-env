@@ -192,6 +192,8 @@ pub struct DisplayConfig {
     pub dark_theme: bool,
     pub screen_timeout_secs: u32,
     pub accent_color: String,
+    pub themed_icons: bool,
+    pub icon_shape: String,
 }
 
 impl Default for DisplayConfig {
@@ -202,6 +204,8 @@ impl Default for DisplayConfig {
             dark_theme: true,
             screen_timeout_secs: 120,
             accent_color: "blue".into(),
+            themed_icons: false,
+            icon_shape: "squircle".into(),
         }
     }
 }

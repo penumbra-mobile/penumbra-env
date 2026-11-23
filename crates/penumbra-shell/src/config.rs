@@ -36,8 +36,22 @@ pub fn default_wallpaper_folders() -> Vec<String> {
     if PathBuf::from("/usr/share/backgrounds").exists() {
         folders.push("/usr/share/backgrounds".to_string());
     }
+    if PathBuf::from("/usr/local/share/backgrounds").exists() {
+        folders.push("/usr/local/share/backgrounds".to_string());
+    }
     if PathBuf::from("/usr/share/wallpapers").exists() {
         folders.push("/usr/share/wallpapers".to_string());
+    }
+    if let Ok(data_home) = std::env::var("XDG_DATA_HOME") {
+        let g_bg = PathBuf::from(data_home).join("backgrounds");
+        if g_bg.exists() {
+            folders.push(g_bg.to_string_lossy().to_string());
+        }
+    } else if let Ok(home) = std::env::var("HOME") {
+        let g_bg = PathBuf::from(&home).join(".local").join("share").join("backgrounds");
+        if g_bg.exists() {
+            folders.push(g_bg.to_string_lossy().to_string());
+        }
     }
     if let Ok(home) = std::env::var("HOME") {
         let p_wall = PathBuf::from(&home).join("Pictures").join("Wallpapers");

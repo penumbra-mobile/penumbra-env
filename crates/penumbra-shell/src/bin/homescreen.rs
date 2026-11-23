@@ -189,12 +189,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_drawer_weak = app_drawer.as_weak();
     layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 0, false);
 
-    // Initialize Monet dynamic theme on both surfaces
+    // Initialize Monet dynamic theme & icon preferences on both surfaces
     let initial_palette = penumbra_shell::theme::load_current_theme();
+    let initial_disp_cfg = penumbra_services::display::DisplayConfig::load();
     {
         let theme = Theme::get(&ui);
+        theme.set_themed_icons(initial_disp_cfg.themed_icons);
+        theme.set_icon_shape(initial_disp_cfg.icon_shape.clone().into());
         apply_monet_palette!(theme, initial_palette.clone());
         let drawer_theme = Theme::get(&app_drawer);
+        drawer_theme.set_themed_icons(initial_disp_cfg.themed_icons);
+        drawer_theme.set_icon_shape(initial_disp_cfg.icon_shape.into());
         apply_monet_palette!(drawer_theme, initial_palette);
     }
 
@@ -1190,10 +1195,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // Start of a new drag gesture: reset stale velocity
                 *drawer_drag_velocity.borrow_mut() = 0.0;
             } else {
-                let dt = elapsed.clamp(0.001, 0.08);
+                let dt = elapsed.clamp(0.008, 0.08);
                 let instant_v = (delta_prog as f64) / dt;
                 let prev_v = *drawer_drag_velocity.borrow();
-                *drawer_drag_velocity.borrow_mut() = prev_v * 0.5 + instant_v * 0.5;
+                *drawer_drag_velocity.borrow_mut() = prev_v * 0.7 + instant_v * 0.3;
             }
 
             let (cur, new_prog) = {
@@ -1223,9 +1228,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let cur = drawer_spring.borrow().position;
             let vel = *drawer_drag_velocity.borrow();
             *drawer_drag_velocity.borrow_mut() = 0.0;
-            let target = if vel > 1.0 {
+            let target = if vel > 1.8 {
                 1.0
-            } else if vel < -1.0 {
+            } else if vel < -1.8 {
                 0.0
             } else if cur > 0.5 {
                 1.0
@@ -1437,11 +1442,78 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let task_timer = Timer::default();
     {
         let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
         let apps_list = Arc::clone(&apps_list);
         let layout_config = Rc::clone(&layout_config);
         let animate_drawer_to = Rc::clone(&animate_drawer_to);
         let last_window_sig = Rc::new(RefCell::new(Vec::<(u32, String, String)>::new()));
+        let disp_cfg_path = penumbra_services::display::DisplayConfig::config_path();
+        let last_disp_mtime = Rc::new(RefCell::new(
+            std::fs::metadata(&disp_cfg_path).and_then(|m| m.modified()).ok(),
+        ));
+        let layout_cfg_path = penumbra_shell::config::get_layout_config_path();
+        let last_layout_mtime = Rc::new(RefCell::new(
+            std::fs::metadata(&layout_cfg_path).and_then(|m| m.modified()).ok(),
+        ));
+        let sync_monet_theme_watch = sync_monet_theme.clone();
         task_timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
+            if let Ok(Ok(mtime)) = std::fs::metadata(&layout_cfg_path).map(|m| m.modified()) {
+                let changed = last_layout_mtime.borrow().map_or(true, |prev| prev != mtime);
+                if changed {
+                    *last_layout_mtime.borrow_mut() = Some(mtime);
+                    let disk_cfg = std::fs::read_to_string(&layout_cfg_path)
+                        .ok()
+                        .and_then(|s| serde_json::from_str::<penumbra_shell::config::ShellLayoutConfig>(&s).ok())
+                        .unwrap_or_default();
+                    let cur_wp = ui_weak
+                        .upgrade()
+                        .map(|u| u.get_current_wallpaper_path().to_string())
+                        .unwrap_or_default();
+                    if disk_cfg.wallpaper_path != cur_wp {
+                        layout_config.borrow_mut().wallpaper_path = disk_cfg.wallpaper_path.clone();
+                        layout_config.borrow_mut().wallpaper_folders = disk_cfg.wallpaper_folders.clone();
+                        if let Some(ui) = ui_weak.upgrade() {
+                            if disk_cfg.wallpaper_path.is_empty() {
+                                ui.set_has_wallpaper(false);
+                                ui.set_has_blurred_wallpaper(false);
+                                ui.set_current_wallpaper_path("".into());
+                                sync_monet_theme_watch(None);
+                            } else {
+                                let p = std::path::Path::new(&disk_cfg.wallpaper_path);
+                                if let Ok(img) = slint::Image::load_from_path(p) {
+                                    ui.set_has_wallpaper(true);
+                                    ui.set_wallpaper_image(img);
+                                    ui.set_current_wallpaper_path(disk_cfg.wallpaper_path.clone().into());
+                                    if let Some(blurred) = load_blurred_wallpaper(p) {
+                                        ui.set_has_blurred_wallpaper(true);
+                                        ui.set_wallpaper_blurred_image(blurred);
+                                    } else {
+                                        ui.set_has_blurred_wallpaper(false);
+                                    }
+                                    sync_monet_theme_watch(Some(p.to_path_buf()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Ok(Ok(mtime)) = std::fs::metadata(&disp_cfg_path).map(|m| m.modified()) {
+                let changed = last_disp_mtime.borrow().map_or(true, |prev| prev != mtime);
+                if changed {
+                    *last_disp_mtime.borrow_mut() = Some(mtime);
+                    let cfg = penumbra_services::display::DisplayConfig::load();
+                    if let Some(ui) = ui_weak.upgrade() {
+                        let theme = Theme::get(&ui);
+                        theme.set_themed_icons(cfg.themed_icons);
+                        theme.set_icon_shape(cfg.icon_shape.clone().into());
+                    }
+                    if let Some(drawer) = app_drawer_weak.upgrade() {
+                        let theme = Theme::get(&drawer);
+                        theme.set_themed_icons(cfg.themed_icons);
+                        theme.set_icon_shape(cfg.icon_shape.into());
+                    }
+                }
+            }
             let state = ShellState::load();
             if let Some(ui) = ui_weak.upgrade() {
                 if std::path::Path::new("/tmp/open_drawer").exists() {

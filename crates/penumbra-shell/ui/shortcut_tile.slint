@@ -75,32 +75,44 @@ export component ShortcutTile inherits Rectangle {
             alignment: center;
             spacing: 6px;
 
-            // Material 3 Expressive Squircle Icon Container
+            // Material 3 Expressive Squircle / Shape Icon Container
             icon-box := Rectangle {
                 width: (root.is-down && !root.is-dragging) ? 58px : 64px;
-                height: (root.is-down && !root.is-dragging) ? 58px : 64px;
+                height: (Theme.icon-shape == "pill" && !root.tile-is-folder) ? ((root.is-down && !root.is-dragging) ? 46px : 52px) : ((root.is-down && !root.is-dragging) ? 58px : 64px);
                 x: (parent.width - self.width) / 2;
-                border-radius: 18px;
-                background: root.tile-is-folder ? Theme.surface-container-high : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container);
-                border-width: root.is-editing ? 2px : 1px;
-                border-color: root.is-editing ? Theme.primary : Theme.specular-rim;
+                border-radius: Theme.icon-shape-radius;
+                background: (Theme.icon-is-path-shape && !root.tile-is-folder) ? transparent : (root.tile-is-folder ? Theme.surface-container-high : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container)));
+                border-width: (Theme.icon-is-path-shape && !root.tile-is-folder && !root.is-editing) ? 0px : (root.is-editing ? 2px : 1px);
+                border-color: root.is-editing ? Theme.primary : (Theme.themed-icons && !root.tile-is-folder ? Theme.primary.with-alpha(0.35) : Theme.specular-rim);
                 clip: false;
 
                 animate width, height { duration: 110ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.0); }
                 animate background { duration: 110ms; easing: ease-out; }
+
+                if !root.tile-is-folder && Theme.icon-is-path-shape: Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-width: 100;
+                    viewbox-height: 100;
+                    commands: Theme.icon-shape-path;
+                    fill: Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container);
+                    stroke: Theme.themed-icons ? Theme.primary.with-alpha(0.35) : Theme.specular-rim;
+                    stroke-width: 1.5px;
+                }
 
                 // Single App Icon
                 if !root.tile-is-folder: Rectangle {
                     width: 100%;
                     height: 100%;
                     clip: true;
-                    border-radius: 18px;
+                    border-radius: Theme.icon-shape-radius;
 
                     if root.tile-has-icon: Image {
                         source: root.tile-icon;
                         width: parent.width * 0.84;
                         height: parent.height * 0.84;
                         image-fit: contain;
+                        colorize: Theme.themed-icons ? Theme.on-primary-container : #00000000;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -108,7 +120,7 @@ export component ShortcutTile inherits Rectangle {
                     if !root.tile-has-icon: Icon {
                         name: "app";
                         icon-size: parent.width * 0.58;
-                        icon-color: Theme.on-surface;
+                        icon-color: Theme.themed-icons ? Theme.on-primary-container : Theme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }

@@ -87,6 +87,24 @@ export global Theme {
     out property <length> radius-xs: 8px;                   // Micro badges & tags
 
     // =========================================================================
+    // Launcher Icon Preferences (synced from penumbra-settings DisplayConfig)
+    // =========================================================================
+    in-out property <bool> themed-icons: false;
+    in-out property <string> icon-shape: "squircle";        // "squircle", "circle", "rounded", "pill", "clover", "flower", "arch", "diamond"
+    out property <bool> icon-is-path-shape:
+        root.icon-shape == "clover" || root.icon-shape == "flower" || root.icon-shape == "arch" || root.icon-shape == "diamond";
+    out property <length> icon-shape-radius:
+        root.icon-shape == "circle" ? 32px :
+        root.icon-shape == "pill" ? 26px :
+        root.icon-shape == "rounded" ? 12px :
+        20px;
+    out property <string> icon-shape-path:
+        root.icon-shape == "clover" ? "M 50 6 C 72 6 86 18 86 36 C 96 44 96 56 86 64 C 86 82 72 94 50 94 C 28 94 14 82 14 64 C 4 56 4 44 14 36 C 14 18 28 6 50 6 Z" :
+        root.icon-shape == "flower" ? "M 50 4 C 58 4 64 10 68 14 C 74 12 84 16 86 24 C 92 28 96 36 92 44 C 96 50 96 58 92 64 C 96 72 90 82 82 84 C 78 92 70 96 62 92 C 56 96 44 96 38 92 C 30 96 22 92 18 84 C 10 82 4 72 8 64 C 4 58 4 50 8 44 C 4 36 8 28 14 24 C 16 16 26 12 32 14 C 36 10 42 4 50 4 Z" :
+        root.icon-shape == "arch" ? "M 50 6 C 76 6 94 24 94 50 L 94 82 C 94 90 88 94 80 94 L 20 94 C 12 94 6 90 6 82 L 6 50 C 6 24 24 6 50 6 Z" :
+        "M 50 4 C 56 4 62 8 68 14 L 86 32 C 92 38 96 44 96 50 C 96 56 92 62 86 68 L 68 86 C 62 92 56 96 50 96 C 44 96 38 92 32 86 L 14 68 C 8 62 4 56 4 50 C 4 44 8 38 14 32 L 32 14 C 38 8 44 4 50 4 Z";
+
+    // =========================================================================
     // Expressive Durations
     // Canonical Bezier Curves (Use in Slint animate clauses):
     //   Standard:              cubic-bezier(0.2, 0.0, 0.0, 1.0)

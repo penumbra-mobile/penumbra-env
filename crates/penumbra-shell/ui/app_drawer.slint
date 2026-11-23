@@ -5,12 +5,11 @@ import { Icon } from "icon.slint";
 export component DrawerAppTile inherits Rectangle {
     in property <AppItem> app;
     in property <length> base-x: 0px;
-    in property <length> base-y: 0px;
-    in property <length> scroll-y: 0px;
     in property <float> drawer-progress: 1.0;
+    in property <bool> is-list-at-top: true;
 
     callback clicked();
-    callback drag-started(string, AppItem, length, length); // id, app, screen_x, screen_y
+    callback drag-started(string, AppItem, length, length); // id, app, screen_x, tile_local_y
     callback drag-moved(length, length);
     callback drag-ended(string, length, length);
     callback drawer-drag-delta(float);
@@ -28,6 +27,7 @@ export component DrawerAppTile inherits Rectangle {
     property <bool> is-dragging: false;
     property <bool> is-drawer-grabbing: false;
     property <bool> is-scrolling-list: false;
+    property <bool> started-at-top: true;
 
     width: 90px;
     height: 104px;
@@ -40,7 +40,7 @@ export component DrawerAppTile inherits Rectangle {
             if (root.is-down && !root.is-drawer-grabbing && !root.is-scrolling-list) {
                 root.is-dragging = true;
                 let sx = root.base-x + (root.touch-x * 1px);
-                let sy = root.base-y + (root.touch-y * 1px);
+                let sy = root.touch-y * 1px;
                 root.drag-started(root.app.id, root.app, sx, sy);
             }
         }
@@ -50,24 +50,36 @@ export component DrawerAppTile inherits Rectangle {
         alignment: center;
         spacing: 7px;
 
-        // Material 3 Expressive Continuous Squircle Container (Matches Android 1:1)
+        // Material 3 Expressive Continuous Squircle / Shape Container
         Rectangle {
             width: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px;
-            height: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px;
-            border-radius: 18px;
-            background: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container;
-            border-width: 1px;
-            border-color: Theme.specular-rim;
+            height: Theme.icon-shape == "pill" ? ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 46px : 52px) : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px);
+            border-radius: Theme.icon-shape-radius;
+            background: Theme.icon-is-path-shape ? transparent : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container));
+            border-width: Theme.icon-is-path-shape ? 0px : 1px;
+            border-color: Theme.themed-icons ? Theme.primary.with-alpha(0.35) : Theme.specular-rim;
             x: (parent.width - self.width) / 2;
 
             animate width, height { duration: 110ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.0); }
             animate background { duration: 110ms; easing: ease-out; }
+
+            if Theme.icon-is-path-shape: Path {
+                width: 100%;
+                height: 100%;
+                viewbox-width: 100;
+                viewbox-height: 100;
+                commands: Theme.icon-shape-path;
+                fill: Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container);
+                stroke: Theme.themed-icons ? Theme.primary.with-alpha(0.35) : Theme.specular-rim;
+                stroke-width: 1.5px;
+            }
 
             if root.app.has-icon: Image {
                 source: root.app.icon;
                 width: 48px;
                 height: 48px;
                 image-fit: contain;
+                colorize: Theme.themed-icons ? Theme.on-primary-container : #00000000;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
             }
@@ -75,6 +87,7 @@ export component DrawerAppTile inherits Rectangle {
             if !root.app.has-icon: Text {
                 text: "📦";
                 font-size: 30px;
+                color: Theme.themed-icons ? Theme.on-primary-container : Theme.on-surface;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -93,7 +106,7 @@ export component DrawerAppTile inherits Rectangle {
 
     tile-ta := TouchArea {
         pointer-event(event) => {
-            let cur-screen-y = 42.0 + (root.base-y / 1px) + (tile-ta.mouse-y / 1px);
+            let cur-screen-y = 42.0 + (tile-ta.mouse-y / 1px);
             if (event.kind == PointerEventKind.down) {
                 root.touch-x = tile-ta.mouse-x / 1px;
                 root.touch-y = tile-ta.mouse-y / 1px;
@@ -104,6 +117,7 @@ export component DrawerAppTile inherits Rectangle {
                 root.is-dragging = false;
                 root.is-drawer-grabbing = false;
                 root.is-scrolling-list = false;
+                root.started-at-top = root.is-list-at-top;
                 lp-timer.running = true;
                 root.scroll-interrupted();
             } else if (event.kind == PointerEventKind.move) {
@@ -116,35 +130,27 @@ export component DrawerAppTile inherits Rectangle {
 
                 if (root.is-dragging) {
                     let sx = root.base-x + tile-ta.mouse-x;
-                    let sy = root.base-y + tile-ta.mouse-y;
+                    let sy = tile-ta.mouse-y;
                     root.drag-moved(sx, sy);
                 } else if (root.is-drawer-grabbing) {
                     root.velocity = root.velocity * 0.6 + ((-step-screen-dy / 873.0) / 0.016) * 0.4;
                     root.drawer-drag-delta(-step-screen-dy / 873.0);
                 } else if (root.is-scrolling-list) {
                     root.velocity = root.velocity * 0.6 + (step-tile-dy / 0.016) * 0.4;
-                    root.last-y = cur-y;
-                    // Check if scrolling up hits the top: seamlessly transitions to grabbing the drawer down!
-                    if (root.scroll-y >= 0px && step-tile-dy > 0.0) {
-                        root.is-scrolling-list = false;
-                        root.is-drawer-grabbing = true;
-                        root.drawer-drag-delta(-step-screen-dy / 873.0);
-                    } else {
-                        root.list-scrolled(step-tile-dy * 1px);
-                    }
+                    // Tile moves with list-content; keep last-y anchored so deltas are never dropped
+                    root.list-scrolled(step-tile-dy * 1px);
                 } else if (root.is-down) {
                     let abs-dy = Math.abs(total-dy);
                     let abs-dx = Math.abs(total-dx);
                     if (abs-dy > 8.0 || abs-dx > 8.0) {
                         lp-timer.running = false;
                         if (abs-dy > abs-dx * 0.8) {
-                            if (root.scroll-y >= 0px && total-dy > 0.0) {
+                            if (root.started-at-top && total-dy > 0.0) {
                                 root.is-drawer-grabbing = true;
                                 root.drawer-drag-delta(-step-screen-dy / 873.0);
                             } else {
                                 root.is-scrolling-list = true;
-                                root.last-y = cur-y;
-                                root.list-scrolled(step-tile-dy * 1px);
+                                root.list-scrolled(total-dy * 1px);
                             }
                         }
                     }
@@ -155,7 +161,7 @@ export component DrawerAppTile inherits Rectangle {
                     root.is-dragging = false;
                     root.is-down = false;
                     let sx = root.base-x + tile-ta.mouse-x;
-                    let sy = root.base-y + tile-ta.mouse-y;
+                    let sy = tile-ta.mouse-y;
                     root.drag-ended(root.app.id, sx, sy);
                 } else if (root.is-drawer-grabbing) {
                     root.is-drawer-grabbing = false;
@@ -239,7 +245,7 @@ export component AppDrawer inherits Rectangle {
         interval: 16ms;
         running: false;
         triggered => {
-            root.scroll-velocity = root.scroll-velocity * 0.92;
+            root.scroll-velocity = root.scroll-velocity * 0.945;
             let min-y = root.compute-min-y();
             let next-y = root.scroll-y + (root.scroll-velocity * 0.016 * 1px);
             if (next-y > 0px) {
@@ -528,6 +534,7 @@ export component AppDrawer inherits Rectangle {
                 property <bool> is-down: false;
                 property <bool> is-drawer-grabbing: false;
                 property <bool> is-scrolling-list: false;
+                property <bool> started-at-top: true;
 
                 pointer-event(event) => {
                     let cur-screen-y = 42.0 + 124.0 + (list-bg-touch.mouse-y / 1px);
@@ -540,6 +547,7 @@ export component AppDrawer inherits Rectangle {
                         self.is-down = true;
                         self.is-drawer-grabbing = false;
                         self.is-scrolling-list = false;
+                        self.started-at-top = root.scroll-y >= -1px;
                         root.stop-kinetic-scroll();
                     } else if (event.kind == PointerEventKind.move) {
                         if (self.is-down) {
@@ -556,19 +564,13 @@ export component AppDrawer inherits Rectangle {
                             } else if (self.is-scrolling-list) {
                                 self.velocity = self.velocity * 0.6 + (step-y / 0.016) * 0.4;
                                 self.last-y = cur-y;
-                                if (root.scroll-y >= 0px && step-y > 0.0) {
-                                    self.is-scrolling-list = false;
-                                    self.is-drawer-grabbing = true;
-                                    root.drawer-drag-delta(-step-screen-dy / 873.0);
-                                } else {
-                                    root.manual-scroll(step-y * 1px);
-                                }
+                                root.manual-scroll(step-y * 1px);
                             } else {
                                 let abs-dy = Math.abs(total-dy);
                                 let abs-dx = Math.abs(total-dx);
                                 if (abs-dy > 8.0 || abs-dx > 8.0) {
                                     if (abs-dy > abs-dx * 0.8) {
-                                        if (root.scroll-y >= 0px && total-dy > 0.0) {
+                                        if (self.started-at-top && total-dy > 0.0) {
                                             self.is-drawer-grabbing = true;
                                             root.drawer-drag-delta(-step-screen-dy / 873.0);
                                         } else {
@@ -617,9 +619,8 @@ export component AppDrawer inherits Rectangle {
                     y: Math.floor(idx / 4) * 116px;
                     app: app;
                     base-x: 16px + Math.mod(idx, 4) * list-content.col-w + (list-content.col-w - self.width) / 2;
-                    base-y: 124px + root.scroll-y + Math.floor(idx / 4) * 116px;
-                    scroll-y: root.scroll-y;
                     drawer-progress: root.drawer-progress;
+                    is-list-at-top: root.scroll-y >= -1px;
                     clicked => {
                         root.app-clicked(app.id);
                     }
@@ -639,13 +640,13 @@ export component AppDrawer inherits Rectangle {
                         root.stop-kinetic-scroll();
                     }
                     drag-started(id, item, sx, sy) => {
-                        root.start-drag(id, item, sx, sy);
+                        root.start-drag(id, item, sx, 124px + root.scroll-y + Math.floor(idx / 4) * 116px + sy);
                     }
                     drag-moved(sx, sy) => {
-                        root.drag-moved(sx, sy);
+                        root.drag-moved(sx, 124px + root.scroll-y + Math.floor(idx / 4) * 116px + sy);
                     }
                     drag-ended(id, sx, sy) => {
-                        root.drag-ended(id, sx, sy);
+                        root.drag-ended(id, sx, 124px + root.scroll-y + Math.floor(idx / 4) * 116px + sy);
                     }
                 }
             }
