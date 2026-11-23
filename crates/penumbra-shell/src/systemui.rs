@@ -34,19 +34,24 @@ use crate::{
 
 /// Release/snap rule (offset coordinates): closed -915, compact -565 (350px), full 0.
 fn release_target(y_current: f64, v_y: f64) -> f64 {
-    // Fast pull up gesture: any upward flick (v_y < -120) immediately closes shade
-    if v_y < -120.0 {
+    // Fast upward flick anywhere on the drawer closes it immediately
+    if v_y < -140.0 {
         return -915.0;
     }
-    // Moderate upward drag when in upper half closes
-    if v_y < -40.0 && y_current < 650.0 {
-        return -915.0;
-    }
-    // Downward gesture or pull past threshold -> open shade
-    if v_y > 60.0 || y_current > 200.0 {
+    // Fast downward flick opens it
+    if v_y > 180.0 {
         return 0.0;
     }
-    -915.0
+    // Gentle upward drag in upper 60% closes it
+    if v_y < -30.0 && y_current < 550.0 {
+        return -915.0;
+    }
+    // Slow release: magnetize to nearest edge (midpoint = 457.5px)
+    if y_current >= 457.5 {
+        0.0
+    } else {
+        -915.0
+    }
 }
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
@@ -182,6 +187,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         })
     };
+    tracing::debug!("SystemUI init: theme watcher ready");
 
     // Initially retracted off-screen: y = -915px
     qs.set_slide_offset_y(-915.0);
@@ -198,6 +204,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
     qs.set_brightness(init_brightness as f32);
     qs.set_volume(0.5);
+    tracing::debug!("SystemUI init: brightness + volume ready");
 
     // layer-shell-slint does not implement EventLoopProxy, so background threads dispatch
     // UI updates through this mpsc channel drained on the Slint main thread every 80ms.
@@ -286,7 +293,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         tb.set_shade_progress(progress);
                     }
 
-                    let is_settled = sp.snap_if_settled(1.0, 5.0);
+                    let is_settled =
+                        sp.snap_if_settled(1.0, 5.0) || (sp.target <= -900.0 && new_y <= -914.0);
                     let mut state = ShellState::load();
                     if is_settled {
                         is_animating_inner.set(false);
@@ -310,7 +318,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                             layer_shell_slint::sync_input_region("penumbra-quick-settings", lw, lh, 0, false);
                         }
                     } else {
-                        state.drawer_open = true;
+                        state.drawer_open = sp.target > -900.0 || progress > 0.001;
                         state.drawer_pull_dy = (new_y + 915.0).clamp(0.0, 915.0);
                         state.drawer_progress = progress as f64;
                         state.drawer_dragging = false;
@@ -422,11 +430,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     // 6. QuickSettings Own Drag & Kinetic Handlers
     // -----------------------------------------------------------------------
+    let qs_drag_velocity = Rc::new(RefCell::new(0.0f64));
+    let last_qs_drag_time = Rc::new(RefCell::new(Instant::now()));
+
     {
         let spring_timer = Rc::clone(&spring_timer);
         let spring_state = Rc::clone(&spring_state);
         let qs_weak = qs_weak.clone();
         let top_bar_weak = top_bar_weak.clone();
+        let qs_drag_velocity = Rc::clone(&qs_drag_velocity);
+        let last_qs_drag_time = Rc::clone(&last_qs_drag_time);
 
         qs.on_drag_delta(move |dy| {
             spring_timer.borrow().stop();
@@ -434,6 +447,16 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             if let Some(ui) = qs_weak.upgrade() {
                 let cur_offset = ui.get_slide_offset_y() as f64;
                 let delta = dy as f64;
+
+                let dt = last_qs_drag_time
+                    .borrow()
+                    .elapsed()
+                    .as_secs_f64()
+                    .clamp(0.001, 0.1);
+                let instant_v = delta / dt;
+                let prev_v = *qs_drag_velocity.borrow();
+                *qs_drag_velocity.borrow_mut() = prev_v * 0.5 + instant_v * 0.5;
+                *last_qs_drag_time.borrow_mut() = Instant::now();
 
                 let cur_disp = cur_offset + 915.0;
                 let cur_touch = if cur_disp <= 320.0 {
@@ -477,10 +500,20 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     {
         let animate_to = Rc::clone(&animate_to);
+        let spring_state = Rc::clone(&spring_state);
+        let qs_drag_velocity = Rc::clone(&qs_drag_velocity);
         qs.on_drag_released(move |cur_y, vel| {
-            let y_offset = cur_y as f64;
-            let v_y = vel as f64;
-            let y_current = y_offset + 915.0;
+            let y_current = if cur_y.abs() > 1.0 {
+                (cur_y as f64) + 915.0
+            } else {
+                spring_state.borrow().position + 915.0
+            };
+            let v_y = if vel.abs() > 1.0 {
+                vel as f64
+            } else {
+                *qs_drag_velocity.borrow()
+            };
+            *qs_drag_velocity.borrow_mut() = 0.0;
             let target_offset = release_target(y_current, v_y);
             info!(
                 "QuickSettings drag released: y_current={:.1}px, v={:.1}px/s -> target={:.1}",
@@ -520,6 +553,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     let registry: Rc<RefCell<Vec<TileDefinition>>> = Rc::new(RefCell::new(tile::registry_fast()));
     let qs_config = Rc::new(RefCell::new(QuickSettingsConfig::load()));
+    tracing::debug!("SystemUI init: tile registry loaded");
 
     let refresh_tiles: Rc<dyn Fn()> = {
         let registry = Rc::clone(&registry);
@@ -547,6 +581,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         })
     };
     refresh_tiles();
+    tracing::debug!("SystemUI init: tiles ready");
 
     {
         let registry = Rc::clone(&registry);
@@ -684,6 +719,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }).collect::<Vec<_>>();
     let notifs_model = Rc::new(VecModel::from(notifs_items));
     qs.set_notifications(ModelRc::from(Rc::clone(&notifs_model)));
+    tracing::debug!("SystemUI init: notifications model ready");
 
     // Connect real org.freedesktop.Notifications service
     let (notif_sync_tx, notif_sync_rx) = std::sync::mpsc::channel::<penumbra_shell::notifications::NotificationItem>();
@@ -1239,6 +1275,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     top_bar.set_dnd_active(ShellState::load().dnd_active);
     refresh_tiles();
+    tracing::debug!("SystemUI init: telemetry tasks spawning");
 
     enum TileSyncMsg {
         Radios { wifi: bool, bt: bool, airplane: bool },

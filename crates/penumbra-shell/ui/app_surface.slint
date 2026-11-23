@@ -142,17 +142,6 @@ export component AppSurface inherits Rectangle {
         image-fit: cover;
     }
 
-    // Progressive Blurred Wallpaper rendering (opacity modulated by drawer-progress!)
-    if root.has-wallpaper && root.has-blurred-wallpaper: Image {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        source: root.wallpaper-blurred-image;
-        image-fit: cover;
-        opacity: root.is-dragging-app ? 0.0 : root.drawer-progress;
-    }
-
     // Material 3 Expressive Scrim overlay (progressively darkens as drawer pulls up)
     Rectangle {
         x: 0px;
@@ -231,9 +220,8 @@ export component AppSurface inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        // As App Drawer is pulled up, homescreen content progressively fades and recedes, but reveals 100% during app drag
-        opacity: root.is-dragging-app ? 1.0 : Math.clamp(1.0 - (root.drawer-progress * 1.6), 0.0, 1.0);
-        visible: (root.is-dragging-app || self.opacity > 0.01) && (root.active-mode == 0 || root.active-mode == 2);
+        // Skip expensive offscreen opacity compositing in SoftwareRenderer; opaque AppDrawer + scrim cover it cleanly
+        visible: root.is-dragging-app || ((root.drawer-progress < 0.98) && (root.active-mode == 0 || root.active-mode == 2));
 
         // Background gesture listener:
         // - Dragging UP pulls up App Drawer interactively with 1:1 finger tracking

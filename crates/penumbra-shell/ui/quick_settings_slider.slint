@@ -940,20 +940,22 @@ export component QuickSettingsSlider inherits Rectangle {
         chassis-gesture-area := TouchArea {
             property <float> touch-start-x: 0.0;
             property <float> touch-start-y: 0.0;
+            property <float> last-screen-y: 0.0;
             property <bool> is-dragging-v: false;
 
             pointer-event(event) => {
                 if (event.kind == PointerEventKind.down) {
                     self.touch-start-x = self.mouse-x / 1px;
-                    self.touch-start-y = self.mouse-y / 1px;
+                    self.touch-start-y = (self.mouse-y + root.slide-offset-y) / 1px;
+                    self.last-screen-y = self.touch-start-y;
                     self.is-dragging-v = false;
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     let dx = (self.mouse-x / 1px) - self.touch-start-x;
-                    let dy = (self.mouse-y / 1px) - self.touch-start-y;
-                    if (dy < -25.0 && Math.abs(dy) > Math.abs(dx)) {
+                    let dy = ((self.mouse-y + root.slide-offset-y) / 1px) - self.touch-start-y;
+                    if (self.is-dragging-v) {
+                        root.drag-released(root.slide-offset-y, 0.0);
+                    } else if (dy < -25.0 && Math.abs(dy) > Math.abs(dx)) {
                         root.fast-pull-up();
-                    } else if (self.is-dragging-v) {
-                        root.drag-released(dy * 1px, 0.0);
                     } else if (Math.abs(dx) > 25.0 && Math.abs(dx) > Math.abs(dy) * 1.1) {
                         // Horizontal swipe between Notifications and Quick Settings
                         if (dx < -25.0) {
@@ -969,11 +971,18 @@ export component QuickSettingsSlider inherits Rectangle {
             }
             moved => {
                 if (self.pressed) {
-                    let dy = (self.mouse-y / 1px) - self.touch-start-y;
+                    let screen-y = (self.mouse-y + root.slide-offset-y) / 1px;
+                    let total-dy = screen-y - self.touch-start-y;
                     let dx = (self.mouse-x / 1px) - self.touch-start-x;
-                    if (dy < -15.0 && Math.abs(dy) > Math.abs(dx)) {
+                    if (!self.is-dragging-v && total-dy < -10.0 && Math.abs(total-dy) > Math.abs(dx)) {
                         self.is-dragging-v = true;
-                        root.drag-delta(dy * 1px);
+                    }
+                    if (self.is-dragging-v) {
+                        let step = screen-y - self.last-screen-y;
+                        self.last-screen-y = screen-y;
+                        if (Math.abs(step) > 0.1) {
+                            root.drag-delta(step * 1px);
+                        }
                     }
                 }
             }
@@ -983,7 +992,7 @@ export component QuickSettingsSlider inherits Rectangle {
             x: 0px;
             y: root.edit-mode ? -30px : 0px;
             width: parent.width;
-            height: parent.height - 36px;
+            height: parent.height;
             background: Theme.glass-scrim-deep;
             border-bottom-left-radius: Theme.radius-card;
             border-bottom-right-radius: Theme.radius-card;
@@ -1304,6 +1313,7 @@ export component QuickSettingsSlider inherits Rectangle {
                     width: parent.width - 2 * root.pad;
                     height: parent.height - (root.media-active ? 292px : 150px) - 64px;
                     content-height: Math.ceil(root.active-tiles.length / 2) * 72px + 24px;
+                    interactive: self.content-height > self.height;
 
                     for tile[idx] in root.active-tiles: QSTile {
                         x: Math.mod(idx, 2) == 0 ? 0px : (root.col-w + 12px);
@@ -1537,57 +1547,5 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // ---------------------------------------------------------------------
-        // Drag Handle: Glued to bottom of visible drawer
-        // ---------------------------------------------------------------------
-        bottom-handle-bar := Rectangle {
-            x: 0px;
-            y: parent.height - 64px;
-            width: parent.width;
-            height: 64px;
-            background: transparent;
-
-            Rectangle {
-                width: 72px;
-                height: 5px;
-                x: (parent.width - self.width) / 2;
-                y: 28px;
-                border-radius: 2.5px;
-                background: Theme.specular-rim-glow;
-                opacity: 0.85;
-            }
-
-            TouchArea {
-                property <length> press-y: 0px;
-                property <bool> is-dragging: false;
-
-                pointer-event(event) => {
-                    if (event.kind == PointerEventKind.down) {
-                        self.press-y = self.mouse-y;
-                        self.is-dragging = false;
-                    } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
-                        let dy = self.mouse-y - self.press-y;
-                        if (self.is-dragging || dy < -8px) {
-                            root.fast-pull-up();
-                        } else {
-                            root.close-requested();
-                        }
-                        self.is-dragging = false;
-                    }
-                }
-                moved => {
-                    if (self.pressed) {
-                        let dy = self.mouse-y - self.press-y;
-                        if (dy < -6px) {
-                            self.is-dragging = true;
-                            root.drag-delta(dy);
-                        }
-                    }
-                }
-                clicked => {
-                    root.close-requested();
-                }
-            }
-        }
     }
 }

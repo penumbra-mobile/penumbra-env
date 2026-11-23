@@ -1200,7 +1200,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let apps_list = Arc::clone(&apps_list);
         let layout_config = Rc::clone(&layout_config);
         let animate_drawer_to = Rc::clone(&animate_drawer_to);
-        task_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
+        let last_window_sig = Rc::new(RefCell::new(Vec::<(u32, String, String)>::new()));
+        task_timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
             let state = ShellState::load();
             if let Some(ui) = ui_weak.upgrade() {
                 if std::path::Path::new("/tmp/open_drawer").exists() {
@@ -1254,6 +1255,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
                 let windows = read_windows();
+                let window_sig: Vec<(u32, String, String)> = windows
+                    .iter()
+                    .map(|w| (w.id, w.app_id.clone(), w.title.clone()))
+                    .collect();
+                if *last_window_sig.borrow() == window_sig {
+                    return;
+                }
+                *last_window_sig.borrow_mut() = window_sig;
+
                 let apps = apps_list.read().unwrap();
                 let tasks_model = Rc::new(VecModel::default());
                 for win in windows {

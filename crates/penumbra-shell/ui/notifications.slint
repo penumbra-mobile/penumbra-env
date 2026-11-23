@@ -259,6 +259,7 @@ export component NotificationStack inherits Rectangle {
         width: 100%;
         height: 100%;
         content-height: stack-layout.min-height;
+        interactive: stack-layout.min-height > self.height;
 
         stack-layout := VerticalLayout {
             padding: 14px;
