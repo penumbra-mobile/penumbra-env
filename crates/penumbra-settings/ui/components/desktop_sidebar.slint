@@ -57,7 +57,7 @@ export component DesktopSidebar inherits Rectangle {
             }
 
             Text {
-                text: "Penumbra Settings";
+                text: @tr("Penumbra Settings");
                 font-size: 18px;
                 font-weight: 700;
                 color: Theme.on-surface;
@@ -98,7 +98,7 @@ export component DesktopSidebar inherits Rectangle {
                         x: 0px;
                         width: parent.width;
                         height: parent.height;
-                        text: "Search settings...";
+                        text: @tr("Search settings...");
                         font-size: 13px;
                         color: Theme.on-surface-variant;
                         vertical-alignment: center;
@@ -155,16 +155,16 @@ export component DesktopSidebar inherits Rectangle {
                 spacing: 4px;
 
                 property <[SidebarCategoryItem]> categories: [
-                    { id: "wifi", title: "Network & Wi-Fi", icon-name: "wifi", icon-bg: #82d3e5, icon-tint: #00363f },
-                    { id: "mobile", title: "Mobile & eSIM", icon-name: "phone", icon-bg: #80cbc4, icon-tint: #003731 },
-                    { id: "bluetooth", title: "Bluetooth Devices", icon-name: "bluetooth", icon-bg: #90d5ff, icon-tint: #003354 },
-                    { id: "display", title: "Displays & Convergence", icon-name: "display", icon-bg: #ffcc80, icon-tint: #4e2600 },
-                    { id: "appearance", title: "Wallpaper & style", icon-name: "palette", icon-bg: #e2bc9d, icon-tint: #3c1e05 },
-                    { id: "sound", title: "Sound & Volume", icon-name: "sound", icon-bg: #ffb4a9, icon-tint: #680003 },
-                    { id: "battery", title: "Battery & Power", icon-name: "battery", icon-bg: #a3e8b0, icon-tint: #073919 },
-                    { id: "keyboard", title: "Keyboard & Input", icon-name: "keyboard", icon-bg: #d0bcff, icon-tint: #381e72 },
-                    { id: "security", title: "Security & Lock", icon-name: "security", icon-bg: #ffb3b8, icon-tint: #680016 },
-                    { id: "about", title: "About Device", icon-name: "about", icon-bg: #c4c7c5, icon-tint: #1f2020 },
+                    { id: "wifi", title: @tr("Network & Wi-Fi"), icon-name: "wifi", icon-bg: #82d3e5, icon-tint: #00363f },
+                    { id: "mobile", title: @tr("Mobile & eSIM"), icon-name: "phone", icon-bg: #80cbc4, icon-tint: #003731 },
+                    { id: "bluetooth", title: @tr("Bluetooth Devices"), icon-name: "bluetooth", icon-bg: #90d5ff, icon-tint: #003354 },
+                    { id: "display", title: @tr("Displays & Convergence"), icon-name: "display", icon-bg: #ffcc80, icon-tint: #4e2600 },
+                    { id: "appearance", title: @tr("Wallpaper & style"), icon-name: "palette", icon-bg: #e2bc9d, icon-tint: #3c1e05 },
+                    { id: "sound", title: @tr("Sound & Volume"), icon-name: "sound", icon-bg: #ffb4a9, icon-tint: #680003 },
+                    { id: "battery", title: @tr("Battery & Power"), icon-name: "battery", icon-bg: #a3e8b0, icon-tint: #073919 },
+                    { id: "keyboard", title: @tr("Keyboard & Input"), icon-name: "keyboard", icon-bg: #d0bcff, icon-tint: #381e72 },
+                    { id: "security", title: @tr("Security & Lock"), icon-name: "security", icon-bg: #ffb3b8, icon-tint: #680016 },
+                    { id: "about", title: @tr("About Device"), icon-name: "about", icon-bg: #c4c7c5, icon-tint: #1f2020 },
                 ];
 
                 for cat in self.categories: Rectangle {

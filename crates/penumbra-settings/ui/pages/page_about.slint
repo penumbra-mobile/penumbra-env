@@ -27,6 +27,9 @@ export component PageAbout inherits Flickable {
     in property <string> uptime-info: "Active";
     // Running Wayland compositor session description.
     in property <string> compositor-info: "Penumbra Shell (Smithay Wayland)";
+    // Active POSIX/gettext language code ("en", "ro", "de", "fr", "es", "it").
+    in-out property <string> current-language: "en";
+    callback language-changed(string);
 
     Flickable {
         width: 100%;
@@ -101,7 +104,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "settings";
                     icon-bg: #7dd8fc;
                     icon-tint: #00354e;
-                    title: "Processor";
+                    title: @tr("Processor");
                     subtitle: root.cpu-model;
                     show-chevron: false;
                     is-first: true;
@@ -113,7 +116,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "devices";
                     icon-bg: #a8c7fa;
                     icon-tint: #042b59;
-                    title: "Memory";
+                    title: @tr("Memory");
                     subtitle: root.memory-info;
                     show-chevron: false;
                     is-first: false;
@@ -125,7 +128,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "storage";
                     icon-bg: #f9d868;
                     icon-tint: #3b2e00;
-                    title: "Internal storage";
+                    title: @tr("Internal storage");
                     subtitle: root.storage-info;
                     show-chevron: false;
                     is-first: false;
@@ -145,7 +148,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "info";
                     icon-bg: #d0bcff;
                     icon-tint: #381e72;
-                    title: "OS Version";
+                    title: @tr("OS Version");
                     subtitle: root.os-version;
                     show-chevron: false;
                     is-first: true;
@@ -157,7 +160,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "power";
                     icon-bg: #a3e8b0;
                     icon-tint: #073919;
-                    title: "Linux kernel";
+                    title: @tr("Linux kernel");
                     subtitle: root.kernel-version;
                     show-chevron: false;
                     is-first: false;
@@ -169,7 +172,7 @@ export component PageAbout inherits Flickable {
                     icon-name: "brightness";
                     icon-bg: #ffcc80;
                     icon-tint: #4e2600;
-                    title: "Compositor & Shell";
+                    title: @tr("Compositor & Shell");
                     subtitle: root.compositor-info;
                     show-chevron: false;
                     is-first: false;
@@ -181,12 +184,79 @@ export component PageAbout inherits Flickable {
                     icon-name: "refresh";
                     icon-bg: #ffb3ba;
                     icon-tint: #491019;
-                    title: "System uptime";
+                    title: @tr("System uptime");
                     subtitle: root.uptime-info;
                     show-chevron: false;
                     is-first: false;
                     is-last: true;
                     show-divider: false;
+                }
+            }
+
+            // System Language & Locale Selector (GNU gettext / locale.conf)
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+
+                    Text {
+                        text: @tr("System language");
+                        font-size: Theme.font-body;
+                        font-weight: 700;
+                        color: Theme.on-surface;
+                    }
+
+                    Text {
+                        text: @tr("Applies to Penumbra Shell, Settings, and Linux apps (falls back to English when untranslated).");
+                        font-size: Theme.font-caption;
+                        color: Theme.on-surface-variant;
+                        wrap: word-wrap;
+                    }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        for lang in [
+                            { code: "en", label: @tr("English (Default)") },
+                            { code: "ro", label: @tr("Română (Romanian)") },
+                            { code: "de", label: @tr("Deutsch (German)") },
+                            { code: "fr", label: @tr("Français (French)") },
+                            { code: "es", label: @tr("Español (Spanish)") },
+                            { code: "it", label: @tr("Italiano (Italian)") },
+                        ]: Rectangle {
+                            height: 40px;
+                            border-radius: 14px;
+                            background: root.current-language == lang.code ? Theme.primary-container : Theme.surface-low;
+                            border-width: root.current-language == lang.code ? 1.5px : 1px;
+                            border-color: root.current-language == lang.code ? Theme.primary : #ffffff14;
+
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                alignment: space-between;
+                                Text {
+                                    text: lang.label;
+                                    font-size: 13px;
+                                    font-weight: root.current-language == lang.code ? 700 : 500;
+                                    color: root.current-language == lang.code ? Theme.on-primary-container : Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+                                if root.current-language == lang.code: Text {
+                                    text: "✓";
+                                    font-size: 13px;
+                                    font-weight: 700;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    root.current-language = lang.code;
+                                    root.language-changed(lang.code);
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

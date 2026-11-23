@@ -71,7 +71,7 @@ component BrightnessSliderCard inherits Rectangle {
             spacing: 2px;
 
             Text {
-                text: "Brightness level";
+                text: @tr("Brightness level");
                 font-size: 15px;
                 font-weight: 500;
                 color: Theme.on-surface;
@@ -168,13 +168,13 @@ export component PageDisplay inherits Rectangle {
     background: Theme.base-surface;
 
     property <[TimeoutOption]> timeout-options: [
-        { label: "15 seconds", seconds: 15 },
-        { label: "30 seconds", seconds: 30 },
-        { label: "1 minute", seconds: 60 },
-        { label: "2 minutes", seconds: 120 },
-        { label: "5 minutes", seconds: 300 },
-        { label: "10 minutes", seconds: 600 },
-        { label: "Never", seconds: 0 },
+        { label: @tr("15 seconds"), seconds: 15 },
+        { label: @tr("30 seconds"), seconds: 30 },
+        { label: @tr("1 minute"), seconds: 60 },
+        { label: @tr("2 minutes"), seconds: 120 },
+        { label: @tr("5 minutes"), seconds: 300 },
+        { label: @tr("10 minutes"), seconds: 600 },
+        { label: @tr("Never"), seconds: 0 },
     ];
 
     Flickable {
@@ -189,7 +189,7 @@ export component PageDisplay inherits Rectangle {
             spacing: 14px;
 
             // 1. Multi-Display Visual Arrangement Canvas
-            SettingsSectionHeader { title: "Display arrangement & convergence"; }
+            SettingsSectionHeader { title: @tr("Display arrangement & convergence"); }
 
             DisplayCanvas {
                 displays <=> root.displays;
@@ -210,8 +210,8 @@ export component PageDisplay inherits Rectangle {
                         icon-name: "display";
                         icon-bg: #82d3e5;
                         icon-tint: #00363f;
-                        title: "Mirror displays";
-                        subtitle: root.is-mirroring ? "Mirroring external screen" : "Extended desktop (Join displays)";
+                        title: @tr("Mirror displays");
+                        subtitle: root.is-mirroring ? @tr("Mirroring external screen") : @tr("Extended desktop (Join displays)");
                         is-switch: true;
                         switch-checked: root.is-mirroring;
                         is-first: true;
@@ -227,8 +227,8 @@ export component PageDisplay inherits Rectangle {
                         icon-name: "settings";
                         icon-bg: #d0bcff;
                         icon-tint: #381e72;
-                        title: "Use as primary display";
-                        subtitle: (root.selected-display-index < root.displays.length && root.displays[root.selected-display-index].is_primary) ? "This is the primary display" : "Secondary display";
+                        title: @tr("Use as primary display");
+                        subtitle: (root.selected-display-index < root.displays.length && root.displays[root.selected-display-index].is_primary) ? @tr("This is the primary display") : @tr("Secondary display");
                         is-switch: true;
                         switch-checked: (root.selected-display-index < root.displays.length) ? root.displays[root.selected-display-index].is_primary : false;
                         is-first: false;
@@ -246,7 +246,7 @@ export component PageDisplay inherits Rectangle {
                 spacing: 8px;
                 property <DisplayItemData> cur: root.displays[root.selected-display-index];
 
-                SettingsSectionHeader { title: "Display properties (" + cur.name + ")"; }
+                SettingsSectionHeader { title: @tr("Display properties ({})", cur.name); }
 
                 SettingsSectionCard {
                     VerticalLayout {
@@ -262,7 +262,7 @@ export component PageDisplay inherits Rectangle {
                             alignment: space-between;
 
                             Text {
-                                text: "Resolution & Refresh Rate";
+                                text: @tr("Resolution & Refresh Rate");
                                 font-size: 14px;
                                 font-weight: 500;
                                 color: Theme.on-surface;
@@ -299,7 +299,7 @@ export component PageDisplay inherits Rectangle {
                             spacing: 6px;
 
                             Text {
-                                text: "Scale";
+                                text: @tr("Scale");
                                 font-size: 14px;
                                 font-weight: 500;
                                 color: Theme.on-surface;
@@ -341,7 +341,7 @@ export component PageDisplay inherits Rectangle {
             }
 
             // 3. Brightness Slider Card
-            SettingsSectionHeader { title: "Backlight brightness"; }
+            SettingsSectionHeader { title: @tr("Backlight brightness"); }
             BrightnessSliderCard {
                 value <=> root.brightness;
                 changed(v) => { root.brightness-changed(v); }
@@ -350,7 +350,7 @@ export component PageDisplay inherits Rectangle {
             // 4. Night Light Section (COSMIC Adapted)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Night light & color"; }
+                SettingsSectionHeader { title: @tr("Night light & color"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -360,8 +360,8 @@ export component PageDisplay inherits Rectangle {
                             icon-name: "brightness";
                             icon-bg: #ffb4a9;
                             icon-tint: #680003;
-                            title: "Night light";
-                            subtitle: root.night-light-enabled ? "Warm amber tint active (sunset to sunrise)" : "Off";
+                            title: @tr("Night light");
+                            subtitle: root.night-light-enabled ? @tr("Warm amber tint active (sunset to sunrise)") : @tr("Off");
                             is-switch: true;
                             switch-checked: root.night-light-enabled;
                             is-first: true;
@@ -377,8 +377,8 @@ export component PageDisplay inherits Rectangle {
                             icon-name: "settings";
                             icon-bg: #d0bcff;
                             icon-tint: #381e72;
-                            title: "Dark theme";
-                            subtitle: root.dark-theme ? "Pitch black OLED enabled" : "Off";
+                            title: @tr("Dark theme");
+                            subtitle: root.dark-theme ? @tr("Pitch black OLED enabled") : @tr("Off");
                             is-switch: true;
                             switch-checked: root.dark-theme;
                             is-first: false;
@@ -391,8 +391,8 @@ export component PageDisplay inherits Rectangle {
                             icon-name: "brightness";
                             icon-bg: #ffcc80;
                             icon-tint: #4e2600;
-                            title: "Adaptive brightness";
-                            subtitle: "Optimize brightness for ambient light sensor";
+                            title: @tr("Adaptive brightness");
+                            subtitle: @tr("Optimize brightness for ambient light sensor");
                             is-switch: true;
                             switch-checked: root.adaptive-brightness;
                             is-first: false;
@@ -407,7 +407,7 @@ export component PageDisplay inherits Rectangle {
             // Accent Color Palette (Adapted from COSMIC Settings Desktop Appearance)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Accent color"; }
+                SettingsSectionHeader { title: @tr("Accent color"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-left: 16px;
@@ -557,7 +557,7 @@ export component PageDisplay inherits Rectangle {
             // 5. Screen Timeout
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Screen timeout"; }
+                SettingsSectionHeader { title: @tr("Screen timeout"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -567,8 +567,8 @@ export component PageDisplay inherits Rectangle {
                             icon-name: "settings";
                             icon-bg: #7dd8fc;
                             icon-tint: #00354e;
-                            title: "Screen timeout";
-                            subtitle: "Turn off screen after " + root.screen-timeout + " of inactivity";
+                            title: @tr("Screen timeout");
+                            subtitle: @tr("Turn off screen after {} of inactivity", root.screen-timeout);
                             show-chevron: true;
                             is-first: true;
                             is-last: true;
@@ -606,7 +606,7 @@ export component PageDisplay inherits Rectangle {
                 spacing: 16px;
 
                 Text {
-                    text: "Screen timeout";
+                    text: @tr("Screen timeout");
                     font-size: 20px;
                     font-weight: 500;
                     color: Theme.on-surface;

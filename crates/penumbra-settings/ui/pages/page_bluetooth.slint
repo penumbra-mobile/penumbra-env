@@ -75,7 +75,7 @@ export component PageBluetooth inherits Flickable {
                 icon-name: "bluetooth";
                 icon-bg: root.bt-enabled ? #7dd8fc : #36343b;
                 icon-tint: root.bt-enabled ? #00354e : #938f99;
-                title: "Use Bluetooth";
+                title: @tr("Use Bluetooth");
                 subtitle: root.bt-enabled ? ("On • Visible as " + root.adapter-name) : "Off";
                 is-switch: true;
                 switch-checked: root.bt-enabled;
@@ -95,7 +95,7 @@ export component PageBluetooth inherits Flickable {
                     icon-name: "refresh";
                     icon-bg: root.is-discovering ? Theme.primary : #a8c7fa;
                     icon-tint: #042b59;
-                    title: root.is-discovering ? "Scanning for devices... (Tap to stop)" : "Scan for nearby devices";
+                    title: root.is-discovering ? @tr("Scanning for devices... (Tap to stop)") : @tr("Scan for nearby devices");
                     subtitle: root.is-discovering ? "Discovery active on " + root.adapter-name : "Discover & pair Bluetooth accessories";
                     show-chevron: !root.is-discovering;
                     show-divider: false;
@@ -114,7 +114,7 @@ export component PageBluetooth inherits Flickable {
             // Saved & Connected Devices (GNOME Settings style)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Saved & Connected Devices"; }
+                SettingsSectionHeader { title: @tr("Saved & Connected Devices"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding: 8px;
@@ -175,7 +175,7 @@ export component PageBluetooth inherits Flickable {
                                             border-radius: 15px;
                                             background: dev.connected ? Theme.surface-highest : Theme.primary;
                                             Text {
-                                                text: dev.connected ? "Disconnect" : "Connect";
+                                                text: dev.connected ? @tr("Disconnect") : @tr("Connect");
                                                 font-size: 11px;
                                                 font-weight: 700;
                                                 color: dev.connected ? Theme.on-surface : Theme.on-primary;
@@ -193,7 +193,7 @@ export component PageBluetooth inherits Flickable {
                                             border-radius: 15px;
                                             background: #5c2020;
                                             Text {
-                                                text: "Forget";
+                                                text: @tr("Forget");
                                                 font-size: 11px;
                                                 font-weight: 700;
                                                 color: #ffb4ab;
@@ -221,7 +221,7 @@ export component PageBluetooth inherits Flickable {
             // Available Nearby Devices
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Available Nearby"; }
+                SettingsSectionHeader { title: @tr("Available Nearby"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding: 8px;
@@ -271,7 +271,7 @@ export component PageBluetooth inherits Flickable {
                                         border-radius: 15px;
                                         background: Theme.primary;
                                         Text {
-                                            text: "Pair";
+                                            text: @tr("Pair");
                                             font-size: 11px;
                                             font-weight: 700;
                                             color: Theme.on-primary;
@@ -293,7 +293,7 @@ export component PageBluetooth inherits Flickable {
             // Device Preferences (Discoverability, Rename, MAC)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Connection preferences"; }
+                SettingsSectionHeader { title: @tr("Connection preferences"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding: 14px;
@@ -305,7 +305,7 @@ export component PageBluetooth inherits Flickable {
                                 spacing: 2px;
                                 horizontal-stretch: 1;
                                 Text {
-                                    text: "Visible to other devices";
+                                    text: @tr("Visible to other devices");
                                     font-size: Theme.font-body;
                                     font-weight: 600;
                                     color: Theme.on-surface;
@@ -331,7 +331,7 @@ export component PageBluetooth inherits Flickable {
                                 spacing: 2px;
                                 horizontal-stretch: 1;
                                 Text {
-                                    text: "Device name";
+                                    text: @tr("Device name");
                                     font-size: Theme.font-body;
                                     font-weight: 600;
                                     color: Theme.on-surface;
@@ -349,7 +349,7 @@ export component PageBluetooth inherits Flickable {
                                 border-radius: 15px;
                                 background: Theme.surface-highest;
                                 Text {
-                                    text: root.editing-name ? "Close" : "Edit";
+                                    text: root.editing-name ? @tr("Close") : @tr("Edit");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: Theme.on-surface;
@@ -388,7 +388,7 @@ export component PageBluetooth inherits Flickable {
                                 border-radius: 10px;
                                 background: Theme.primary;
                                 Text {
-                                    text: "Save";
+                                    text: @tr("Save");
                                     font-size: Theme.font-caption;
                                     font-weight: 700;
                                     color: Theme.on-primary;
@@ -409,7 +409,7 @@ export component PageBluetooth inherits Flickable {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "Bluetooth address";
+                                text: @tr("Bluetooth address");
                                 font-size: Theme.font-body;
                                 font-weight: 600;
                                 color: Theme.on-surface;

@@ -72,7 +72,7 @@ export component PageSecurity inherits Rectangle {
                 }
 
                 Text {
-                    text: root.show-pin-setup ? "Set Screen PIN" : "Set Screen Password";
+                    text: root.show-pin-setup ? @tr("Set Screen PIN") : @tr("Set Screen Password");
                     font-size: 22px;
                     font-weight: 500;
                     color: Theme.on-surface;
@@ -87,16 +87,16 @@ export component PageSecurity inherits Rectangle {
                 spacing: 20px;
 
                 // Screen Lock Method Section
-                SettingsSectionHeader { title: "DEVICE LOCK"; }
+                SettingsSectionHeader { title: @tr("DEVICE LOCK"); }
 
                 SettingsSectionCard {
                     VerticalLayout {
                         SettingsTile {
                             icon-name: "lock";
                             icon-tint: #a8c7fa;
-                            title: "Swipe";
-                            subtitle: "Swipe to unlock, no credential required";
-                            trailing-text: root.active-lock-type == "swipe" ? "Active" : "";
+                            title: @tr("Swipe");
+                            subtitle: @tr("Swipe to unlock, no credential required");
+                            trailing-text: root.active-lock-type == "swipe" ? @tr("Active") : "";
                             is-first: true;
                             show-divider: true;
                             clicked => {
@@ -107,9 +107,9 @@ export component PageSecurity inherits Rectangle {
                         SettingsTile {
                             icon-name: "lock";
                             icon-tint: #ffcc80;
-                            title: "PIN";
-                            subtitle: "Quick 4-to-8 digit numeric passcode";
-                            trailing-text: root.active-lock-type == "pin" ? "Active" : "";
+                            title: @tr("PIN");
+                            subtitle: @tr("Quick 4-to-8 digit numeric passcode");
+                            trailing-text: root.active-lock-type == "pin" ? @tr("Active") : "";
                             show-divider: true;
                             clicked => {
                                 root.new-pin = "";
@@ -122,9 +122,9 @@ export component PageSecurity inherits Rectangle {
                         SettingsTile {
                             icon-name: "lock";
                             icon-tint: #c5a8ff;
-                            title: "Password";
-                            subtitle: "Alphanumeric password with on-screen keyboard";
-                            trailing-text: root.active-lock-type == "password" ? "Active" : "";
+                            title: @tr("Password");
+                            subtitle: @tr("Alphanumeric password with on-screen keyboard");
+                            trailing-text: root.active-lock-type == "password" ? @tr("Active") : "";
                             show-divider: true;
                             clicked => {
                                 root.new-password = "";
@@ -137,9 +137,9 @@ export component PageSecurity inherits Rectangle {
                         SettingsTile {
                             icon-name: "lock-open";
                             icon-tint: #80cbc4;
-                            title: "None";
-                            subtitle: "No lock screen, wakes directly to home";
-                            trailing-text: root.active-lock-type == "none" ? "Active" : "";
+                            title: @tr("None");
+                            subtitle: @tr("No lock screen, wakes directly to home");
+                            trailing-text: root.active-lock-type == "none" ? @tr("Active") : "";
                             is-last: true;
                             show-divider: false;
                             clicked => {
@@ -150,15 +150,15 @@ export component PageSecurity inherits Rectangle {
                 }
 
                 // Biometrics Section
-                SettingsSectionHeader { title: "BIOMETRIC UNLOCK"; }
+                SettingsSectionHeader { title: @tr("BIOMETRIC UNLOCK"); }
 
                 SettingsSectionCard {
                     VerticalLayout {
                         SettingsTile {
                             icon-name: "fingerprint";
                             icon-tint: root.has-fingerprint ? #80d8ff : #49454f;
-                            title: "Fingerprint unlock";
-                            subtitle: root.has-fingerprint ? (root.fingerprint-enabled ? "Enabled for fast unlock" : "Disabled") : "Fingerprint sensor unavailable";
+                            title: @tr("Fingerprint unlock");
+                            subtitle: root.has-fingerprint ? (root.fingerprint-enabled ? @tr("Enabled for fast unlock") : @tr("Disabled")) : @tr("Fingerprint sensor unavailable");
                             is-switch: root.has-fingerprint;
                             switch-checked: root.fingerprint-enabled;
                             is-first: true;
@@ -173,15 +173,15 @@ export component PageSecurity inherits Rectangle {
                 }
 
                 // Privacy Section
-                SettingsSectionHeader { title: "PRIVACY & NOTIFICATIONS"; }
+                SettingsSectionHeader { title: @tr("PRIVACY & NOTIFICATIONS"); }
 
                 SettingsSectionCard {
                     VerticalLayout {
                         SettingsTile {
                             icon-name: "bell";
                             icon-tint: #ffb4ab;
-                            title: "Sensitive notifications";
-                            subtitle: "Hide contents on lock screen";
+                            title: @tr("Sensitive notifications");
+                            subtitle: @tr("Hide contents on lock screen");
                             is-switch: true;
                             switch-checked: root.hide-sensitive-notifications;
                             is-first: true;
@@ -203,7 +203,7 @@ export component PageSecurity inherits Rectangle {
                 spacing: 16px;
 
                 Text {
-                    text: "Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your device.";
+                    text: @tr("Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your device.");
                     font-size: 14px;
                     color: Theme.on-surface-variant;
                     wrap: word-wrap;
@@ -238,7 +238,7 @@ export component PageSecurity inherits Rectangle {
                 }
 
                 Text {
-                    text: "Confirm your PIN:";
+                    text: @tr("Confirm your PIN:");
                     font-size: 14px;
                     color: Theme.on-surface-variant;
                 }
@@ -276,7 +276,7 @@ export component PageSecurity inherits Rectangle {
                         background: cancel-pin.pressed ? Theme.surface-high : Theme.surface-low;
 
                         Text {
-                            text: "Cancel";
+                            text: @tr("Cancel");
                             font-size: 14px;
                             font-weight: 500;
                             color: Theme.on-surface;
@@ -298,7 +298,7 @@ export component PageSecurity inherits Rectangle {
                         background: save-pin.pressed ? #79a6eb : #a8c7fa;
 
                         Text {
-                            text: "Save PIN";
+                            text: @tr("Save PIN");
                             font-size: 14px;
                             font-weight: 600;
                             color: #042b59;
@@ -329,7 +329,7 @@ export component PageSecurity inherits Rectangle {
                 spacing: 16px;
 
                 Text {
-                    text: "Enter an alphanumeric password. You can use the on-screen keyboard to unlock.";
+                    text: @tr("Enter an alphanumeric password. You can use the on-screen keyboard to unlock.");
                     font-size: 14px;
                     color: Theme.on-surface-variant;
                     wrap: word-wrap;
@@ -363,7 +363,7 @@ export component PageSecurity inherits Rectangle {
                 }
 
                 Text {
-                    text: "Confirm your password:";
+                    text: @tr("Confirm your password:");
                     font-size: 14px;
                     color: Theme.on-surface-variant;
                 }
@@ -400,7 +400,7 @@ export component PageSecurity inherits Rectangle {
                         background: cancel-pw.pressed ? Theme.surface-high : Theme.surface-low;
 
                         Text {
-                            text: "Cancel";
+                            text: @tr("Cancel");
                             font-size: 14px;
                             font-weight: 500;
                             color: Theme.on-surface;
@@ -422,7 +422,7 @@ export component PageSecurity inherits Rectangle {
                         background: save-pw.pressed ? #79a6eb : #a8c7fa;
 
                         Text {
-                            text: "Save Password";
+                            text: @tr("Save Password");
                             font-size: 14px;
                             font-weight: 600;
                             color: #042b59;

@@ -1,3 +1,7 @@
 fn main() {
-    slint_build::compile("ui/settings_window.slint").expect("Failed to compile Penumbra Settings UI");
+    let config = slint_build::CompilerConfiguration::new()
+        .with_bundled_translations("../../po")
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    slint_build::compile_with_config("ui/settings_window.slint", config)
+        .expect("Failed to compile Penumbra Settings UI");
 }

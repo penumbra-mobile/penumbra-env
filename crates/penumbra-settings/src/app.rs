@@ -109,6 +109,10 @@ pub fn setup_app(
         window.set_themed_icons(disp_cfg.themed_icons);
         window.set_icon_shape(disp_cfg.icon_shape.into());
 
+        let active_lang = penumbra_services::i18n::active_lang_code();
+        window.set_current_language(active_lang.clone().into());
+        let _ = slint::select_bundled_translation(if active_lang == "en" { "" } else { &active_lang });
+
         let multi_disp_cfg = DisplaysConfig::load();
         let display_items: Vec<DisplayItemData> = multi_disp_cfg
             .outputs
@@ -783,6 +787,13 @@ pub fn setup_app(
         let mut cfg = DisplayConfig::load();
         cfg.icon_shape = shape.as_str().into();
         let _ = cfg.save();
+    });
+
+    window.on_language_changed(|code| {
+        let code_str = code.as_str();
+        info!("Settings: System language changed -> {code_str}");
+        let _ = penumbra_services::i18n::save_system_language(code_str);
+        let _ = slint::select_bundled_translation(if code_str == "en" { "" } else { code_str });
     });
 
     // GNOME-Compatible Multi-Folder Wallpaper Chooser

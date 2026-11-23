@@ -137,7 +137,7 @@ export component PageMobile inherits Rectangle {
                         padding-top: 6px;
 
                         Text {
-                            text: root.lock-reason != "" ? root.lock-reason : "SIM PIN required";
+                            text: root.lock-reason != "" ? root.lock-reason : @tr("SIM PIN required");
                             font-size: Theme.font-body;
                             font-weight: 600;
                             color: #FFB4AB;
@@ -169,7 +169,7 @@ export component PageMobile inherits Rectangle {
                                 border-radius: 12px;
                                 background: Theme.primary;
                                 Text {
-                                    text: "Unlock";
+                                    text: @tr("Unlock");
                                     font-size: Theme.font-body;
                                     font-weight: 600;
                                     color: Theme.on-primary;
@@ -191,7 +191,7 @@ export component PageMobile inherits Rectangle {
             // --------------------------------------------------------------
             // 2. Mobile Data & Roaming Toggles
             // --------------------------------------------------------------
-            SettingsSectionHeader { title: "Mobile Data"; }
+            SettingsSectionHeader { title: @tr("Mobile Data"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding: 14px;
@@ -203,13 +203,13 @@ export component PageMobile inherits Rectangle {
                             spacing: 2px;
                             horizontal-stretch: 1;
                             Text {
-                                text: "Mobile Data";
+                                text: @tr("Mobile Data");
                                 font-size: Theme.font-body;
                                 font-weight: 600;
                                 color: Theme.on-surface;
                             }
                             Text {
-                                text: "Access data using cellular network";
+                                text: @tr("Access data using cellular network");
                                 font-size: Theme.font-caption;
                                 color: Theme.on-surface-variant;
                             }
@@ -229,13 +229,13 @@ export component PageMobile inherits Rectangle {
                             spacing: 2px;
                             horizontal-stretch: 1;
                             Text {
-                                text: "Data Roaming";
+                                text: @tr("Data Roaming");
                                 font-size: Theme.font-body;
                                 font-weight: 600;
                                 color: Theme.on-surface;
                             }
                             Text {
-                                text: "Connect to data services when roaming";
+                                text: @tr("Connect to data services when roaming");
                                 font-size: Theme.font-caption;
                                 color: Theme.on-surface-variant;
                             }
@@ -252,17 +252,17 @@ export component PageMobile inherits Rectangle {
             // --------------------------------------------------------------
             // 3. Preferred Network Mode (gnome-control-center wwan)
             // --------------------------------------------------------------
-            SettingsSectionHeader { title: "Preferred Network Mode"; }
+            SettingsSectionHeader { title: @tr("Preferred Network Mode"); }
             SettingsSectionCard {
                 HorizontalLayout {
                     padding: 12px;
                     spacing: 8px;
 
                     for mode in [
-                        { id: "auto", label: "Auto" },
-                        { id: "4g_3g", label: "4G / 3G" },
-                        { id: "4g_only", label: "4G Only" },
-                        { id: "3g_2g", label: "3G / 2G" },
+                        { id: "auto", label: @tr("Auto") },
+                        { id: "4g_3g", label: @tr("4G / 3G") },
+                        { id: "4g_only", label: @tr("4G Only") },
+                        { id: "3g_2g", label: @tr("3G / 2G") },
                     ]: Rectangle {
                         height: 36px;
                         horizontal-stretch: 1;
@@ -294,14 +294,14 @@ export component PageMobile inherits Rectangle {
             // --------------------------------------------------------------
             HorizontalLayout {
                 alignment: space-between;
-                SettingsSectionHeader { title: "Access Point Names (APNs)"; }
+                SettingsSectionHeader { title: @tr("Access Point Names (APNs)"); }
                 Rectangle {
                     width: 80px;
                     height: 28px;
                     border-radius: 14px;
                     background: Theme.primary-container;
                     Text {
-                        text: "+ Add APN";
+                        text: @tr("+ Add APN");
                         font-size: 11px;
                         font-weight: 700;
                         color: Theme.on-primary-container;
@@ -325,7 +325,7 @@ export component PageMobile inherits Rectangle {
                 VerticalLayout {
                     padding: 16px;
                     Text {
-                        text: "No GSM APN profiles configured. Tap + Add APN to create one.";
+                        text: @tr("No GSM APN profiles configured. Tap + Add APN to create one.");
                         font-size: Theme.font-caption;
                         color: Theme.on-surface-variant;
                         wrap: word-wrap;
@@ -362,7 +362,7 @@ export component PageMobile inherits Rectangle {
                                     color: item.is-active ? Theme.on-primary-container : Theme.on-surface;
                                 }
                                 Text {
-                                    text: item.apn != "" ? item.apn : "No APN set";
+                                    text: item.apn != "" ? item.apn : @tr("No APN set");
                                     font-size: Theme.font-caption;
                                     color: item.is-active ? Theme.on-primary-container : Theme.on-surface-variant;
                                 }
@@ -375,7 +375,7 @@ export component PageMobile inherits Rectangle {
                                 border-radius: 14px;
                                 background: Theme.surface-highest;
                                 Text {
-                                    text: "Edit";
+                                    text: @tr("Edit");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: Theme.on-surface;
@@ -410,17 +410,17 @@ export component PageMobile inherits Rectangle {
                     spacing: 10px;
 
                     Text {
-                        text: root.edit-apn-path == "" ? "New Access Point" : "Edit Access Point";
+                        text: root.edit-apn-path == "" ? @tr("New Access Point") : @tr("Edit Access Point");
                         font-size: Theme.font-body;
                         font-weight: 700;
                         color: Theme.on-surface;
                     }
 
                     for field in [
-                        { label: "Name", kind: "name" },
+                        { label: @tr("Name"), kind: "name" },
                     ]: VerticalLayout {
                         spacing: 4px;
-                        Text { text: "Profile Name"; font-size: 11px; color: Theme.on-surface-variant; }
+                        Text { text: @tr("Profile Name"); font-size: 11px; color: Theme.on-surface-variant; }
                         Rectangle {
                             height: 38px;
                             border-radius: 10px;
@@ -437,7 +437,7 @@ export component PageMobile inherits Rectangle {
 
                     VerticalLayout {
                         spacing: 4px;
-                        Text { text: "APN (e.g. internet)"; font-size: 11px; color: Theme.on-surface-variant; }
+                        Text { text: @tr("APN (e.g. internet)"); font-size: 11px; color: Theme.on-surface-variant; }
                         Rectangle {
                             height: 38px;
                             border-radius: 10px;
@@ -457,7 +457,7 @@ export component PageMobile inherits Rectangle {
                         VerticalLayout {
                             horizontal-stretch: 1;
                             spacing: 4px;
-                            Text { text: "Username"; font-size: 11px; color: Theme.on-surface-variant; }
+                            Text { text: @tr("Username"); font-size: 11px; color: Theme.on-surface-variant; }
                             Rectangle {
                                 height: 38px;
                                 border-radius: 10px;
@@ -474,7 +474,7 @@ export component PageMobile inherits Rectangle {
                         VerticalLayout {
                             horizontal-stretch: 1;
                             spacing: 4px;
-                            Text { text: "Password"; font-size: 11px; color: Theme.on-surface-variant; }
+                            Text { text: @tr("Password"); font-size: 11px; color: Theme.on-surface-variant; }
                             Rectangle {
                                 height: 38px;
                                 border-radius: 10px;
@@ -501,7 +501,7 @@ export component PageMobile inherits Rectangle {
                             border-radius: 18px;
                             background: #5c2020;
                             Text {
-                                text: "Delete";
+                                text: @tr("Delete");
                                 font-size: Theme.font-caption;
                                 font-weight: 600;
                                 color: #ffb4ab;
@@ -522,7 +522,7 @@ export component PageMobile inherits Rectangle {
                             border-radius: 18px;
                             background: Theme.surface-highest;
                             Text {
-                                text: "Cancel";
+                                text: @tr("Cancel");
                                 font-size: Theme.font-caption;
                                 font-weight: 600;
                                 color: Theme.on-surface;
@@ -540,7 +540,7 @@ export component PageMobile inherits Rectangle {
                             border-radius: 18px;
                             background: Theme.primary;
                             Text {
-                                text: "Save";
+                                text: @tr("Save");
                                 font-size: Theme.font-caption;
                                 font-weight: 700;
                                 color: Theme.on-primary;
@@ -569,14 +569,14 @@ export component PageMobile inherits Rectangle {
             // --------------------------------------------------------------
             HorizontalLayout {
                 alignment: space-between;
-                SettingsSectionHeader { title: "eSIM Manager (LPA)"; }
+                SettingsSectionHeader { title: @tr("eSIM Manager (LPA)"); }
                 Rectangle {
                     width: 68px;
                     height: 28px;
                     border-radius: 14px;
                     background: Theme.surface-container-high;
                     Text {
-                        text: "Refresh";
+                        text: @tr("Refresh");
                         font-size: 11px;
                         font-weight: 600;
                         color: Theme.on-surface;
@@ -595,7 +595,7 @@ export component PageMobile inherits Rectangle {
                     spacing: 10px;
 
                     if !root.esim-available: Text {
-                        text: root.esim-error != "" ? root.esim-error : "eUICC / lpac backend not available";
+                        text: root.esim-error != "" ? root.esim-error : @tr("eUICC / lpac backend not available");
                         font-size: Theme.font-caption;
                         color: Theme.on-surface-variant;
                         wrap: word-wrap;
@@ -649,7 +649,7 @@ export component PageMobile inherits Rectangle {
                                     border-radius: 15px;
                                     background: prof.is-enabled ? Theme.surface-highest : Theme.primary;
                                     Text {
-                                        text: prof.is-enabled ? "Disable" : "Enable";
+                                        text: prof.is-enabled ? @tr("Disable") : @tr("Enable");
                                         font-size: 11px;
                                         font-weight: 700;
                                         color: prof.is-enabled ? Theme.on-surface : Theme.on-primary;
@@ -668,7 +668,7 @@ export component PageMobile inherits Rectangle {
                                     border-radius: 15px;
                                     background: #5c2020;
                                     Text {
-                                        text: "Del";
+                                        text: @tr("Del");
                                         font-size: 11px;
                                         font-weight: 700;
                                         color: #ffb4ab;
@@ -687,7 +687,7 @@ export component PageMobile inherits Rectangle {
                             spacing: 6px;
                             padding-top: 4px;
                             Text {
-                                text: "Download eSIM Profile (Activation Code)";
+                                text: @tr("Download eSIM Profile (Activation Code)");
                                 font-size: 11px;
                                 font-weight: 600;
                                 color: Theme.on-surface-variant;
@@ -715,7 +715,7 @@ export component PageMobile inherits Rectangle {
                                     border-radius: 10px;
                                     background: Theme.primary;
                                     Text {
-                                        text: "Add";
+                                        text: @tr("Add");
                                         font-size: Theme.font-body;
                                         font-weight: 700;
                                         color: Theme.on-primary;

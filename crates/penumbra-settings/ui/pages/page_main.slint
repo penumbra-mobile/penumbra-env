@@ -189,7 +189,7 @@ export component PageMain inherits Rectangle {
                         }
 
                         Text {
-                            text: "Search settings...";
+                            text: @tr("Search settings...");
                             font-size: 16px;
                             color: #938f99;
                             vertical-alignment: center;
@@ -301,7 +301,7 @@ export component PageMain inherits Rectangle {
                     alignment: center;
 
                     Text {
-                        text: "No results for \"" + root.search-query + "\"";
+                        text: @tr("No results for \"{}\"", root.search-query);
                         font-size: 15px;
                         color: Theme.on-surface-variant;
                         horizontal-alignment: center;
@@ -334,7 +334,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "wifi";
                             icon-bg: #7dd8fc; // pastel sky blue
                             icon-tint: #00354e; // deep navy
-                            title: "Network & internet";
+                            title: @tr("Network & internet");
                             subtitle: root.wifi-status;
                             show-chevron: false;
                             is-first: true;
@@ -346,7 +346,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "wifi";
                             icon-bg: #a8c7fa;
                             icon-tint: #042b59;
-                            title: "Mobile network & eSIM";
+                            title: @tr("Mobile network & eSIM");
                             subtitle: root.mobile-status;
                             show-chevron: false;
                             is-first: false;
@@ -358,7 +358,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "devices";
                             icon-bg: #7dd8fc; // pastel cyan
                             icon-tint: #00354e; // deep navy
-                            title: "Connected devices";
+                            title: @tr("Connected devices");
                             subtitle: root.bt-status;
                             show-chevron: false;
                             is-first: false;
@@ -380,7 +380,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "apps";
                             icon-bg: #a8c7fa; // pastel periwinkle
                             icon-tint: #042b59; // deep navy
-                            title: "Apps";
+                            title: @tr("Apps");
                             subtitle: root.apps-summary;
                             show-chevron: false;
                             is-first: true;
@@ -392,8 +392,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "notifications";
                             icon-bg: #ffb3ba; // pastel rose
                             icon-tint: #491019; // deep wine
-                            title: "Notifications";
-                            subtitle: "Notification history, conversations";
+                            title: @tr("Notifications");
+                            subtitle: @tr("Notification history, conversations");
                             show-chevron: false;
                             is-first: false;
                             is-last: true;
@@ -414,8 +414,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "sound";
                             icon-bg: #ffb3ba; // pastel coral/rose
                             icon-tint: #551422; // deep wine
-                            title: "Sound & vibration";
-                            subtitle: "Volume, haptics, Do Not Disturb";
+                            title: @tr("Sound & vibration");
+                            subtitle: @tr("Volume, haptics, Do Not Disturb");
                             show-chevron: false;
                             is-first: true;
                             is-last: false;
@@ -426,8 +426,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "dnd";
                             icon-bg: #e8b4cb; // pastel mauve
                             icon-tint: #3b1424; // deep plum
-                            title: "Modes";
-                            subtitle: "Do Not Disturb, Bedtime, Driving";
+                            title: @tr("Modes");
+                            subtitle: @tr("Do Not Disturb, Bedtime, Driving");
                             show-chevron: false;
                             is-first: false;
                             is-last: true;
@@ -448,8 +448,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "brightness";
                             icon-bg: #ffcc80; // pastel amber
                             icon-tint: #4e2600; // deep bronze
-                            title: "Display";
-                            subtitle: "Dark theme, font size, touch controls";
+                            title: @tr("Display");
+                            subtitle: @tr("Dark theme, font size, touch controls");
                             show-chevron: false;
                             is-first: true;
                             is-last: false;
@@ -460,8 +460,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "palette";
                             icon-bg: #e2bc9d; // pastel caramel
                             icon-tint: #3c1e05; // deep brown
-                            title: "Wallpaper & style";
-                            subtitle: "Colors, themed icons, app grid";
+                            title: @tr("Wallpaper & style");
+                            subtitle: @tr("Colors, themed icons, app grid");
                             show-chevron: false;
                             is-first: false;
                             is-last: true;
@@ -482,8 +482,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "shield";
                             icon-bg: #80d8ff; // pastel light blue
                             icon-tint: #00354e; // deep navy
-                            title: "Security & privacy";
-                            subtitle: "PIN, password, fingerprint";
+                            title: @tr("Security & privacy");
+                            subtitle: @tr("PIN, password, fingerprint");
                             show-chevron: false;
                             is-first: true;
                             is-last: true;
@@ -504,7 +504,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "storage";
                             icon-bg: #f9d868; // pastel yellow
                             icon-tint: #3b2e00; // deep amber/brown
-                            title: "Storage";
+                            title: @tr("Storage");
                             subtitle: root.storage-summary;
                             show-chevron: false;
                             is-first: true;
@@ -516,7 +516,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "battery";
                             icon-bg: #a3e8b0; // pastel mint green
                             icon-tint: #073919; // deep pine green
-                            title: "Battery";
+                            title: @tr("Battery");
                             subtitle: root.battery-status;
                             show-chevron: false;
                             is-first: false;
@@ -538,8 +538,8 @@ export component PageMain inherits Rectangle {
                             icon-name: "keyboard";
                             icon-bg: #80cbc4; // pastel teal
                             icon-tint: #004d40; // deep pine/teal
-                            title: "Keyboard";
-                            subtitle: "On-screen keyboard, physical keyboard";
+                            title: @tr("Keyboard");
+                            subtitle: @tr("On-screen keyboard, physical keyboard");
                             show-chevron: false;
                             is-first: true;
                             is-last: false;
@@ -550,7 +550,7 @@ export component PageMain inherits Rectangle {
                             icon-name: "info";
                             icon-bg: #d0bcff; // pastel lavender
                             icon-tint: #381e72; // deep violet
-                            title: "About phone";
+                            title: @tr("About phone");
                             subtitle: root.device-summary;
                             show-chevron: false;
                             is-first: false;

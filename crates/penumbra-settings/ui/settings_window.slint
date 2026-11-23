@@ -24,7 +24,7 @@ export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultDa
 // - Mobile Phone mode (width < 720px): Single-column tactile touch drilldown
 // - Desktop Convergence mode (width >= 720px): Two-column Master-Detail window
 export component SettingsWindow inherits Window {
-    title: "Penumbra Settings";
+    title: @tr("Penumbra Settings");
     no-frame: true;
     preferred-width: 412px;
     preferred-height: 841px;
@@ -122,6 +122,8 @@ export component SettingsWindow inherits Window {
     in-out property <bool> dynamic-monet: true;
     in-out property <bool> themed-icons: false;
     in-out property <string> icon-shape: "squircle";
+    in-out property <string> current-language: "en";
+    callback language-changed(string);
     in property <[WallpaperEntry]> wallpaper-list: [];
     in property <[string]> wallpaper-folders: [];
     in-out property <string> current-wallpaper-path: "";
@@ -560,6 +562,8 @@ export component SettingsWindow inherits Window {
                     storage-info: root.storage-info;
                     uptime-info: root.uptime-info;
                     compositor-info: root.compositor-info;
+                    current-language <=> root.current-language;
+                    language-changed(code) => { root.language-changed(code); }
                 }
 
                 if root.active-page == "keyboard": PageKeyboard {
@@ -842,6 +846,8 @@ export component SettingsWindow inherits Window {
                     storage-info: root.storage-info;
                     uptime-info: root.uptime-info;
                     compositor-info: root.compositor-info;
+                    current-language <=> root.current-language;
+                    language-changed(code) => { root.language-changed(code); }
                 }
 
                 if root.active-page == "keyboard": PageKeyboard {

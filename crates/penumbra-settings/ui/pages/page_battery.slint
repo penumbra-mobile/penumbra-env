@@ -81,7 +81,7 @@ export component PageBattery inherits Flickable {
                     }
 
                     Text {
-                        text: root.is-charging ? "Charging" : root.state-text;
+                        text: root.is-charging ? @tr("Charging") : root.state-text;
                         font-size: 13px;
                         color: Theme.on-surface-variant;
                         horizontal-alignment: left;
@@ -93,7 +93,7 @@ export component PageBattery inherits Flickable {
         // Power Profiles (Adapted from COSMIC Settings)
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Power profile"; }
+            SettingsSectionHeader { title: @tr("Power profile"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding-left: 12px;
@@ -121,14 +121,14 @@ export component PageBattery inherits Flickable {
                                 alignment: center;
                                 spacing: 2px;
                                 Text {
-                                    text: "Power Saver";
+                                    text: @tr("Power Saver");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? #073919 : Theme.on-surface;
                                     horizontal-alignment: center;
                                 }
                                 Text {
-                                    text: "Extend battery";
+                                    text: @tr("Extend battery");
                                     font-size: 10px;
                                     color: is-active ? #073919 : Theme.on-surface-variant;
                                     horizontal-alignment: center;
@@ -159,14 +159,14 @@ export component PageBattery inherits Flickable {
                                 alignment: center;
                                 spacing: 2px;
                                 Text {
-                                    text: "Balanced";
+                                    text: @tr("Balanced");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? Theme.on-primary : Theme.on-surface;
                                     horizontal-alignment: center;
                                 }
                                 Text {
-                                    text: "Standard";
+                                    text: @tr("Standard");
                                     font-size: 10px;
                                     color: is-active ? Theme.on-primary : Theme.on-surface-variant;
                                     horizontal-alignment: center;
@@ -197,14 +197,14 @@ export component PageBattery inherits Flickable {
                                 alignment: center;
                                 spacing: 2px;
                                 Text {
-                                    text: "Performance";
+                                    text: @tr("Performance");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? #491019 : Theme.on-surface;
                                     horizontal-alignment: center;
                                 }
                                 Text {
-                                    text: "Max speed";
+                                    text: @tr("Max speed");
                                     font-size: 10px;
                                     color: is-active ? #491019 : Theme.on-surface-variant;
                                     horizontal-alignment: center;
@@ -226,7 +226,7 @@ export component PageBattery inherits Flickable {
         // Battery Saver Toggle
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Power management"; }
+            SettingsSectionHeader { title: @tr("Power management"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
@@ -236,8 +236,8 @@ export component PageBattery inherits Flickable {
                         icon-name: "power";
                         icon-bg: #ffcc80;
                         icon-tint: #4e2600;
-                        title: "Battery Saver";
-                        subtitle: "Extends battery life by restricting background activity";
+                        title: @tr("Battery Saver");
+                        subtitle: @tr("Extends battery life by restricting background activity");
                         is-switch: true;
                         switch-checked: root.battery-saver;
                         is-first: true;
@@ -250,8 +250,8 @@ export component PageBattery inherits Flickable {
                         icon-name: "refresh";
                         icon-bg: #7dd8fc;
                         icon-tint: #00354e;
-                        title: "Adaptive Charging";
-                        subtitle: "Protects battery health during prolonged plug-in";
+                        title: @tr("Adaptive Charging");
+                        subtitle: @tr("Protects battery health during prolonged plug-in");
                         is-switch: true;
                         switch-checked: true;
                         is-first: false;
@@ -265,7 +265,7 @@ export component PageBattery inherits Flickable {
         // Battery Diagnostics
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Diagnostics & health"; }
+            SettingsSectionHeader { title: @tr("Diagnostics & health"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
@@ -275,7 +275,7 @@ export component PageBattery inherits Flickable {
                         icon-name: "info";
                         icon-bg: #a3e8b0;
                         icon-tint: #073919;
-                        title: "Battery health";
+                        title: @tr("Battery health");
                         subtitle: root.battery-health;
                         show-chevron: false;
                         is-first: true;
@@ -287,7 +287,7 @@ export component PageBattery inherits Flickable {
                         icon-name: "battery";
                         icon-bg: #d0bcff;
                         icon-tint: #381e72;
-                        title: "Battery hardware";
+                        title: @tr("Battery hardware");
                         subtitle: root.battery-model;
                         show-chevron: false;
                         is-first: false;

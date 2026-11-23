@@ -102,8 +102,8 @@ export component PageWifi inherits Rectangle {
                     icon-name: "wifi";
                     icon-bg: root.wifi-enabled ? #7dd8fc : #36343b;
                     icon-tint: root.wifi-enabled ? #00354e : #938f99;
-                    title: "Use Wi-Fi";
-                    subtitle: root.wifi-enabled ? "On" : "Off";
+                    title: @tr("Use Wi-Fi");
+                    subtitle: root.wifi-enabled ? @tr("On") : @tr("Off");
                     is-switch: true;
                     switch-checked: root.wifi-enabled;
                     show-divider: false;
@@ -144,7 +144,7 @@ export component PageWifi inherits Rectangle {
                                             padding-left: 10px;
                                             padding-right: 10px;
                                             Text {
-                                                text: root.connection-status == "authenticating" ? "Authenticating"
+                                                text: root.connection-status == "authenticating" ? @tr("Authenticating")
                                                     : root.connection-status == "configuring_ip" ? "Obtaining IP"
                                                     : root.connection-status == "connecting" ? "Connecting"
                                                     : root.connection-status == "disconnecting" ? "Disconnecting"
@@ -158,7 +158,7 @@ export component PageWifi inherits Rectangle {
                                         }
                                     }
                                     Text {
-                                        text: root.status-message != "" ? root.status-message : "Status update";
+                                        text: root.status-message != "" ? root.status-message : @tr("Status update");
                                         font-size: Theme.font-body;
                                         font-weight: 600;
                                         color: Theme.on-surface;
@@ -169,7 +169,7 @@ export component PageWifi inherits Rectangle {
                                 }
 
                                 if root.status-reason != "": Text {
-                                    text: "Reason: " + root.status-reason;
+                                    text: @tr("Reason: {}", root.status-reason);
                                     font-size: Theme.font-caption;
                                     color: root.connection-status == "failed" ? #ffb4ab : Theme.on-surface-variant;
                                     wrap: word-wrap;
@@ -187,7 +187,7 @@ export component PageWifi inherits Rectangle {
                                 border-radius: 16px;
                                 background: #5c2020;
                                 Text {
-                                    text: "Cancel";
+                                    text: @tr("Cancel");
                                     font-size: Theme.font-caption;
                                     font-weight: 700;
                                     color: #ffb4ab;
@@ -202,7 +202,7 @@ export component PageWifi inherits Rectangle {
                                 border-radius: 16px;
                                 background: Theme.primary;
                                 Text {
-                                    text: "Scan & Retry";
+                                    text: @tr("Scan & Retry");
                                     font-size: Theme.font-caption;
                                     font-weight: 700;
                                     color: Theme.on-primary;
@@ -222,7 +222,7 @@ export component PageWifi inherits Rectangle {
                                 border-radius: 16px;
                                 background: Theme.surface-highest;
                                 Text {
-                                    text: "Dismiss";
+                                    text: @tr("Dismiss");
                                     font-size: Theme.font-caption;
                                     font-weight: 600;
                                     color: Theme.on-surface;
@@ -242,7 +242,7 @@ export component PageWifi inherits Rectangle {
                 // Connected Network Card (with IPv4, Disconnect & Forget)
                 if root.connected-ssid != "": VerticalLayout {
                     spacing: 8px;
-                    SettingsSectionHeader { title: "Connected network"; }
+                    SettingsSectionHeader { title: @tr("Connected network"); }
                     SettingsSectionCard {
                         VerticalLayout {
                             padding: 14px;
@@ -276,7 +276,7 @@ export component PageWifi inherits Rectangle {
                                     border-radius: 16px;
                                     background: Theme.primary;
                                     Text {
-                                        text: "Details";
+                                        text: @tr("Details");
                                         font-size: Theme.font-caption;
                                         font-weight: 700;
                                         color: Theme.on-primary;
@@ -297,7 +297,7 @@ export component PageWifi inherits Rectangle {
                                     border-radius: 16px;
                                     background: Theme.surface-highest;
                                     Text {
-                                        text: "Disconnect";
+                                        text: @tr("Disconnect");
                                         font-size: Theme.font-caption;
                                         font-weight: 600;
                                         color: Theme.on-surface;
@@ -314,7 +314,7 @@ export component PageWifi inherits Rectangle {
                                     border-radius: 16px;
                                     background: #5c2020;
                                     Text {
-                                        text: "Forget";
+                                        text: @tr("Forget");
                                         font-size: Theme.font-caption;
                                         font-weight: 600;
                                         color: #ffb4ab;
@@ -335,7 +335,7 @@ export component PageWifi inherits Rectangle {
                     spacing: 8px;
                     HorizontalLayout {
                         alignment: space-between;
-                        SettingsSectionHeader { title: "Available networks"; }
+                        SettingsSectionHeader { title: @tr("Available networks"); }
                         Rectangle {
                             height: 28px;
                             border-radius: 14px;
@@ -346,7 +346,7 @@ export component PageWifi inherits Rectangle {
                                 padding-left: 12px;
                                 padding-right: 12px;
                                 Text {
-                                    text: "Rescan";
+                                    text: @tr("Rescan");
                                     font-size: 11px;
                                     font-weight: 700;
                                     color: Theme.primary;
@@ -365,8 +365,8 @@ export component PageWifi inherits Rectangle {
                                 icon-name: "refresh";
                                 icon-bg: #282a30;
                                 icon-tint: #938f99;
-                                title: "Scanning for networks...";
-                                subtitle: "Searching for available Wi-Fi access points";
+                                title: @tr("Scanning for networks...");
+                                subtitle: @tr("Searching for available Wi-Fi access points");
                                 show-chevron: false;
                                 is-first: true;
                                 is-last: true;
@@ -381,7 +381,7 @@ export component PageWifi inherits Rectangle {
                                 subtitle: (ap.ssid == root.connecting-ssid && (root.connection-status == "connecting" || root.connection-status == "authenticating" || root.connection-status == "configuring_ip"))
                                     ? root.status-message
                                     : (ap.saved ? "Saved • " : "") + ap.security + " • " + ap.signal + "% Signal";
-                                trailing-text: ap.connected ? "Active" : (ap.ssid == root.connecting-ssid && root.connection-status != "disconnected" && root.connection-status != "failed" ? "..." : (ap.saved ? "Saved" : ""));
+                                trailing-text: ap.connected ? @tr("Active") : (ap.ssid == root.connecting-ssid && root.connection-status != "disconnected" && root.connection-status != "failed" ? "..." : (ap.saved ? @tr("Saved") : ""));
                                 show-chevron: !ap.connected;
                                 is-first: idx == 0;
                                 is-last: idx == root.access-points.length - 1;
@@ -408,7 +408,7 @@ export component PageWifi inherits Rectangle {
                 // Saved Connections (GNOME Settings style)
                 if root.saved-networks.length > 0: VerticalLayout {
                     spacing: 8px;
-                    SettingsSectionHeader { title: "Saved networks"; }
+                    SettingsSectionHeader { title: @tr("Saved networks"); }
                     SettingsSectionCard {
                         VerticalLayout {
                             padding-top: 4px;
@@ -419,8 +419,8 @@ export component PageWifi inherits Rectangle {
                                 icon-bg: saved_ssid == root.connected-ssid ? Theme.primary-container : #282a30;
                                 icon-tint: saved_ssid == root.connected-ssid ? Theme.on-primary-container : #a8c7fa;
                                 title: saved_ssid;
-                                subtitle: saved_ssid == root.connected-ssid ? "Connected • Tap for details" : "Saved • Tap for details or forget";
-                                trailing-text: saved_ssid == root.connected-ssid ? "Active" : "Details";
+                                subtitle: saved_ssid == root.connected-ssid ? @tr("Connected • Tap for details") : @tr("Saved • Tap for details or forget");
+                                trailing-text: saved_ssid == root.connected-ssid ? @tr("Active") : @tr("Details");
                                 show-chevron: true;
                                 is-first: idx == 0;
                                 is-last: idx == root.saved-networks.length - 1;
@@ -438,7 +438,7 @@ export component PageWifi inherits Rectangle {
                 // Wi-Fi Hotspot & Tethering (GNOME Network Panel style)
                 VerticalLayout {
                     spacing: 8px;
-                    SettingsSectionHeader { title: "Hotspot & Tethering"; }
+                    SettingsSectionHeader { title: @tr("Hotspot & Tethering"); }
                     SettingsSectionCard {
                         VerticalLayout {
                             padding: 14px;
@@ -450,7 +450,7 @@ export component PageWifi inherits Rectangle {
                                     spacing: 2px;
                                     horizontal-stretch: 1;
                                     Text {
-                                        text: "Wi-Fi Hotspot";
+                                        text: @tr("Wi-Fi Hotspot");
                                         font-size: Theme.font-body;
                                         font-weight: 600;
                                         color: Theme.on-surface;
@@ -481,7 +481,7 @@ export component PageWifi inherits Rectangle {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 4px;
-                                    Text { text: "Network Name"; font-size: 11px; color: Theme.on-surface-variant; }
+                                    Text { text: @tr("Network Name"); font-size: 11px; color: Theme.on-surface-variant; }
                                     Rectangle {
                                         height: 36px;
                                         border-radius: 10px;
@@ -500,7 +500,7 @@ export component PageWifi inherits Rectangle {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 4px;
-                                    Text { text: "Password (8+ chars)"; font-size: 11px; color: Theme.on-surface-variant; }
+                                    Text { text: @tr("Password (8+ chars)"); font-size: 11px; color: Theme.on-surface-variant; }
                                     Rectangle {
                                         height: 36px;
                                         border-radius: 10px;
@@ -524,7 +524,7 @@ export component PageWifi inherits Rectangle {
                 // Wi-Fi Preferences
                 VerticalLayout {
                     spacing: 8px;
-                    SettingsSectionHeader { title: "Network preferences"; }
+                    SettingsSectionHeader { title: @tr("Network preferences"); }
                     SettingsSectionCard {
                         VerticalLayout {
                             padding-top: 4px;
@@ -534,8 +534,8 @@ export component PageWifi inherits Rectangle {
                                 icon-name: "refresh";
                                 icon-bg: #7dd8fc;
                                 icon-tint: #00354e;
-                                title: "Scan for networks";
-                                subtitle: "Trigger broadcast beacon discovery";
+                                title: @tr("Scan for networks");
+                                subtitle: @tr("Trigger broadcast beacon discovery");
                                 show-chevron: true;
                                 is-first: true;
                                 is-last: false;
@@ -547,7 +547,7 @@ export component PageWifi inherits Rectangle {
                                 icon-name: "network";
                                 icon-bg: #d0bcff;
                                 icon-tint: #381e72;
-                                title: "Wi-Fi MAC address";
+                                title: @tr("Wi-Fi MAC address");
                                 subtitle: root.wifi-mac;
                                 show-chevron: false;
                                 is-first: false;
@@ -606,7 +606,7 @@ export component PageWifi inherits Rectangle {
                         alignment: center;
                         spacing: 2px;
                         Text {
-                            text: "Connect to Network";
+                            text: @tr("Connect to Network");
                             font-size: 18px;
                             font-weight: 600;
                             color: Theme.on-surface;
@@ -621,7 +621,7 @@ export component PageWifi inherits Rectangle {
                 }
 
                 Text {
-                    text: "Enter authentication password for " + root.selected-ap-ssid + " (" + root.selected-ap-security + "):";
+                    text: @tr("Enter authentication password for {} ({}):", root.selected-ap-ssid, root.selected-ap-security);
                     font-size: 13px;
                     color: Theme.on-surface-variant;
                     wrap: word-wrap;
@@ -701,7 +701,7 @@ export component PageWifi inherits Rectangle {
                         background: cancel-btn-touch.pressed ? #323038 : transparent;
 
                         Text {
-                            text: "Cancel";
+                            text: @tr("Cancel");
                             font-size: 14px;
                             font-weight: 500;
                             color: #a8c7fa;
@@ -725,7 +725,7 @@ export component PageWifi inherits Rectangle {
                         background: root.entered-password != "" ? (conn-btn-touch.pressed ? #92dcfc : #7dd8fc) : #323038;
 
                         Text {
-                            text: "Connect";
+                            text: @tr("Connect");
                             font-size: 14px;
                             font-weight: 600;
                             color: root.entered-password != "" ? #00354e : #726f78;
@@ -797,9 +797,9 @@ export component PageWifi inherits Rectangle {
 
                         HorizontalLayout {
                             alignment: space-between;
-                            Text { text: "Status"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text { text: @tr("Status"); font-size: Theme.font-caption; color: Theme.on-surface-variant; }
                             Text {
-                                text: root.details-is-connected ? "Connected" : "Saved";
+                                text: root.details-is-connected ? @tr("Connected") : @tr("Saved");
                                 font-size: Theme.font-caption;
                                 font-weight: 600;
                                 color: root.details-is-connected ? Theme.primary : Theme.on-surface;
@@ -807,7 +807,7 @@ export component PageWifi inherits Rectangle {
                         }
                         if root.details-is-connected: HorizontalLayout {
                             alignment: space-between;
-                            Text { text: "Signal strength"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text { text: @tr("Signal strength"); font-size: Theme.font-caption; color: Theme.on-surface-variant; }
                             Text {
                                 text: root.signal-strength + "%";
                                 font-size: Theme.font-caption;
@@ -817,7 +817,7 @@ export component PageWifi inherits Rectangle {
                         }
                         if root.details-is-connected && root.ip-address != "": HorizontalLayout {
                             alignment: space-between;
-                            Text { text: "IPv4 address"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text { text: @tr("IPv4 address"); font-size: Theme.font-caption; color: Theme.on-surface-variant; }
                             Text {
                                 text: root.ip-address;
                                 font-size: Theme.font-caption;
@@ -827,7 +827,7 @@ export component PageWifi inherits Rectangle {
                         }
                         HorizontalLayout {
                             alignment: space-between;
-                            Text { text: "Hardware MAC"; font-size: Theme.font-caption; color: Theme.on-surface-variant; }
+                            Text { text: @tr("Hardware MAC"); font-size: Theme.font-caption; color: Theme.on-surface-variant; }
                             Text {
                                 text: root.wifi-mac;
                                 font-size: Theme.font-caption;
@@ -847,7 +847,7 @@ export component PageWifi inherits Rectangle {
                         border-radius: 18px;
                         background: Theme.primary;
                         Text {
-                            text: "Connect";
+                            text: @tr("Connect");
                             font-size: Theme.font-caption;
                             font-weight: 700;
                             color: Theme.on-primary;
@@ -868,7 +868,7 @@ export component PageWifi inherits Rectangle {
                         border-radius: 18px;
                         background: Theme.surface-highest;
                         Text {
-                            text: "Disconnect";
+                            text: @tr("Disconnect");
                             font-size: Theme.font-caption;
                             font-weight: 600;
                             color: Theme.on-surface;
@@ -889,7 +889,7 @@ export component PageWifi inherits Rectangle {
                         border-radius: 18px;
                         background: #5c2020;
                         Text {
-                            text: "Forget";
+                            text: @tr("Forget");
                             font-size: Theme.font-caption;
                             font-weight: 600;
                             color: #ffb4ab;
@@ -910,7 +910,7 @@ export component PageWifi inherits Rectangle {
                     border-radius: 17px;
                     background: transparent;
                     Text {
-                        text: "Close";
+                        text: @tr("Close");
                         font-size: Theme.font-caption;
                         font-weight: 600;
                         color: Theme.primary;

@@ -247,7 +247,7 @@ export component PageAppearance inherits Rectangle {
                                         color: root.dark-theme ? #ffffff : #1a1b20;
                                     }
                                     Text {
-                                        text: root.dynamic-monet ? "Dynamic Monet" : "Custom palette";
+                                        text: root.dynamic-monet ? @tr("Dynamic Monet") : @tr("Custom palette");
                                         font-size: 11px;
                                         font-weight: 600;
                                         color: root.preview-accent;
@@ -273,7 +273,7 @@ export component PageAppearance inherits Rectangle {
                                             icon-color: root.preview-on-accent;
                                         }
                                         Text {
-                                            text: "Wi-Fi";
+                                            text: @tr("Wi-Fi");
                                             font-size: 11px;
                                             font-weight: 700;
                                             color: root.preview-on-accent;
@@ -332,7 +332,7 @@ export component PageAppearance inherits Rectangle {
             // 2. Monet Color Palette
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Colors"; }
+                SettingsSectionHeader { title: @tr("Colors"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -340,8 +340,8 @@ export component PageAppearance inherits Rectangle {
                         spacing: 12px;
 
                         SettingsTile {
-                            title: "Dynamic Monet";
-                            subtitle: "Extract Material 3 Expressive tones from wallpaper";
+                            title: @tr("Dynamic Monet");
+                            subtitle: @tr("Extract Material 3 Expressive tones from wallpaper");
                             is-switch: true;
                             switch-checked <=> root.dynamic-monet;
                             is-first: true;
@@ -414,15 +414,15 @@ export component PageAppearance inherits Rectangle {
             // 3. Theme & Icons
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Theme & icons"; }
+                SettingsSectionHeader { title: @tr("Theme & icons"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
                         padding-bottom: 4px;
 
                         SettingsTile {
-                            title: "Dark theme";
-                            subtitle: "OLED pitch-black surfaces and tinted containers";
+                            title: @tr("Dark theme");
+                            subtitle: @tr("OLED pitch-black surfaces and tinted containers");
                             is-switch: true;
                             switch-checked <=> root.dark-theme;
                             is-first: true;
@@ -432,8 +432,8 @@ export component PageAppearance inherits Rectangle {
                         }
 
                         SettingsTile {
-                            title: "Themed icons";
-                            subtitle: "Apply Monet accent colors to supported app icons";
+                            title: @tr("Themed icons");
+                            subtitle: @tr("Apply Monet accent colors to supported app icons");
                             is-switch: true;
                             switch-checked <=> root.themed-icons;
                             is-first: false;
@@ -448,7 +448,7 @@ export component PageAppearance inherits Rectangle {
             // 4. App Icon Shape (All Material 3 Expressive Shapes)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Icon shape (Material 3 Expressive)"; }
+                SettingsSectionHeader { title: @tr("Icon shape (Material 3 Expressive)"); }
                 SettingsSectionCard {
                     VerticalLayout {
                         padding: 12px;
@@ -458,7 +458,7 @@ export component PageAppearance inherits Rectangle {
                             spacing: 8px;
 
                             ShapeOptionChip {
-                                label: "Squircle";
+                                label: @tr("Squircle");
                                 preview-radius: 9px;
                                 selected: root.icon-shape == "squircle";
                                 accent: root.preview-accent;
@@ -469,7 +469,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Circle";
+                                label: @tr("Circle");
                                 preview-radius: 14px;
                                 selected: root.icon-shape == "circle";
                                 accent: root.preview-accent;
@@ -480,7 +480,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Rounded";
+                                label: @tr("Rounded");
                                 preview-radius: 6px;
                                 selected: root.icon-shape == "rounded";
                                 accent: root.preview-accent;
@@ -491,7 +491,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Pill";
+                                label: @tr("Pill");
                                 preview-radius: 11px;
                                 is-pill: true;
                                 selected: root.icon-shape == "pill";
@@ -508,7 +508,7 @@ export component PageAppearance inherits Rectangle {
                             spacing: 8px;
 
                             ShapeOptionChip {
-                                label: "Clover";
+                                label: @tr("Clover");
                                 is-path: true;
                                 path-commands: "M 50 6 C 72 6 86 18 86 36 C 96 44 96 56 86 64 C 86 82 72 94 50 94 C 28 94 14 82 14 64 C 4 56 4 44 14 36 C 14 18 28 6 50 6 Z";
                                 selected: root.icon-shape == "clover";
@@ -520,7 +520,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Flower";
+                                label: @tr("Flower");
                                 is-path: true;
                                 path-commands: "M 50 4 C 58 4 64 10 68 14 C 74 12 84 16 86 24 C 92 28 96 36 92 44 C 96 50 96 58 92 64 C 96 72 90 82 82 84 C 78 92 70 96 62 92 C 56 96 44 96 38 92 C 30 96 22 92 18 84 C 10 82 4 72 8 64 C 4 58 4 50 8 44 C 4 36 8 28 14 24 C 16 16 26 12 32 14 C 36 10 42 4 50 4 Z";
                                 selected: root.icon-shape == "flower";
@@ -532,7 +532,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Arch";
+                                label: @tr("Arch");
                                 is-path: true;
                                 path-commands: "M 50 6 C 76 6 94 24 94 50 L 94 82 C 94 90 88 94 80 94 L 20 94 C 12 94 6 90 6 82 L 6 50 C 6 24 24 6 50 6 Z";
                                 selected: root.icon-shape == "arch";
@@ -544,7 +544,7 @@ export component PageAppearance inherits Rectangle {
                                 }
                             }
                             ShapeOptionChip {
-                                label: "Diamond";
+                                label: @tr("Diamond");
                                 is-path: true;
                                 path-commands: "M 50 4 C 56 4 62 8 68 14 L 86 32 C 92 38 96 44 96 50 C 96 56 92 62 86 68 L 68 86 C 62 92 56 96 50 96 C 44 96 38 92 32 86 L 14 68 C 8 62 4 56 4 50 C 4 44 8 38 14 32 L 32 14 C 38 8 44 4 50 4 Z";
                                 selected: root.icon-shape == "diamond";
@@ -565,7 +565,7 @@ export component PageAppearance inherits Rectangle {
                 spacing: 8px;
                 HorizontalLayout {
                     alignment: space-between;
-                    SettingsSectionHeader { title: "Wallpaper"; }
+                    SettingsSectionHeader { title: @tr("Wallpaper"); }
                     HorizontalLayout {
                         spacing: 8px;
                         Rectangle {
@@ -578,7 +578,7 @@ export component PageAppearance inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "Rescan";
+                                    text: @tr("Rescan");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: Theme.primary;
@@ -595,7 +595,7 @@ export component PageAppearance inherits Rectangle {
                                 padding-left: 10px;
                                 padding-right: 10px;
                                 Text {
-                                    text: "Clear";
+                                    text: @tr("Clear");
                                     font-size: 11px;
                                     font-weight: 600;
                                     color: #ffb4ab;
@@ -616,7 +616,7 @@ export component PageAppearance inherits Rectangle {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "Search folders (" + root.wallpaper-folders.length + ")";
+                                text: @tr("Search folders ({})", root.wallpaper-folders.length);
                                 font-size: 12px;
                                 font-weight: 600;
                                 color: Theme.on-surface-variant;
@@ -630,7 +630,7 @@ export component PageAppearance inherits Rectangle {
                                     padding-left: 12px;
                                     padding-right: 12px;
                                     Text {
-                                        text: "+ Add folder";
+                                        text: @tr("+ Add folder");
                                         font-size: 11px;
                                         font-weight: 700;
                                         color: root.preview-on-accent;
@@ -693,7 +693,7 @@ export component PageAppearance inherits Rectangle {
                             border-radius: 16px;
                             background: Theme.surface-low;
                             Text {
-                                text: "No wallpapers found in configured folders.\nAdd /usr/share/backgrounds or ~/Pictures.";
+                                text: @tr("No wallpapers found in configured folders.\nAdd /usr/share/backgrounds or ~/Pictures.");
                                 font-size: 12px;
                                 color: Theme.on-surface-variant;
                                 horizontal-alignment: center;
@@ -799,7 +799,7 @@ export component PageAppearance inherits Rectangle {
                 spacing: 12px;
 
                 Text {
-                    text: "Add wallpaper folder";
+                    text: @tr("Add wallpaper folder");
                     font-size: Theme.font-title;
                     font-weight: 700;
                     color: Theme.on-surface;
@@ -831,7 +831,7 @@ export component PageAppearance inherits Rectangle {
                         border-radius: 13px;
                         background: Theme.surface-highest;
                         Text {
-                            text: preset == "/usr/share/backgrounds" ? "GNOME Sys" : (preset == "~/.local/share/backgrounds" ? "GNOME User" : "Pictures");
+                            text: preset == "/usr/share/backgrounds" ? @tr("GNOME Sys") : (preset == "~/.local/share/backgrounds" ? @tr("GNOME User") : @tr("Pictures"));
                             font-size: 10px;
                             font-weight: 600;
                             color: Theme.on-surface;
@@ -852,7 +852,7 @@ export component PageAppearance inherits Rectangle {
                         border-radius: 19px;
                         background: Theme.surface-highest;
                         Text {
-                            text: "Cancel";
+                            text: @tr("Cancel");
                             font-size: 13px;
                             font-weight: 600;
                             color: Theme.on-surface;
@@ -867,7 +867,7 @@ export component PageAppearance inherits Rectangle {
                         border-radius: 19px;
                         background: root.preview-accent;
                         Text {
-                            text: "Add folder";
+                            text: @tr("Add folder");
                             font-size: 13px;
                             font-weight: 700;
                             color: root.preview-on-accent;

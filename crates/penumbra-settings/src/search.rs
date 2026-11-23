@@ -439,6 +439,13 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         target_page: "security",
         keywords: "sensitive notifications hide privacy lockscreen content alert",
     },
+    SearchEntry {
+        category: "System",
+        title: "System language",
+        breadcrumb: "About Device > System language",
+        target_page: "about",
+        keywords: "language locale translation i18n english romanian german french spanish italian limba",
+    },
 ];
 
 /// Curated suggestions across all categories shown before the user types.

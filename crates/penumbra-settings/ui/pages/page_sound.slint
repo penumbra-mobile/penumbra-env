@@ -146,7 +146,7 @@ export component PageSound inherits Flickable {
         // Audio Output Routing & Mute (Adapted from COSMIC Settings)
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Sound output & routing"; }
+            SettingsSectionHeader { title: @tr("Sound output & routing"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding-left: 12px;
@@ -181,7 +181,7 @@ export component PageSound inherits Flickable {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "Speaker";
+                                    text: @tr("Speaker");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? Theme.on-primary : Theme.on-surface;
@@ -219,7 +219,7 @@ export component PageSound inherits Flickable {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "Headset";
+                                    text: @tr("Headset");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? Theme.on-primary : Theme.on-surface;
@@ -257,7 +257,7 @@ export component PageSound inherits Flickable {
                                     y: (parent.height - self.height) / 2;
                                 }
                                 Text {
-                                    text: "HDMI / TV";
+                                    text: @tr("HDMI / TV");
                                     font-size: 13px;
                                     font-weight: is-active ? 700 : 500;
                                     color: is-active ? Theme.on-primary : Theme.on-surface;
@@ -284,8 +284,8 @@ export component PageSound inherits Flickable {
                         icon-name: "sound";
                         icon-bg: root.output-muted ? #ffb4a9 : #a8c7fa;
                         icon-tint: root.output-muted ? #680003 : #042b59;
-                        title: "Mute output";
-                        subtitle: root.output-muted ? "Audio muted" : "Playing audio normally";
+                        title: @tr("Mute output");
+                        subtitle: root.output-muted ? @tr("Audio muted") : @tr("Playing audio normally");
                         is-switch: true;
                         switch-checked: root.output-muted;
                         show-divider: false;
@@ -303,29 +303,29 @@ export component PageSound inherits Flickable {
         // Volume Sliders
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Volume channels"; }
+            SettingsSectionHeader { title: @tr("Volume channels"); }
             VerticalLayout {
                 spacing: 8px;
                 VolumeSliderCard {
-                    label: "Media volume";
+                    label: @tr("Media volume");
                     icon: "sound";
                     value <=> root.media-volume;
                     changed(v) => { root.media-volume-changed(v); }
                 }
                 VolumeSliderCard {
-                    label: "Call volume";
+                    label: @tr("Call volume");
                     icon: "sound";
                     value <=> root.call-volume;
                     changed(v) => { root.call-volume-changed(v); }
                 }
                 VolumeSliderCard {
-                    label: "Ring & notifications";
+                    label: @tr("Ring & notifications");
                     icon: "sound";
                     value <=> root.ring-volume;
                     changed(v) => { root.ring-volume-changed(v); }
                 }
                 VolumeSliderCard {
-                    label: "Microphone input";
+                    label: @tr("Microphone input");
                     icon: "notifications";
                     value <=> root.mic-volume;
                     changed(v) => { root.mic-volume-changed(v); }
@@ -336,7 +336,7 @@ export component PageSound inherits Flickable {
         // Do Not Disturb & Vibration
         VerticalLayout {
             spacing: 8px;
-            SettingsSectionHeader { title: "Modes & feedback"; }
+            SettingsSectionHeader { title: @tr("Modes & feedback"); }
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
@@ -346,8 +346,8 @@ export component PageSound inherits Flickable {
                         icon-name: "dnd";
                         icon-bg: #e8b4cb;
                         icon-tint: #3b1424;
-                        title: "Do Not Disturb";
-                        subtitle: root.dnd-enabled ? "On" : "Off";
+                        title: @tr("Do Not Disturb");
+                        subtitle: root.dnd-enabled ? @tr("On") : @tr("Off");
                         is-switch: true;
                         switch-checked: root.dnd-enabled;
                         is-first: true;
@@ -359,8 +359,8 @@ export component PageSound inherits Flickable {
                         icon-name: "sound";
                         icon-bg: #ffcc80;
                         icon-tint: #4e2600;
-                        title: "Vibrate for calls";
-                        subtitle: root.vibrate-for-calls ? "Always vibrate" : "Never vibrate";
+                        title: @tr("Vibrate for calls");
+                        subtitle: root.vibrate-for-calls ? @tr("Always vibrate") : @tr("Never vibrate");
                         is-switch: true;
                         switch-checked: root.vibrate-for-calls;
                         is-first: false;
