@@ -30,6 +30,7 @@ pub mod keyboard_backend;
 mod routes;
 mod search;
 mod system_info;
+mod wallpaper;
 
 use std::str::FromStr;
 use std::sync::Arc;

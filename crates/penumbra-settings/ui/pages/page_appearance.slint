@@ -43,9 +43,20 @@ component AccentSwatch inherits Rectangle {
     }
 }
 
+export struct WallpaperEntry {
+    path: string,
+    name: string,
+    folder: string,
+    thumbnail: image,
+    has-thumbnail: bool,
+}
+
 component ShapeOptionChip inherits Rectangle {
     in property <string> label;
-    in property <length> preview-radius;
+    in property <length> preview-radius: 10px;
+    in property <bool> is-pill: false;
+    in property <bool> is-path: false;
+    in property <string> path-commands: "";
     in property <bool> selected: false;
     in property <color> accent;
     in property <color> on-accent;
@@ -69,15 +80,42 @@ component ShapeOptionChip inherits Rectangle {
         spacing: 6px;
 
         Rectangle {
-            width: 28px;
-            height: 28px;
-            border-radius: root.preview-radius;
-            background: root.selected ? root.accent : Theme.surface-highest;
+            width: 30px;
+            height: 30px;
             x: (parent.width - self.width) / 2;
+            background: transparent;
 
-            if root.selected: Icon {
+            if !root.is-path: Rectangle {
+                width: 28px;
+                height: root.is-pill ? 22px : 28px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                border-radius: root.preview-radius;
+                background: root.selected ? root.accent : Theme.surface-highest;
+
+                if root.selected: Icon {
+                    name: "palette";
+                    icon-size: 13px;
+                    icon-color: root.on-accent;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+            }
+
+            if root.is-path: Path {
+                width: 28px;
+                height: 28px;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                viewbox-width: 100;
+                viewbox-height: 100;
+                commands: root.path-commands;
+                fill: root.selected ? root.accent : Theme.surface-highest;
+            }
+
+            if root.is-path && root.selected: Icon {
                 name: "palette";
-                icon-size: 14px;
+                icon-size: 13px;
                 icon-color: root.on-accent;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
@@ -86,7 +124,7 @@ component ShapeOptionChip inherits Rectangle {
 
         Text {
             text: root.label;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: root.selected ? 700 : 500;
             color: root.selected ? root.accent : Theme.on-surface-variant;
             horizontal-alignment: center;
@@ -102,13 +140,24 @@ export component PageAppearance inherits Rectangle {
     in-out property <bool> dark-theme: true;
     in-out property <bool> dynamic-monet: true;
     in-out property <bool> themed-icons: false;
-    in-out property <string> icon-shape: "squircle"; // "squircle", "circle", "rounded"
+    in-out property <string> icon-shape: "squircle"; // "squircle", "circle", "rounded", "pill", "clover", "flower", "arch", "diamond"
+
+    in property <[WallpaperEntry]> wallpaper-list: [];
+    in property <[string]> wallpaper-folders: [];
+    in-out property <string> current-wallpaper-path: "";
+    in-out property <bool> show-add-folder-dialog: false;
+    in-out property <string> folder-input-path: "";
 
     callback accent-color-changed(string);
     callback toggle-dark-theme(bool);
     callback toggle-dynamic-monet(bool);
     callback toggle-themed-icons(bool);
     callback icon-shape-changed(string);
+    callback select-wallpaper(string);
+    callback clear-wallpaper();
+    callback add-wallpaper-folder(string);
+    callback remove-wallpaper-folder(string);
+    callback rescan-wallpapers();
 
     property <color> preview-accent:
         root.accent-color == "lavender" ? #d0bcff :
@@ -124,10 +173,20 @@ export component PageAppearance inherits Rectangle {
         root.accent-color == "amber" ? #4e2600 :
         #00354e;
 
+    property <bool> preview-is-path:
+        root.icon-shape == "clover" || root.icon-shape == "flower" || root.icon-shape == "arch" || root.icon-shape == "diamond";
+
     property <length> preview-icon-radius:
         root.icon-shape == "circle" ? 18px :
-        root.icon-shape == "rounded" ? 10px :
-        14px;
+        root.icon-shape == "pill" ? 14px :
+        root.icon-shape == "rounded" ? 8px :
+        12px;
+
+    property <string> preview-icon-path:
+        root.icon-shape == "clover" ? "M 50 6 C 72 6 86 18 86 36 C 96 44 96 56 86 64 C 86 82 72 94 50 94 C 28 94 14 82 14 64 C 4 56 4 44 14 36 C 14 18 28 6 50 6 Z" :
+        root.icon-shape == "flower" ? "M 50 4 C 58 4 64 10 68 14 C 74 12 84 16 86 24 C 92 28 96 36 92 44 C 96 50 96 58 92 64 C 96 72 90 82 82 84 C 78 92 70 96 62 92 C 56 96 44 96 38 92 C 30 96 22 92 18 84 C 10 82 4 72 8 64 C 4 58 4 50 8 44 C 4 36 8 28 14 24 C 16 16 26 12 32 14 C 36 10 42 4 50 4 Z" :
+        root.icon-shape == "arch" ? "M 50 6 C 76 6 94 24 94 50 L 94 82 C 94 90 88 94 80 94 L 20 94 C 12 94 6 90 6 82 L 6 50 C 6 24 24 6 50 6 Z" :
+        "M 50 4 C 56 4 62 8 68 14 L 86 32 C 92 38 96 44 96 50 C 96 56 92 62 86 68 L 68 86 C 62 92 56 96 50 96 C 44 96 38 92 32 86 L 14 68 C 8 62 4 56 4 50 C 4 44 8 38 14 32 L 32 14 C 38 8 44 4 50 4 Z";
 
     background: Theme.base-surface;
 
@@ -239,12 +298,21 @@ export component PageAppearance inherits Rectangle {
 
                                     for ic in ["wifi", "sound", "palette", "settings"]: Rectangle {
                                         width: 36px;
-                                        height: 36px;
+                                        height: root.icon-shape == "pill" ? 28px : 36px;
                                         y: (parent.height - self.height) / 2;
                                         border-radius: root.preview-icon-radius;
-                                        background: root.themed-icons ? root.preview-accent : (root.dark-theme ? #36343b : #ffffff);
+                                        background: root.preview-is-path ? transparent : (root.themed-icons ? root.preview-accent : (root.dark-theme ? #36343b : #ffffff));
 
                                         animate border-radius, background { duration: 180ms; }
+
+                                        if root.preview-is-path: Path {
+                                            width: 100%;
+                                            height: 100%;
+                                            viewbox-width: 100;
+                                            viewbox-height: 100;
+                                            commands: root.preview-icon-path;
+                                            fill: root.themed-icons ? root.preview-accent : (root.dark-theme ? #36343b : #ffffff);
+                                        }
 
                                         Icon {
                                             name: ic;
@@ -377,46 +445,441 @@ export component PageAppearance inherits Rectangle {
                 }
             }
 
-            // 4. App Icon Shape
+            // 4. App Icon Shape (All Material 3 Expressive Shapes)
             VerticalLayout {
                 spacing: 8px;
-                SettingsSectionHeader { title: "Icon shape"; }
+                SettingsSectionHeader { title: "Icon shape (Material 3 Expressive)"; }
                 SettingsSectionCard {
-                    HorizontalLayout {
+                    VerticalLayout {
                         padding: 12px;
                         spacing: 10px;
 
-                        ShapeOptionChip {
-                            label: "Squircle";
-                            preview-radius: 9px;
-                            selected: root.icon-shape == "squircle";
-                            accent: root.preview-accent;
-                            on-accent: root.preview-on-accent;
-                            clicked => {
-                                root.icon-shape = "squircle";
-                                root.icon-shape-changed("squircle");
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            ShapeOptionChip {
+                                label: "Squircle";
+                                preview-radius: 9px;
+                                selected: root.icon-shape == "squircle";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "squircle";
+                                    root.icon-shape-changed("squircle");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Circle";
+                                preview-radius: 14px;
+                                selected: root.icon-shape == "circle";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "circle";
+                                    root.icon-shape-changed("circle");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Rounded";
+                                preview-radius: 6px;
+                                selected: root.icon-shape == "rounded";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "rounded";
+                                    root.icon-shape-changed("rounded");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Pill";
+                                preview-radius: 11px;
+                                is-pill: true;
+                                selected: root.icon-shape == "pill";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "pill";
+                                    root.icon-shape-changed("pill");
+                                }
                             }
                         }
-                        ShapeOptionChip {
-                            label: "Circle";
-                            preview-radius: 14px;
-                            selected: root.icon-shape == "circle";
-                            accent: root.preview-accent;
-                            on-accent: root.preview-on-accent;
-                            clicked => {
-                                root.icon-shape = "circle";
-                                root.icon-shape-changed("circle");
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            ShapeOptionChip {
+                                label: "Clover";
+                                is-path: true;
+                                path-commands: "M 50 6 C 72 6 86 18 86 36 C 96 44 96 56 86 64 C 86 82 72 94 50 94 C 28 94 14 82 14 64 C 4 56 4 44 14 36 C 14 18 28 6 50 6 Z";
+                                selected: root.icon-shape == "clover";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "clover";
+                                    root.icon-shape-changed("clover");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Flower";
+                                is-path: true;
+                                path-commands: "M 50 4 C 58 4 64 10 68 14 C 74 12 84 16 86 24 C 92 28 96 36 92 44 C 96 50 96 58 92 64 C 96 72 90 82 82 84 C 78 92 70 96 62 92 C 56 96 44 96 38 92 C 30 96 22 92 18 84 C 10 82 4 72 8 64 C 4 58 4 50 8 44 C 4 36 8 28 14 24 C 16 16 26 12 32 14 C 36 10 42 4 50 4 Z";
+                                selected: root.icon-shape == "flower";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "flower";
+                                    root.icon-shape-changed("flower");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Arch";
+                                is-path: true;
+                                path-commands: "M 50 6 C 76 6 94 24 94 50 L 94 82 C 94 90 88 94 80 94 L 20 94 C 12 94 6 90 6 82 L 6 50 C 6 24 24 6 50 6 Z";
+                                selected: root.icon-shape == "arch";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "arch";
+                                    root.icon-shape-changed("arch");
+                                }
+                            }
+                            ShapeOptionChip {
+                                label: "Diamond";
+                                is-path: true;
+                                path-commands: "M 50 4 C 56 4 62 8 68 14 L 86 32 C 92 38 96 44 96 50 C 96 56 92 62 86 68 L 68 86 C 62 92 56 96 50 96 C 44 96 38 92 32 86 L 14 68 C 8 62 4 56 4 50 C 4 44 8 38 14 32 L 32 14 C 38 8 44 4 50 4 Z";
+                                selected: root.icon-shape == "diamond";
+                                accent: root.preview-accent;
+                                on-accent: root.preview-on-accent;
+                                clicked => {
+                                    root.icon-shape = "diamond";
+                                    root.icon-shape-changed("diamond");
+                                }
                             }
                         }
-                        ShapeOptionChip {
-                            label: "Rounded";
-                            preview-radius: 6px;
-                            selected: root.icon-shape == "rounded";
-                            accent: root.preview-accent;
-                            on-accent: root.preview-on-accent;
+                    }
+                }
+            }
+
+            // 5. GNOME-Compatible Multi-Folder Wallpaper Chooser
+            VerticalLayout {
+                spacing: 8px;
+                HorizontalLayout {
+                    alignment: space-between;
+                    SettingsSectionHeader { title: "Wallpaper"; }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 14px;
+                            background: Theme.surface-container-high;
+                            border-width: 1px;
+                            border-color: Theme.specular-rim;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "Rescan";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea { clicked => { root.rescan-wallpapers(); } }
+                        }
+                        if root.current-wallpaper-path != "": Rectangle {
+                            height: 28px;
+                            border-radius: 14px;
+                            background: #5c2020;
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                Text {
+                                    text: "Clear";
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: #ffb4ab;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea { clicked => { root.clear-wallpaper(); } }
+                        }
+                    }
+                }
+
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 12px;
+
+                        // Search Folders (GNOME & Custom Multi-Folder)
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Search folders (" + root.wallpaper-folders.length + ")";
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: Theme.on-surface-variant;
+                                vertical-alignment: center;
+                            }
+                            Rectangle {
+                                height: 28px;
+                                border-radius: 14px;
+                                background: root.preview-accent;
+                                HorizontalLayout {
+                                    padding-left: 12px;
+                                    padding-right: 12px;
+                                    Text {
+                                        text: "+ Add folder";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: root.preview-on-accent;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.folder-input-path = "~/.local/share/backgrounds";
+                                        root.show-add-folder-dialog = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            for folder in root.wallpaper-folders: Rectangle {
+                                height: 34px;
+                                border-radius: 12px;
+                                background: Theme.surface-low;
+                                border-width: 1px;
+                                border-color: #ffffff14;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 8px;
+                                    spacing: 8px;
+                                    Text {
+                                        text: folder;
+                                        font-size: 11px;
+                                        color: Theme.on-surface;
+                                        overflow: elide;
+                                        vertical-alignment: center;
+                                        horizontal-stretch: 1;
+                                    }
+                                    Rectangle {
+                                        width: 24px;
+                                        height: 24px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: 12px;
+                                        background: Theme.surface-highest;
+                                        Text {
+                                            text: "×";
+                                            font-size: 13px;
+                                            font-weight: 700;
+                                            color: Theme.on-surface-variant;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                        TouchArea {
+                                            clicked => { root.remove-wallpaper-folder(folder); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.wallpaper-list.length == 0: Rectangle {
+                            height: 64px;
+                            border-radius: 16px;
+                            background: Theme.surface-low;
+                            Text {
+                                text: "No wallpapers found in configured folders.\nAdd /usr/share/backgrounds or ~/Pictures.";
+                                font-size: 12px;
+                                color: Theme.on-surface-variant;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // 3-Column Wallpaper Thumbnail Grid
+                        if root.wallpaper-list.length > 0: VerticalLayout {
+                            spacing: 8px;
+                            property <int> num-rows: Math.ceil(root.wallpaper-list.length / 3);
+                            for row_idx in self.num-rows: HorizontalLayout {
+                                spacing: 8px;
+                                for col_idx in 3: wp-cell := Rectangle {
+                                    property <int> item-idx: row_idx * 3 + col_idx;
+                                    horizontal-stretch: 1;
+                                    height: 116px;
+                                    border-radius: 16px;
+                                    clip: true;
+                                    background: wp-cell.item-idx < root.wallpaper-list.length ? Theme.surface-low : transparent;
+                                    border-width: (wp-cell.item-idx < root.wallpaper-list.length && root.wallpaper-list[wp-cell.item-idx].path == root.current-wallpaper-path) ? 2.5px : (wp-cell.item-idx < root.wallpaper-list.length ? 1px : 0px);
+                                    border-color: (wp-cell.item-idx < root.wallpaper-list.length && root.wallpaper-list[wp-cell.item-idx].path == root.current-wallpaper-path) ? root.preview-accent : #ffffff18;
+
+                                    if wp-cell.item-idx < root.wallpaper-list.length && root.wallpaper-list[wp-cell.item-idx].has-thumbnail: Image {
+                                        width: 100%;
+                                        height: 100%;
+                                        source: root.wallpaper-list[wp-cell.item-idx].thumbnail;
+                                        image-fit: cover;
+                                    }
+
+                                    if wp-cell.item-idx < root.wallpaper-list.length: Rectangle {
+                                        y: parent.height - 24px;
+                                        width: 100%;
+                                        height: 24px;
+                                        background: #0b0a0ecc;
+                                        Text {
+                                            x: 6px;
+                                            width: parent.width - 12px;
+                                            height: 100%;
+                                            text: root.wallpaper-list[wp-cell.item-idx].name;
+                                            font-size: 10px;
+                                            font-weight: 600;
+                                            color: #ffffff;
+                                            overflow: elide;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    if wp-cell.item-idx < root.wallpaper-list.length && root.wallpaper-list[wp-cell.item-idx].path == root.current-wallpaper-path: Rectangle {
+                                        x: parent.width - 24px;
+                                        y: 6px;
+                                        width: 18px;
+                                        height: 18px;
+                                        border-radius: 9px;
+                                        background: root.preview-accent;
+                                        Text {
+                                            text: "✓";
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: root.preview-on-accent;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    if wp-cell.item-idx < root.wallpaper-list.length: TouchArea {
+                                        clicked => {
+                                            root.current-wallpaper-path = root.wallpaper-list[wp-cell.item-idx].path;
+                                            root.select-wallpaper(root.wallpaper-list[wp-cell.item-idx].path);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Add Wallpaper Folder Modal Dialog
+    if root.show-add-folder-dialog: Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 100%;
+        height: 100%;
+        background: #000000aa;
+
+        TouchArea {}
+
+        Rectangle {
+            width: Math.min(360px, parent.width - 32px);
+            height: 280px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 28px;
+            background: Theme.surface-container-high;
+            border-width: 1px;
+            border-color: Theme.specular-rim;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+
+                Text {
+                    text: "Add wallpaper folder";
+                    font-size: Theme.font-title;
+                    font-weight: 700;
+                    color: Theme.on-surface;
+                }
+
+                Rectangle {
+                    height: 44px;
+                    border-radius: 14px;
+                    background: Theme.surface-low;
+                    border-width: 1px;
+                    border-color: Theme.primary;
+                    TextInput {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        height: 100%;
+                        text <=> root.folder-input-path;
+                        color: Theme.on-surface;
+                        font-size: 13px;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Quick GNOME / User Preset Folder Chips
+                HorizontalLayout {
+                    spacing: 6px;
+                    for preset in ["/usr/share/backgrounds", "~/.local/share/backgrounds", "~/Pictures"]: Rectangle {
+                        height: 26px;
+                        horizontal-stretch: 1;
+                        border-radius: 13px;
+                        background: Theme.surface-highest;
+                        Text {
+                            text: preset == "/usr/share/backgrounds" ? "GNOME Sys" : (preset == "~/.local/share/backgrounds" ? "GNOME User" : "Pictures");
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea { clicked => { root.folder-input-path = preset; } }
+                    }
+                }
+
+                Rectangle { vertical-stretch: 1; background: transparent; }
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        height: 38px;
+                        horizontal-stretch: 1;
+                        border-radius: 19px;
+                        background: Theme.surface-highest;
+                        Text {
+                            text: "Cancel";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: Theme.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea { clicked => { root.show-add-folder-dialog = false; } }
+                    }
+                    Rectangle {
+                        height: 38px;
+                        horizontal-stretch: 1;
+                        border-radius: 19px;
+                        background: root.preview-accent;
+                        Text {
+                            text: "Add folder";
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: root.preview-on-accent;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
                             clicked => {
-                                root.icon-shape = "rounded";
-                                root.icon-shape-changed("rounded");
+                                if (root.folder-input-path != "") {
+                                    root.add-wallpaper-folder(root.folder-input-path);
+                                }
+                                root.show-add-folder-dialog = false;
                             }
                         }
                     }
