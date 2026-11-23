@@ -1,6 +1,9 @@
 //! COSMIC-inspired Server-Side Window Decorations (SSD) for convergent desktop mode.
 
 use std::collections::HashMap;
+use std::sync::OnceLock;
+
+use ab_glyph::{Font, FontArc, PxScale, ScaleFont};
 
 use smithay::{
     backend::{
@@ -176,11 +179,11 @@ pub fn render_window_borders(
     ssd_loc: (i32, i32),
 ) -> [SolidColorRenderElement; 3] {
     let color = if focused {
-        Color32F::new(0.388, 0.816, 0.875, 0.72) // #63d0df @ ~72%
+        Color32F::new(0.678, 0.776, 1.0, 0.38) // #adc6ff @ 38%
     } else {
-        Color32F::new(1.0, 1.0, 1.0, 0.14)
+        Color32F::new(1.0, 1.0, 1.0, 0.12)
     };
-    let b = 2;
+    let b = 1;
     let (w, h) = (win_size.0.max(1), win_size.1.max(1));
     let left = SolidColorRenderElement::new(
         smithay::backend::renderer::element::Id::new(),
@@ -214,9 +217,9 @@ pub fn render_window_corner_fill(
     ssd_loc: (i32, i32),
 ) -> SolidColorRenderElement {
     let color = if focused {
-        Color32F::new(0x22 as f32 / 255.0, 0x24 as f32 / 255.0, 0x2e as f32 / 255.0, 0xf8 as f32 / 255.0)
+        Color32F::new(0x1f as f32 / 255.0, 0x20 as f32 / 255.0, 0x28 as f32 / 255.0, 0xf8 as f32 / 255.0)
     } else {
-        Color32F::new(0x16 as f32 / 255.0, 0x17 as f32 / 255.0, 0x1e as f32 / 255.0, 0xf0 as f32 / 255.0)
+        Color32F::new(0x15 as f32 / 255.0, 0x16 as f32 / 255.0, 0x1c as f32 / 255.0, 0xf2 as f32 / 255.0)
     };
     SolidColorRenderElement::new(
         smithay::backend::renderer::element::Id::new(),
@@ -252,12 +255,79 @@ fn blend_px(buf: &mut [u8], w: i32, h: i32, x: i32, y: i32, rgba: [u8; 4]) {
     buf[idx + 3] = (a + (buf[idx + 3] as u32 * inv) / 255).min(255) as u8;
 }
 
+fn title_font() -> Option<&'static FontArc> {
+    static FONT: OnceLock<Option<FontArc>> = OnceLock::new();
+    FONT.get_or_init(|| {
+        for path in [
+            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/noto/NotoSans-Medium.ttf",
+            "/usr/share/fonts/noto/NotoSans-Regular.ttf",
+            "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf",
+            "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/droid/DroidSans.ttf",
+        ] {
+            if let Ok(bytes) = std::fs::read(path) {
+                if let Ok(font) = FontArc::try_from_vec(bytes) {
+                    return Some(font);
+                }
+            }
+        }
+        None
+    })
+    .as_ref()
+}
+
+fn draw_text_antialiased(buf: &mut [u8], w: i32, h: i32, x0: f32, text: &str, fg: [u8; 4], max_x: f32) {
+    if let Some(font) = title_font() {
+        let scale = PxScale::from(14.5);
+        let scaled = font.as_scaled(scale);
+        let baseline_y = (h as f32 + scaled.ascent() + scaled.descent()) * 0.5;
+        let mut cursor_x = x0;
+        let mut prev_id = None;
+        for ch in text.chars() {
+            let gid = scaled.glyph_id(ch);
+            if let Some(prev) = prev_id {
+                cursor_x += scaled.kern(prev, gid);
+            }
+            let adv = scaled.h_advance(gid);
+            if cursor_x + adv > max_x {
+                break;
+            }
+            let glyph = gid.with_scale_and_position(scale, ab_glyph::point(cursor_x, baseline_y));
+            if let Some(outlined) = font.outline_glyph(glyph) {
+                let bounds = outlined.px_bounds();
+                outlined.draw(|gx, gy, cov| {
+                    let px = bounds.min.x as i32 + gx as i32;
+                    let py = bounds.min.y as i32 + gy as i32;
+                    let alpha = ((cov * fg[3] as f32).round() as u32).min(255) as u8;
+                    if alpha > 0 {
+                        blend_px(buf, w, h, px, py, [fg[0], fg[1], fg[2], alpha]);
+                    }
+                });
+            }
+            cursor_x += adv;
+            prev_id = Some(gid);
+        }
+        return;
+    }
+
+    // Fallback if no system TTF font is found
+    let max_chars = ((max_x - x0).max(0.0) / 7.0) as usize;
+    let mut cx = x0 as i32;
+    let cy = (h - 7) / 2;
+    for ch in text.chars().take(max_chars) {
+        draw_char(buf, w, h, cx, cy, ch, fg);
+        cx += 7;
+    }
+}
+
 fn rasterize_titlebar(w: i32, h: i32, title: &str, focused: bool) -> Vec<u8> {
     let mut buf = vec![0u8; (w * h * 4) as usize];
-    // COSMIC-inspired dark slate header with subtle accent border when focused
-    let bg = if focused { [0x22, 0x24, 0x2e, 0xf8] } else { [0x16, 0x17, 0x1e, 0xf0] };
-    let border = if focused { [0x63, 0xd0, 0xdf, 0x88] } else { [0xff, 0xff, 0xff, 0x18] };
-    let fg = if focused { [0xf4, 0xf5, 0xf8, 0xff] } else { [0x94, 0x98, 0xa8, 0xff] };
+    // COSMIC-inspired integrated dark header with subtle 1px accent rim
+    let bg = if focused { [0x1f, 0x20, 0x28, 0xf8] } else { [0x15, 0x16, 0x1c, 0xf2] };
+    let border = if focused { [0xad, 0xc6, 0xff, 0x60] } else { [0xff, 0xff, 0xff, 0x1e] };
+    let fg = if focused { [0xee, 0xf0, 0xf6, 0xff] } else { [0x9a, 0x9e, 0xad, 0xff] };
     let r = 10;
 
     for y in 0..h {
@@ -278,21 +348,15 @@ fn rasterize_titlebar(w: i32, h: i32, title: &str, focused: bool) -> Vec<u8> {
                 continue;
             }
             set_px(&mut buf, w, h, x, y, bg);
-            // 2px COSMIC container rim on top, left, and right; bottom edge is open to merge seamlessly with window
-            if y < 2 || x < 2 || x >= w - 2 {
+            // 1px COSMIC rim on top, left, and right; bottom edge merges seamlessly into window
+            if y == 0 || x == 0 || x == w - 1 {
                 blend_px(&mut buf, w, h, x, y, border);
             }
         }
     }
 
-    // Window title (5x7 bitmap font)
-    let max_chars = ((w - 120).max(0) / 7) as usize;
-    let mut cx = 14;
-    let cy = (h - 7) / 2;
-    for ch in title.chars().take(max_chars) {
-        draw_char(&mut buf, w, h, cx, cy, ch, fg);
-        cx += 7;
-    }
+    // Smooth anti-aliased TrueType title text (mixed case)
+    draw_text_antialiased(&mut buf, w, h, 14.0, title, fg, (w - 114).max(16) as f32);
 
     // Minimize button (center at w - 85)
     let min_x = w - 85;

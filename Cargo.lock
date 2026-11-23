@@ -3829,6 +3829,7 @@ dependencies = [
 name = "penumbra-comp"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "clap",
  "image",
  "penumbra-gestures",

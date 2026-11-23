@@ -605,13 +605,9 @@ export component DesktopLauncherWindow inherits Window {
                         border-width: 1px;
                         border-color: DesktopTheme.border-focused;
 
-                        search-focus-touch := TouchArea {
-                            clicked => {
-                                search-input.focus();
-                            }
-                        }
-
                         HorizontalLayout {
+                            width: 100%;
+                            height: 100%;
                             padding-left: 16px;
                             padding-right: 16px;
                             spacing: 10px;
@@ -659,6 +655,10 @@ export component DesktopLauncherWindow inherits Window {
                                             root.app-clicked(root.apps[0].id, root.apps[0].exec);
                                         }
                                     }
+                                }
+
+                                TouchArea {
+                                    clicked => { search-input.focus(); }
                                 }
                             }
                         }
