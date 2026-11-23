@@ -35,6 +35,11 @@ export component PageWifi inherits Rectangle {
     in property <string> wifi-mac: "Hardware MAC";
     // Active IPv4 address on Wi-Fi interface.
     in property <string> ip-address: "";
+    // Live NetworkManager connection status ("disconnected", "connecting", "authenticating", "configuring_ip", "connected", "disconnecting", "failed")
+    in-out property <string> connection-status: "disconnected";
+    in property <string> connecting-ssid: "";
+    in property <string> status-message: "";
+    in property <string> status-reason: "";
     // Wi-Fi Hotspot / Tethering state.
     in-out property <bool> hotspot-active: false;
     in-out property <string> hotspot-ssid-input: "Penumbra-Hotspot";
@@ -64,6 +69,8 @@ export component PageWifi inherits Rectangle {
     callback connect-ap-with-password(string, string);
     // Emitted when the user requests an immediate wireless beacon rescan.
     callback scan-requested();
+    // Emitted when the user cancels an in-progress connection attempt.
+    callback cancel-connection();
     // Signals to activate the on-screen virtual keyboard.
     callback password-input-focused();
     // Signals to dismiss the on-screen virtual keyboard.
@@ -108,6 +115,129 @@ export component PageWifi inherits Rectangle {
 
             if root.wifi-enabled: VerticalLayout {
                 spacing: 12px;
+
+                // Live Connection Status Banner (Connecting / Authenticating / Obtaining IP / Failed / Disconnected Reason)
+                if root.connection-status == "connecting"
+                    || root.connection-status == "authenticating"
+                    || root.connection-status == "configuring_ip"
+                    || root.connection-status == "disconnecting"
+                    || root.connection-status == "failed"
+                    || (root.connection-status == "disconnected" && root.status-reason != ""): SettingsSectionCard {
+                    VerticalLayout {
+                        padding: 14px;
+                        spacing: 10px;
+
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: space-between;
+
+                            VerticalLayout {
+                                spacing: 3px;
+                                horizontal-stretch: 1;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Rectangle {
+                                        height: 22px;
+                                        border-radius: 11px;
+                                        background: root.connection-status == "failed" ? #5c2020 : Theme.primary-container;
+                                        HorizontalLayout {
+                                            padding-left: 10px;
+                                            padding-right: 10px;
+                                            Text {
+                                                text: root.connection-status == "authenticating" ? "Authenticating"
+                                                    : root.connection-status == "configuring_ip" ? "Obtaining IP"
+                                                    : root.connection-status == "connecting" ? "Connecting"
+                                                    : root.connection-status == "disconnecting" ? "Disconnecting"
+                                                    : root.connection-status == "failed" ? "Failed"
+                                                    : "Disconnected";
+                                                font-size: 11px;
+                                                font-weight: 700;
+                                                color: root.connection-status == "failed" ? #ffb4ab : Theme.on-primary-container;
+                                                vertical-alignment: center;
+                                            }
+                                        }
+                                    }
+                                    Text {
+                                        text: root.status-message != "" ? root.status-message : "Status update";
+                                        font-size: Theme.font-body;
+                                        font-weight: 600;
+                                        color: Theme.on-surface;
+                                        overflow: elide;
+                                        vertical-alignment: center;
+                                        horizontal-stretch: 1;
+                                    }
+                                }
+
+                                if root.status-reason != "": Text {
+                                    text: "Reason: " + root.status-reason;
+                                    font-size: Theme.font-caption;
+                                    color: root.connection-status == "failed" ? #ffb4ab : Theme.on-surface-variant;
+                                    wrap: word-wrap;
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            if root.connection-status == "connecting"
+                                || root.connection-status == "authenticating"
+                                || root.connection-status == "configuring_ip": Rectangle {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                border-radius: 16px;
+                                background: #5c2020;
+                                Text {
+                                    text: "Cancel";
+                                    font-size: Theme.font-caption;
+                                    font-weight: 700;
+                                    color: #ffb4ab;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea { clicked => { root.cancel-connection(); } }
+                            }
+                            if root.connection-status == "failed": Rectangle {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                border-radius: 16px;
+                                background: Theme.primary;
+                                Text {
+                                    text: "Scan & Retry";
+                                    font-size: Theme.font-caption;
+                                    font-weight: 700;
+                                    color: Theme.on-primary;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.connection-status = "disconnected";
+                                        root.scan-requested();
+                                    }
+                                }
+                            }
+                            if root.connection-status == "failed" || (root.connection-status == "disconnected" && root.status-reason != ""): Rectangle {
+                                height: 32px;
+                                horizontal-stretch: 1;
+                                border-radius: 16px;
+                                background: Theme.surface-highest;
+                                Text {
+                                    text: "Dismiss";
+                                    font-size: Theme.font-caption;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.connection-status = "disconnected";
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Connected Network Card (with IPv4, Disconnect & Forget)
                 if root.connected-ssid != "": VerticalLayout {
@@ -203,7 +333,29 @@ export component PageWifi inherits Rectangle {
                 // Available Networks
                 VerticalLayout {
                     spacing: 8px;
-                    SettingsSectionHeader { title: "Available networks"; }
+                    HorizontalLayout {
+                        alignment: space-between;
+                        SettingsSectionHeader { title: "Available networks"; }
+                        Rectangle {
+                            height: 28px;
+                            border-radius: 14px;
+                            background: Theme.surface-container-high;
+                            border-width: 1px;
+                            border-color: Theme.specular-rim;
+                            HorizontalLayout {
+                                padding-left: 12px;
+                                padding-right: 12px;
+                                Text {
+                                    text: "Rescan";
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    color: Theme.primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea { clicked => { root.scan-requested(); } }
+                        }
+                    }
                     SettingsSectionCard {
                         VerticalLayout {
                             padding-top: 4px;
@@ -226,8 +378,10 @@ export component PageWifi inherits Rectangle {
                                 icon-bg: ap.connected ? #a3e8b0 : #282a30;
                                 icon-tint: ap.connected ? #073919 : #e6e0e9;
                                 title: ap.ssid;
-                                subtitle: (ap.saved ? "Saved • " : "") + ap.security + " • " + ap.signal + "% Signal";
-                                trailing-text: ap.connected ? "Active" : (ap.saved ? "Saved" : "");
+                                subtitle: (ap.ssid == root.connecting-ssid && (root.connection-status == "connecting" || root.connection-status == "authenticating" || root.connection-status == "configuring_ip"))
+                                    ? root.status-message
+                                    : (ap.saved ? "Saved • " : "") + ap.security + " • " + ap.signal + "% Signal";
+                                trailing-text: ap.connected ? "Active" : (ap.ssid == root.connecting-ssid && root.connection-status != "disconnected" && root.connection-status != "failed" ? "..." : (ap.saved ? "Saved" : ""));
                                 show-chevron: !ap.connected;
                                 is-first: idx == 0;
                                 is-last: idx == root.access-points.length - 1;

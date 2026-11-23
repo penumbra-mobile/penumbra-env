@@ -53,6 +53,10 @@ pub fn setup_app(
         window.set_connected_ssid(net.connected_ssid.into());
         window.set_signal_strength(net.signal_strength as i32);
         window.set_wifi_ip_address(net.ip_address.into());
+        window.set_wifi_connection_status(net.connection_status.into());
+        window.set_wifi_connecting_ssid(net.connecting_ssid.into());
+        window.set_wifi_status_message(net.status_message.into());
+        window.set_wifi_status_reason(net.status_reason.into());
         window.set_hotspot_active(net.hotspot_active);
         let ap_models: Vec<WifiApData> = net
             .access_points
@@ -102,6 +106,8 @@ pub fn setup_app(
         window.set_adaptive_brightness(disp_cfg.adaptive_brightness);
         window.set_dark_theme(disp_cfg.dark_theme);
         window.set_accent_color(disp_cfg.accent_color.into());
+        window.set_themed_icons(disp_cfg.themed_icons);
+        window.set_icon_shape(disp_cfg.icon_shape.into());
 
         let multi_disp_cfg = DisplaysConfig::load();
         let display_items: Vec<DisplayItemData> = multi_disp_cfg
@@ -231,6 +237,10 @@ pub fn setup_app(
                         ui.set_connected_ssid(net.connected_ssid.into());
                         ui.set_signal_strength(net.signal_strength as i32);
                         ui.set_wifi_ip_address(net.ip_address.into());
+                        ui.set_wifi_connection_status(net.connection_status.into());
+                        ui.set_wifi_connecting_ssid(net.connecting_ssid.into());
+                        ui.set_wifi_status_message(net.status_message.into());
+                        ui.set_wifi_status_reason(net.status_reason.into());
                         ui.set_hotspot_active(net.hotspot_active);
                         let ap_models: Vec<WifiApData> = net
                             .access_points
@@ -414,6 +424,18 @@ pub fn setup_app(
             let net = net.clone();
             rt.spawn(async move {
                 net.request_scan().await;
+            });
+        });
+    }
+
+    {
+        let net = net_backend.clone();
+        let rt = rt_handle.clone();
+        window.on_cancel_wifi_connection(move || {
+            info!("Settings: User cancelled Wi-Fi connection");
+            let net = net.clone();
+            rt.spawn(async move {
+                net.disconnect_wifi().await;
             });
         });
     }
@@ -751,11 +773,126 @@ pub fn setup_app(
 
     window.on_toggle_themed_icons(|enabled| {
         info!("Settings: Themed icons toggled -> {enabled}");
+        let mut cfg = DisplayConfig::load();
+        cfg.themed_icons = enabled;
+        let _ = cfg.save();
     });
 
     window.on_icon_shape_changed(|shape| {
         info!("Settings: App icon shape changed -> {shape}");
+        let mut cfg = DisplayConfig::load();
+        cfg.icon_shape = shape.as_str().into();
+        let _ = cfg.save();
     });
+
+    // GNOME-Compatible Multi-Folder Wallpaper Chooser
+    let reload_wallpapers = {
+        let weak = ui_weak.clone();
+        Rc::new(move || {
+            let (cur_wp, folders) = crate::wallpaper::load_wallpaper_state();
+            if let Some(ui) = weak.upgrade() {
+                ui.set_current_wallpaper_path(cur_wp.into());
+                let f_models: Vec<slint::SharedString> =
+                    folders.iter().map(|s| s.as_str().into()).collect();
+                ui.set_wallpaper_folders(ModelRc::from(Rc::new(VecModel::from(f_models))));
+            }
+            let weak_bg = weak.clone();
+            std::thread::spawn(move || {
+                let scanned = crate::wallpaper::scan_wallpapers(&folders);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(ui) = weak_bg.upgrade() {
+                        let entries: Vec<crate::WallpaperEntry> = scanned
+                            .into_iter()
+                            .take(48)
+                            .map(|w| {
+                                let (has_thumb, thumb) =
+                                    match slint::Image::load_from_path(std::path::Path::new(&w.path)) {
+                                        Ok(img) => (true, img),
+                                        Err(_) => (false, slint::Image::default()),
+                                    };
+                                crate::WallpaperEntry {
+                                    path: w.path.into(),
+                                    name: w.name.into(),
+                                    folder: w.folder.into(),
+                                    thumbnail: thumb,
+                                    has_thumbnail: has_thumb,
+                                }
+                            })
+                            .collect();
+                        ui.set_wallpaper_list(ModelRc::from(Rc::new(VecModel::from(entries))));
+                    }
+                });
+            });
+        })
+    };
+    reload_wallpapers();
+
+    {
+        let weak = ui_weak.clone();
+        window.on_select_wallpaper(move |path| {
+            let path_str = path.to_string();
+            info!("Settings: Selected wallpaper -> {path_str}");
+            crate::wallpaper::save_wallpaper_path(&path_str);
+            if let Some(ui) = weak.upgrade() {
+                ui.set_current_wallpaper_path(path);
+            }
+            let p = std::path::PathBuf::from(&path_str);
+            std::thread::spawn(move || {
+                if p.exists() {
+                    if let Ok(palette) = penumbra_services::theme::MonetPalette::from_image_path(&p) {
+                        let _ = palette.save_to_ipc_path(
+                            &penumbra_services::theme::MonetPalette::default_ipc_path(),
+                        );
+                    }
+                }
+            });
+        });
+    }
+
+    {
+        let weak = ui_weak.clone();
+        window.on_clear_wallpaper(move || {
+            info!("Settings: Cleared wallpaper");
+            crate::wallpaper::save_wallpaper_path("");
+            if let Some(ui) = weak.upgrade() {
+                ui.set_current_wallpaper_path("".into());
+            }
+        });
+    }
+
+    {
+        let reload = Rc::clone(&reload_wallpapers);
+        window.on_add_wallpaper_folder(move |folder| {
+            let expanded = crate::wallpaper::expand_tilde(folder.as_str());
+            if expanded.is_empty() {
+                return;
+            }
+            let (_, mut folders) = crate::wallpaper::load_wallpaper_state();
+            if !folders.contains(&expanded) {
+                folders.push(expanded);
+                crate::wallpaper::save_wallpaper_folders(&folders);
+            }
+            reload();
+        });
+    }
+
+    {
+        let reload = Rc::clone(&reload_wallpapers);
+        window.on_remove_wallpaper_folder(move |folder| {
+            let target = folder.as_str();
+            let (_, mut folders) = crate::wallpaper::load_wallpaper_state();
+            folders.retain(|f| f != target);
+            crate::wallpaper::save_wallpaper_folders(&folders);
+            reload();
+        });
+    }
+
+    {
+        let reload = Rc::clone(&reload_wallpapers);
+        window.on_rescan_wallpapers(move || {
+            reload();
+        });
+    }
 
     // Desktop Window Controls (Close)
     {

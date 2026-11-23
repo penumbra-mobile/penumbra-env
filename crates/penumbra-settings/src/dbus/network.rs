@@ -56,6 +56,14 @@ pub struct NetworkState {
     pub saved_networks: Vec<String>,
     /// Indicates whether a valid NetworkManager service and Wi-Fi adapter are available.
     pub is_available: bool,
+    /// Live connection phase: "disconnected", "connecting", "authenticating", "configuring_ip", "connected", "disconnecting", "failed".
+    pub connection_status: String,
+    /// Target SSID currently being connected to (if any).
+    pub connecting_ssid: String,
+    /// Human-readable live status banner text.
+    pub status_message: String,
+    /// Human-readable reason string (e.g. wrong password, DHCP timeout, user disconnected).
+    pub status_reason: String,
 }
 
 #[zbus::proxy(
@@ -97,6 +105,9 @@ trait DeviceProxy {
 
     #[zbus(property)]
     fn interface(&self) -> zbus::Result<String>;
+
+    #[zbus(property)]
+    fn state_reason(&self) -> zbus::Result<(u32, u32)>;
 
     fn disconnect(&self) -> zbus::Result<()>;
 }
@@ -391,6 +402,22 @@ impl NetworkBackend {
         let mut saved_networks: Vec<String> = saved_ssids.into_iter().collect();
         saved_networks.sort();
 
+        let (dev_state, dev_reason) = if let Ok(builder) = DeviceProxyProxy::builder(conn).path(w_path) {
+            if let Ok(dev) = builder.build().await {
+                dev.state_reason()
+                    .await
+                    .unwrap_or_else(|_| (if active_ssid.is_empty() { 30 } else { 100 }, 0))
+            } else {
+                (if active_ssid.is_empty() { 30 } else { 100 }, 0)
+            }
+        } else {
+            (if active_ssid.is_empty() { 30 } else { 100 }, 0)
+        };
+
+        let prev = state_tx.borrow().clone();
+        let (connection_status, status_message, status_reason, connecting_ssid) =
+            Self::map_device_state(dev_state, dev_reason, &active_ssid, &ip_address, &prev);
+
         let updated = NetworkState {
             wifi_enabled,
             connected_ssid: active_ssid,
@@ -401,9 +428,161 @@ impl NetworkBackend {
             access_points: final_list,
             saved_networks,
             is_available: true,
+            connection_status,
+            connecting_ssid,
+            status_message,
+            status_reason,
         };
 
         let _ = state_tx.send(updated);
+    }
+
+    fn map_reason(reason: u32) -> &'static str {
+        match reason {
+            0 => "",
+            1 => "Unknown error",
+            2 => "Device is now managed",
+            3 => "Device is no longer managed",
+            4 => "Connection configuration failed",
+            5 => "IP configuration could not be reserved",
+            6 => "IP configuration expired",
+            7 => "Incorrect password or missing secrets",
+            8 => "Wi-Fi supplicant disconnected",
+            9 => "Wi-Fi supplicant configuration failed",
+            10 => "Wi-Fi supplicant failed",
+            11 => "Wi-Fi supplicant timed out",
+            12 => "PPP failed to start",
+            13 => "PPP disconnected",
+            14 => "PPP failed",
+            15 => "DHCP client failed to start",
+            16 => "DHCP client error",
+            17 => "DHCP client failed",
+            23 => "Carrier/link lost",
+            29 => "Network SSID not found",
+            36 => "IPv6 configuration failed",
+            39 => "Disconnected by user",
+            40 => "Device sleeping or suspended",
+            42 => "Connection removed",
+            _ => "",
+        }
+    }
+
+    fn map_device_state(
+        state_code: u32,
+        reason_code: u32,
+        active_ssid: &str,
+        ip_address: &str,
+        prev: &NetworkState,
+    ) -> (String, String, String, String) {
+        let reason_str = Self::map_reason(reason_code);
+        let target = if !active_ssid.is_empty() {
+            active_ssid.to_string()
+        } else {
+            prev.connecting_ssid.clone()
+        };
+        let target_label = if target.is_empty() {
+            "network".to_string()
+        } else {
+            target.clone()
+        };
+
+        match state_code {
+            10 | 20 => (
+                "disconnected".into(),
+                "Wi-Fi radio is off".into(),
+                reason_str.into(),
+                String::new(),
+            ),
+            40 => (
+                "connecting".into(),
+                format!("Preparing connection to {target_label}..."),
+                String::new(),
+                target,
+            ),
+            50 => (
+                "connecting".into(),
+                format!("Connecting to {target_label}..."),
+                String::new(),
+                target,
+            ),
+            60 => (
+                "authenticating".into(),
+                format!("Authenticating with {target_label}..."),
+                if reason_str.is_empty() {
+                    "Verifying credentials".into()
+                } else {
+                    reason_str.into()
+                },
+                target,
+            ),
+            70 => (
+                "configuring_ip".into(),
+                format!("Obtaining IP address for {target_label}..."),
+                String::new(),
+                target,
+            ),
+            80 => (
+                "configuring_ip".into(),
+                format!("Verifying connectivity on {target_label}..."),
+                String::new(),
+                target,
+            ),
+            90 => (
+                "connecting".into(),
+                format!("Finalizing connection to {target_label}..."),
+                String::new(),
+                target,
+            ),
+            100 => {
+                let msg = if ip_address.is_empty() {
+                    format!("Connected to {target_label}")
+                } else {
+                    format!("Connected to {target_label} • {ip_address}")
+                };
+                ("connected".into(), msg, String::new(), String::new())
+            }
+            110 => (
+                "disconnecting".into(),
+                format!("Disconnecting from {target_label}..."),
+                reason_str.into(),
+                String::new(),
+            ),
+            120 => (
+                "failed".into(),
+                format!("Failed to connect to {target_label}"),
+                if reason_str.is_empty() {
+                    format!("NetworkManager error code {reason_code}")
+                } else {
+                    reason_str.into()
+                },
+                String::new(),
+            ),
+            _ => {
+                // 30 = DISCONNECTED: preserve recent failure reason if NM just transitioned 120 -> 30
+                if prev.connection_status == "failed" && reason_code == 0 {
+                    (
+                        "failed".into(),
+                        prev.status_message.clone(),
+                        prev.status_reason.clone(),
+                        String::new(),
+                    )
+                } else if !reason_str.is_empty() && reason_code != 39 {
+                    (
+                        "disconnected".into(),
+                        "Disconnected".into(),
+                        reason_str.into(),
+                        String::new(),
+                    )
+                } else {
+                    (
+                        "disconnected".into(),
+                        "Disconnected".into(),
+                        reason_str.into(),
+                        String::new(),
+                    )
+                }
+            }
+        }
     }
 
     /// Background worker periodically triggering active Wi-Fi scans and publishing results.
@@ -412,6 +591,63 @@ impl NetworkBackend {
         wd_path_lock: Arc<Mutex<Option<OwnedObjectPath>>>,
         state_tx: watch::Sender<NetworkState>,
     ) {
+        // Spawn instant D-Bus StateChanged signal listener for live connecting/failed/connected updates
+        {
+            let conn_sig = conn.clone();
+            let wd_lock_sig = Arc::clone(&wd_path_lock);
+            let tx_sig = state_tx.clone();
+            tokio::spawn(async move {
+                use futures_util::StreamExt;
+                let mut current_path: Option<OwnedObjectPath> = None;
+                loop {
+                    let path_opt = wd_lock_sig.lock().await.clone();
+                    if let Some(w_path) = path_opt {
+                        if current_path.as_ref() != Some(&w_path) {
+                            current_path = Some(w_path.clone());
+                            if let Ok(dev_proxy) = zbus::Proxy::new(
+                                &conn_sig,
+                                "org.freedesktop.NetworkManager",
+                                w_path.as_str(),
+                                "org.freedesktop.NetworkManager.Device",
+                            )
+                            .await
+                            {
+                                if let Ok(mut stream) = dev_proxy.receive_signal("StateChanged").await {
+                                    while let Some(_sig) = stream.next().await {
+                                        let enabled = NetworkManagerProxyProxy::new(&conn_sig)
+                                            .await
+                                            .ok()
+                                            .map(|nm| nm)
+                                            .is_some();
+                                        let wifi_on = if enabled {
+                                            NetworkManagerProxyProxy::new(&conn_sig)
+                                                .await
+                                                .ok()
+                                                .map(|nm| nm)
+                                                .is_some()
+                                        } else {
+                                            false
+                                        };
+                                        let real_on = if wifi_on {
+                                            if let Ok(nm) = NetworkManagerProxyProxy::new(&conn_sig).await {
+                                                nm.wireless_enabled().await.unwrap_or(true)
+                                            } else {
+                                                true
+                                            }
+                                        } else {
+                                            true
+                                        };
+                                        Self::refresh_access_points(&conn_sig, &w_path, real_on, &tx_sig).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+            });
+        }
+
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(10));
 
         loop {
@@ -557,11 +793,21 @@ impl NetworkBackend {
             }
         }
 
-        if let Some(c_path) = existing_conn_path {
+        // Publish immediate connecting status before D-Bus call completes
+        {
+            let mut st = self.state_rx.borrow().clone();
+            st.connection_status = "connecting".into();
+            st.connecting_ssid = ssid.to_string();
+            st.status_message = format!("Connecting to {ssid}...");
+            st.status_reason = String::new();
+            let _ = self.state_tx.send(st);
+        }
+
+        let res = if let Some(c_path) = existing_conn_path {
             info!("NetworkBackend: Activating existing connection for SSID '{ssid}'");
-            let _ = nm
-                .activate_connection(&c_path.as_ref(), &w_path.as_ref(), &ap_path.as_ref())
-                .await;
+            nm.activate_connection(&c_path.as_ref(), &w_path.as_ref(), &ap_path.as_ref())
+                .await
+                .map(|_| ())
         } else {
             info!("NetworkBackend: Creating and activating new connection for SSID '{ssid}'");
             let mut connection_setting: HashMap<&str, Value<'_>> = HashMap::new();
@@ -584,9 +830,20 @@ impl NetworkBackend {
                 full_settings.insert("802-11-wireless-security", sec_setting);
             }
 
-            let _ = nm
-                .add_and_activate_connection(&full_settings, &w_path.as_ref(), &ap_path.as_ref())
-                .await;
+            nm.add_and_activate_connection(&full_settings, &w_path.as_ref(), &ap_path.as_ref())
+                .await
+                .map(|_| ())
+        };
+
+        if let Err(err) = res {
+            warn!("NetworkBackend: Failed to connect to '{ssid}': {err}");
+            let mut st = self.state_rx.borrow().clone();
+            st.connection_status = "failed".into();
+            st.connecting_ssid = String::new();
+            st.status_message = format!("Failed to connect to {ssid}");
+            st.status_reason = err.to_string();
+            let _ = self.state_tx.send(st);
+            return;
         }
 
         let enabled = self.state_rx.borrow().wifi_enabled;

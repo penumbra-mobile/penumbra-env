@@ -7,14 +7,14 @@ import { PageWifi, WifiApData } from "pages/page_wifi.slint";
 import { PageMobile, ApnEntryData, ESimProfileData } from "pages/page_mobile.slint";
 import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
 import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
-import { PageAppearance } from "pages/page_appearance.slint";
+import { PageAppearance, WallpaperEntry } from "pages/page_appearance.slint";
 import { PageBattery } from "pages/page_battery.slint";
 import { PageSound } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
 import { PageSecurity } from "pages/page_security.slint";
 
-export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData }
+export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData, WallpaperEntry }
 
 // ==============================================================================
 // Component: SettingsWindow
@@ -122,6 +122,13 @@ export component SettingsWindow inherits Window {
     in-out property <bool> dynamic-monet: true;
     in-out property <bool> themed-icons: false;
     in-out property <string> icon-shape: "squircle";
+    in property <[WallpaperEntry]> wallpaper-list: [];
+    in property <[string]> wallpaper-folders: [];
+    in-out property <string> current-wallpaper-path: "";
+    in-out property <string> wifi-connection-status: "disconnected";
+    in property <string> wifi-connecting-ssid: "";
+    in property <string> wifi-status-message: "";
+    in property <string> wifi-status-reason: "";
 
     in-out property <[DisplayItemData]> displays: [
         {
@@ -168,6 +175,12 @@ export component SettingsWindow inherits Window {
     callback toggle-dynamic-monet(bool);
     callback toggle-themed-icons(bool);
     callback icon-shape-changed(string);
+    callback select-wallpaper(string);
+    callback clear-wallpaper();
+    callback add-wallpaper-folder(string);
+    callback remove-wallpaper-folder(string);
+    callback rescan-wallpapers();
+    callback cancel-wifi-connection();
 
     // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Battery & Power (UPower / COSMIC Power Profiles)
@@ -382,6 +395,10 @@ export component SettingsWindow inherits Window {
                     signal-strength: root.signal-strength;
                     wifi-mac: root.wifi-mac;
                     ip-address: root.wifi-ip-address;
+                    connection-status <=> root.wifi-connection-status;
+                    connecting-ssid: root.wifi-connecting-ssid;
+                    status-message: root.wifi-status-message;
+                    status-reason: root.wifi-status-reason;
                     hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
                     saved-networks: root.wifi-saved-networks;
@@ -395,6 +412,7 @@ export component SettingsWindow inherits Window {
                     password-input-focused => { root.password-input-focused(); }
                     password-input-dismissed => { root.password-input-dismissed(); }
                     scan-requested => { root.refresh-wifi-scan(); }
+                    cancel-connection => { root.cancel-wifi-connection(); }
                 }
 
                 if root.active-page == "mobile": PageMobile {
@@ -482,12 +500,20 @@ export component SettingsWindow inherits Window {
                     dynamic-monet <=> root.dynamic-monet;
                     themed-icons <=> root.themed-icons;
                     icon-shape <=> root.icon-shape;
+                    wallpaper-list: root.wallpaper-list;
+                    wallpaper-folders: root.wallpaper-folders;
+                    current-wallpaper-path <=> root.current-wallpaper-path;
 
                     accent-color-changed(c) => { root.accent-color-changed(c); }
                     toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
                     toggle-dynamic-monet(v) => { root.toggle-dynamic-monet(v); }
                     toggle-themed-icons(v) => { root.toggle-themed-icons(v); }
                     icon-shape-changed(s) => { root.icon-shape-changed(s); }
+                    select-wallpaper(p) => { root.select-wallpaper(p); }
+                    clear-wallpaper => { root.clear-wallpaper(); }
+                    add-wallpaper-folder(f) => { root.add-wallpaper-folder(f); }
+                    remove-wallpaper-folder(f) => { root.remove-wallpaper-folder(f); }
+                    rescan-wallpapers => { root.rescan-wallpapers(); }
                 }
 
                 if root.active-page == "battery": PageBattery {
@@ -636,6 +662,10 @@ export component SettingsWindow inherits Window {
                     signal-strength: root.signal-strength;
                     wifi-mac: root.wifi-mac;
                     ip-address: root.wifi-ip-address;
+                    connection-status <=> root.wifi-connection-status;
+                    connecting-ssid: root.wifi-connecting-ssid;
+                    status-message: root.wifi-status-message;
+                    status-reason: root.wifi-status-reason;
                     hotspot-active <=> root.hotspot-active;
                     access-points: root.wifi-access-points;
                     saved-networks: root.wifi-saved-networks;
@@ -649,6 +679,7 @@ export component SettingsWindow inherits Window {
                     password-input-focused => { root.password-input-focused(); }
                     password-input-dismissed => { root.password-input-dismissed(); }
                     scan-requested => { root.refresh-wifi-scan(); }
+                    cancel-connection => { root.cancel-wifi-connection(); }
                 }
 
                 if root.active-page == "mobile": PageMobile {
@@ -733,12 +764,20 @@ export component SettingsWindow inherits Window {
                     dynamic-monet <=> root.dynamic-monet;
                     themed-icons <=> root.themed-icons;
                     icon-shape <=> root.icon-shape;
+                    wallpaper-list: root.wallpaper-list;
+                    wallpaper-folders: root.wallpaper-folders;
+                    current-wallpaper-path <=> root.current-wallpaper-path;
 
                     accent-color-changed(c) => { root.accent-color-changed(c); }
                     toggle-dark-theme(v) => { root.toggle-dark-theme(v); }
                     toggle-dynamic-monet(v) => { root.toggle-dynamic-monet(v); }
                     toggle-themed-icons(v) => { root.toggle-themed-icons(v); }
                     icon-shape-changed(s) => { root.icon-shape-changed(s); }
+                    select-wallpaper(p) => { root.select-wallpaper(p); }
+                    clear-wallpaper => { root.clear-wallpaper(); }
+                    add-wallpaper-folder(f) => { root.add-wallpaper-folder(f); }
+                    remove-wallpaper-folder(f) => { root.remove-wallpaper-folder(f); }
+                    rescan-wallpapers => { root.rescan-wallpapers(); }
                 }
 
                 if root.active-page == "battery": PageBattery {
