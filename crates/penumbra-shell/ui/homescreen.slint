@@ -29,6 +29,10 @@ export component HomescreenWindow inherits Window {
 
     in-out property <bool> is-editing: false;
     in property <bool> reject-dock-drop: false;
+    in-out property <bool> is-dragging-app: false;
+    in-out property <AppItem> dragging-app-item;
+    in-out property <length> drag-x: 0px;
+    in-out property <length> drag-y: 0px;
 
     // Running Tasks & Overview Carousel
     in property <[AppCardData]> running-tasks: [];
@@ -118,6 +122,10 @@ export component HomescreenWindow inherits Window {
         num-pages <=> root.num-pages;
         is-editing <=> root.is-editing;
         reject-dock-drop: root.reject-dock-drop;
+        is-dragging-app <=> root.is-dragging-app;
+        dragging-app-item <=> root.dragging-app-item;
+        drag-x <=> root.drag-x;
+        drag-y <=> root.drag-y;
         is-folder-open <=> root.is-folder-open;
         open-folder-id <=> root.open-folder-id;
         open-folder-name <=> root.open-folder-name;

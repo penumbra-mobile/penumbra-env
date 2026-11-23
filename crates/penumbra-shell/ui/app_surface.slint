@@ -281,7 +281,7 @@ export component AppSurface inherits Rectangle {
                             if (root.active-mode == 0 && Math.abs(dx) > 12.0 && Math.abs(dx) > Math.abs(dy) * 1.1) {
                                 self.drag-gesture = 1; // Horizontal page scrolling
                                 root.is-dragging-pages = true;
-                            } else if (dy < -12.0 && Math.abs(dy) > Math.abs(dx) * 1.1) {
+                            } else if (dy < -6.0 && Math.abs(dy) > Math.abs(dx) * 1.1) {
                                 self.drag-gesture = 2; // Pulling UP App Drawer
                             } else if (root.active-mode == 0 && dy > 12.0 && dy > Math.abs(dx) * 1.1) {
                                 self.drag-gesture = 3; // Pulling DOWN Quick Settings
@@ -745,87 +745,6 @@ export component AppSurface inherits Rectangle {
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    // =========================================================================
-    // =========================================================================
-    // MODE 2: APP DRAWER (All Applications Overlay with Material 3 Expressive Physics)
-    // =========================================================================
-    app-drawer := Rectangle {
-        x: 0px;
-        y: 42px + (1.0 - root.drawer-progress) * (parent.height - 42px);
-        width: parent.width;
-        height: parent.height - 42px;
-        opacity: root.is-dragging-app ? 0.0 : 1.0;
-        visible: (!root.is-dragging-app) && (root.drawer-progress > 0.001);
-        clip: true;
-
-        animate opacity {
-            duration: 150ms;
-            easing: ease-out;
-        }
-
-        AppDrawer {
-            drawer-progress: root.drawer-progress;
-            installed-apps: root.installed-apps;
-            is-open: root.drawer-progress > 0.1;
-            search-query <=> root.app-search-query;
-            search-query-changed(q) => {
-                root.app-search-query-changed(q);
-            }
-            search-accepted(q) => {
-                root.app-search-accepted(q);
-            }
-            search-focused => {
-                root.app-search-focused();
-            }
-            app-clicked(id) => {
-                root.app-clicked(id);
-            }
-            drawer-drag-delta(delta) => {
-                root.drawer-drag-delta(delta);
-            }
-            drawer-drag-released(vel) => {
-                root.drawer-drag-released(vel);
-            }
-            dismiss-keyboard => {
-                root.drawer-dismiss-keyboard();
-            }
-            close-requested => {
-                root.app-search-query = "";
-                root.app-search-query-changed("");
-                root.drawer-close-requested();
-            }
-            start-drag(id, item, sx, sy) => {
-                root.is-dragging-app = true;
-                root.dwell-direction = 0;
-                root.dwell-ticks = 0;
-                root.dragging-app-item = item;
-                root.drag-x = sx;
-                root.drag-y = sy;
-            }
-            drag-moved(sx, sy) => {
-                root.drag-x = sx;
-                root.drag-y = sy;
-            }
-            drag-ended(id, sx, sy) => {
-                root.is-dragging-app = false;
-                root.dwell-direction = 0;
-                root.dwell-ticks = 0;
-                root.active-mode = 0; // Return to homescreen
-                root.drawer-progress = 0.0;
-                let drop-y = sy / 1px;
-                if (drop-y >= 760.0) {
-                    root.app-pinned-to-dock(id);
-                } else if (drop-y < 760.0) {
-                    if (root.current-page == 0 && drop-y < 145.0) {
-                        root.app-dropped-on-homescreen(id, root.current-page, sx, 151px);
-                    } else {
-                        root.app-dropped-on-homescreen(id, root.current-page, sx, sy);
                     }
                 }
             }

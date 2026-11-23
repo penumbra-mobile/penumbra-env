@@ -1,0 +1,81 @@
+import { Theme } from "theme.slint";
+import { AppItem } from "app_item.slint";
+import { AppDrawer } from "app_drawer.slint";
+
+export component AppDrawerWindow inherits Window {
+    title: "Penumbra App Drawer";
+    width: 412px;
+    height: 915px;
+    background: transparent;
+    default-font-family: "Droid Sans";
+
+    in-out property <float> drawer-progress: 0.0;
+    in-out property <bool> is-dragging-app: false;
+    in property <[AppItem]> installed-apps: [];
+    in-out property <string> search-query: "";
+
+    callback search-query-changed(string);
+    callback search-accepted(string);
+    callback search-focused();
+    callback app-clicked(string);
+    callback drawer-drag-delta(float);
+    callback drawer-drag-released(float);
+    callback dismiss-keyboard();
+    callback close-requested();
+
+    callback start-drag(string, AppItem, length, length);
+    callback drag-moved(length, length);
+    callback drag-ended(string, length, length);
+
+    drawer-container := Rectangle {
+        x: 0px;
+        y: 42px;
+        width: parent.width;
+        height: parent.height - 42px;
+        opacity: root.is-dragging-app ? 0.0 : 1.0;
+        visible: !root.is-dragging-app;
+        clip: true;
+
+        AppDrawer {
+            drawer-progress: root.drawer-progress;
+            installed-apps: root.installed-apps;
+            is-open: root.drawer-progress > 0.1;
+            search-query <=> root.search-query;
+
+            search-query-changed(q) => {
+                root.search-query-changed(q);
+            }
+            search-accepted(q) => {
+                root.search-accepted(q);
+            }
+            search-focused => {
+                root.search-focused();
+            }
+            app-clicked(id) => {
+                root.app-clicked(id);
+            }
+            drawer-drag-delta(delta) => {
+                root.drawer-drag-delta(delta);
+            }
+            drawer-drag-released(vel) => {
+                root.drawer-drag-released(vel);
+            }
+            dismiss-keyboard => {
+                root.dismiss-keyboard();
+            }
+            close-requested => {
+                root.close-requested();
+            }
+            start-drag(id, item, sx, sy) => {
+                root.start-drag(id, item, sx, sy);
+            }
+            drag-moved(sx, sy) => {
+                root.drag-moved(sx, sy);
+            }
+            drag-ended(id, sx, sy) => {
+                root.drag-ended(id, sx, sy);
+            }
+        }
+    }
+}
+

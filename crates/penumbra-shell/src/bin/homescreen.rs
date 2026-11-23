@@ -161,6 +161,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Keep the logical shell layout separate from the physical output size,
     // so it scales correctly on a real mobile panel instead of assuming a nested window.
     let (logical_w, logical_h, _scale) = layer_shell_slint::mobile_output_geometry();
+    let lw = logical_w as i32;
+    let lh = logical_h as i32;
     let config = LayerConfig::default()
         .with_namespace("penumbra-homescreen")
         .with_layer(Layer::Background)
@@ -171,24 +173,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     layer_shell_slint::init(config)?;
 
-    // 2. Instantiate Slint Homescreen UI.
-    // The actual native surface sizing is done by the layer-shell geometry we pass in
-    // `LayerConfig::with_size(...)`, not by mutating the generated Slint Window object.
+    // 2. Instantiate Slint Homescreen UI + Dedicated AppDrawer Layer-Shell Window.
     let ui = HomescreenWindow::new()?;
     let ui_weak = ui.as_weak();
 
-    // Initialize Monet dynamic theme
+    let drawer_layer_config = LayerConfig::default()
+        .with_namespace("penumbra-app-drawer")
+        .with_layer(Layer::Bottom)
+        .with_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right)
+        .with_size(logical_w, logical_h)
+        .with_exclusive_zone(-1)
+        .with_keyboard_interactivity(KeyboardInteractivity::OnDemand);
+    layer_shell_slint::set_next_window_config(drawer_layer_config);
+    let app_drawer = AppDrawerWindow::new()?;
+    let app_drawer_weak = app_drawer.as_weak();
+    layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 0, false);
+
+    // Initialize Monet dynamic theme on both surfaces
     let initial_palette = penumbra_shell::theme::load_current_theme();
     {
         let theme = Theme::get(&ui);
-        apply_monet_palette!(theme, initial_palette);
+        apply_monet_palette!(theme, initial_palette.clone());
+        let drawer_theme = Theme::get(&app_drawer);
+        apply_monet_palette!(drawer_theme, initial_palette);
     }
 
     // Helper to dynamically extract Monet palette and sync to IPC + Theme
     let sync_monet_theme = {
         let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
         move |wallpaper_path: Option<std::path::PathBuf>| {
             let ui_weak = ui_weak.clone();
+            let app_drawer_weak = app_drawer_weak.clone();
             std::thread::spawn(move || {
                 let palette = match wallpaper_path {
                     Some(ref p) if p.exists() => MonetPalette::from_image_path(p)
@@ -200,6 +216,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(ui) = ui_weak.upgrade() {
                         let theme = Theme::get(&ui);
+                        apply_monet_palette!(theme, palette.clone());
+                    }
+                    if let Some(drawer) = app_drawer_weak.upgrade() {
+                        let theme = Theme::get(&drawer);
                         apply_monet_palette!(theme, palette);
                     }
                 });
@@ -302,7 +322,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
     *apps_list.write().unwrap() = discovered;
-    ui.set_installed_apps(ModelRc::from(Rc::new(VecModel::from(initial_slint_items.clone()))));
+    let initial_apps_rc = ModelRc::from(Rc::new(VecModel::from(initial_slint_items.clone())));
+    ui.set_installed_apps(initial_apps_rc.clone());
+    app_drawer.set_installed_apps(initial_apps_rc);
     let cached_all_apps = Rc::new(initial_slint_items);
 
     // Helper closure to synchronize Slint models with LayoutConfig
@@ -1076,14 +1098,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let drawer_spring_timer = Rc::new(RefCell::new(Timer::default()));
     let last_drawer_spring_time = Rc::new(RefCell::new(Instant::now()));
 
+    let drawer_progress_path = penumbra_shell::ipc::runtime_path("penumbra-app-drawer-progress");
+    let _ = std::fs::write(&drawer_progress_path, "0.0");
+
     let animate_drawer_to = {
         let drawer_spring = Rc::clone(&drawer_spring);
         let drawer_spring_timer = Rc::clone(&drawer_spring_timer);
         let last_drawer_spring_time = Rc::clone(&last_drawer_spring_time);
         let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
+        let drawer_progress_path = drawer_progress_path.clone();
 
         move |target: f64, initial_vel: f64| {
-            if target < 0.5 {
+            if target > 0.5 {
+                layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 42, true);
+            } else {
                 let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
                 let _ = std::fs::write(path, "hide");
             }
@@ -1098,6 +1127,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let drawer_spring_timer_inner = Rc::clone(&drawer_spring_timer);
             let last_drawer_spring_time = Rc::clone(&last_drawer_spring_time);
             let ui_weak = ui_weak.clone();
+            let app_drawer_weak = app_drawer_weak.clone();
+            let drawer_progress_path = drawer_progress_path.clone();
 
             drawer_spring_timer.borrow().start(
                 TimerMode::Repeated,
@@ -1114,16 +1145,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let new_prog = sp.step(dt);
                     let clamped = new_prog.clamp(0.0, 1.0);
 
-                    if let Some(ui) = ui_weak.upgrade() {
-                        ui.set_drawer_progress(clamped as f32);
+                    let _ = std::fs::write(&drawer_progress_path, format!("{:.4}", clamped));
+                    if let Some(drawer) = app_drawer_weak.upgrade() {
+                        drawer.set_drawer_progress(clamped as f32);
                     }
 
-                    if sp.snap_if_settled(0.002, 0.01) {
+                    if sp.snap_if_settled(0.002, 0.01) || (sp.target <= 0.0 && new_prog <= 0.002) {
                         drawer_spring_timer_inner.borrow().stop();
                         let target = sp.target;
+                        let _ = std::fs::write(&drawer_progress_path, format!("{:.4}", target));
                         if let Some(ui) = ui_weak.upgrade() {
-                            ui.set_drawer_progress(target as f32);
                             ui.set_active_mode(if target > 0.5 { 2 } else { 0 });
+                        }
+                        if let Some(drawer) = app_drawer_weak.upgrade() {
+                            drawer.set_drawer_progress(target as f32);
+                        }
+                        if target <= 0.0 {
+                            layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 0, false);
                         }
                     }
                 },
@@ -1132,44 +1170,88 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let animate_drawer_to = Rc::new(animate_drawer_to);
 
-    {
+    let drawer_drag_velocity = Rc::new(RefCell::new(0.0f64));
+    let last_drawer_drag_time = Rc::new(RefCell::new(Instant::now()));
+
+    let handle_drawer_drag_delta = {
         let drawer_spring_timer = Rc::clone(&drawer_spring_timer);
         let drawer_spring = Rc::clone(&drawer_spring);
-        let ui_weak = ui_weak.clone();
-        ui.on_drawer_drag_delta(move |delta_prog| {
+        let app_drawer_weak = app_drawer_weak.clone();
+        let drawer_drag_velocity = Rc::clone(&drawer_drag_velocity);
+        let last_drawer_drag_time = Rc::clone(&last_drawer_drag_time);
+        let drawer_progress_path = drawer_progress_path.clone();
+
+        Rc::new(move |delta_prog: f32| {
             drawer_spring_timer.borrow().stop();
-            if let Some(ui) = ui_weak.upgrade() {
-                let cur = ui.get_drawer_progress() as f64;
-                let new_prog = (cur + delta_prog as f64).clamp(0.0, 1.0);
-                ui.set_drawer_progress(new_prog as f32);
+            layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 42, true);
+            let elapsed = last_drawer_drag_time.borrow().elapsed().as_secs_f64();
+            *last_drawer_drag_time.borrow_mut() = Instant::now();
+            if elapsed >= 0.08 {
+                // Start of a new drag gesture: reset stale velocity
+                *drawer_drag_velocity.borrow_mut() = 0.0;
+            } else {
+                let dt = elapsed.clamp(0.001, 0.08);
+                let instant_v = (delta_prog as f64) / dt;
+                let prev_v = *drawer_drag_velocity.borrow();
+                *drawer_drag_velocity.borrow_mut() = prev_v * 0.5 + instant_v * 0.5;
+            }
+
+            let (cur, new_prog) = {
                 let mut sp = drawer_spring.borrow_mut();
+                let cur = sp.position;
+                let new_prog = (cur + delta_prog as f64).clamp(0.0, 1.0);
                 sp.position = new_prog;
                 sp.velocity = 0.0;
-                if new_prog < 0.85 && cur >= 0.85 {
-                    let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
-                    let _ = std::fs::write(path, "hide");
-                }
+                (cur, new_prog)
+            };
+            let _ = std::fs::write(&drawer_progress_path, format!("{:.4}", new_prog));
+            if let Some(drawer) = app_drawer_weak.upgrade() {
+                drawer.set_drawer_progress(new_prog as f32);
             }
-        });
-    }
+            if new_prog < 0.85 && cur >= 0.85 {
+                let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+                let _ = std::fs::write(path, "hide");
+            }
+        })
+    };
 
-    {
+    let handle_drawer_drag_released = {
         let animate_drawer_to = Rc::clone(&animate_drawer_to);
-        let ui_weak = ui_weak.clone();
-        ui.on_drawer_drag_released(move |velocity| {
-            let cur = ui_weak.upgrade().map_or(0.0, |u| u.get_drawer_progress() as f64);
-            let vel = velocity as f64;
-            let target = if vel > 0.6 {
+        let drawer_spring = Rc::clone(&drawer_spring);
+        let drawer_drag_velocity = Rc::clone(&drawer_drag_velocity);
+        Rc::new(move |_velocity: f32| {
+            let cur = drawer_spring.borrow().position;
+            let vel = *drawer_drag_velocity.borrow();
+            *drawer_drag_velocity.borrow_mut() = 0.0;
+            let target = if vel > 1.0 {
                 1.0
-            } else if vel < -0.6 {
+            } else if vel < -1.0 {
                 0.0
-            } else if cur > 0.35 {
+            } else if cur > 0.5 {
                 1.0
             } else {
                 0.0
             };
             animate_drawer_to(target, vel);
-        });
+        })
+    };
+
+    {
+        let cb = Rc::clone(&handle_drawer_drag_delta);
+        ui.on_drawer_drag_delta(move |d| cb(d));
+    }
+    {
+        let cb = Rc::clone(&handle_drawer_drag_delta);
+        app_drawer.on_drawer_drag_delta(move |d| cb(d));
+    }
+
+    {
+        let cb = Rc::clone(&handle_drawer_drag_released);
+        ui.on_drawer_drag_released(move |v| cb(v));
+    }
+    {
+        let cb = Rc::clone(&handle_drawer_drag_released);
+        app_drawer.on_drawer_drag_released(move |v| cb(v));
     }
 
     {
@@ -1185,6 +1267,164 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
             let _ = std::fs::write(path, "hide");
             animate_drawer_to(0.0, -1.5);
+        });
+    }
+
+    {
+        let animate_drawer_to = Rc::clone(&animate_drawer_to);
+        let app_drawer_weak = app_drawer_weak.clone();
+        let cached_all_apps = Rc::clone(&cached_all_apps);
+        app_drawer.on_close_requested(move || {
+            if let Some(drawer) = app_drawer_weak.upgrade() {
+                drawer.set_search_query("".into());
+                drawer.set_installed_apps(ModelRc::from(Rc::new(VecModel::from(
+                    cached_all_apps.as_ref().clone(),
+                ))));
+            }
+            let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+            let _ = std::fs::write(path, "hide");
+            animate_drawer_to(0.0, -1.5);
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        let animate_drawer_to = Rc::clone(&animate_drawer_to);
+        app_drawer.on_app_clicked(move |id| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.invoke_app_clicked(id);
+            }
+            animate_drawer_to(0.0, -2.0);
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
+        let cached_all_apps = Rc::clone(&cached_all_apps);
+        app_drawer.on_search_query_changed(move |query_slint| {
+            let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
+            let _ = std::fs::write(path, "show");
+            let query = query_slint.as_str().trim().to_lowercase();
+            let filtered: Vec<AppItem> = if query.is_empty() {
+                cached_all_apps.as_ref().clone()
+            } else {
+                cached_all_apps
+                    .iter()
+                    .filter(|a| {
+                        a.name.to_lowercase().contains(&query)
+                            || a.id.to_lowercase().contains(&query)
+                    })
+                    .cloned()
+                    .collect()
+            };
+            if let Some(drawer) = app_drawer_weak.upgrade() {
+                drawer.set_installed_apps(ModelRc::from(Rc::new(VecModel::from(filtered))));
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_app_search_query(query_slint);
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        app_drawer.on_search_focused(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.invoke_app_search_focused();
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        app_drawer.on_search_accepted(move |q| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.invoke_app_search_accepted(q);
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        app_drawer.on_dismiss_keyboard(move || {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.invoke_drawer_dismiss_keyboard();
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
+        let drawer_progress_path = drawer_progress_path.clone();
+        let drawer_spring_timer = Rc::clone(&drawer_spring_timer);
+        let drawer_spring = Rc::clone(&drawer_spring);
+        app_drawer.on_start_drag(move |_id, item, sx, sy| {
+            drawer_spring_timer.borrow().stop();
+            {
+                let mut sp = drawer_spring.borrow_mut();
+                sp.position = 0.0;
+                sp.target = 0.0;
+                sp.velocity = 0.0;
+            }
+            let _ = std::fs::write(&drawer_progress_path, "0.0");
+            if let Some(drawer) = app_drawer_weak.upgrade() {
+                drawer.set_is_dragging_app(true);
+                drawer.set_drawer_progress(0.0);
+            }
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_is_dragging_app(true);
+                ui.set_dragging_app_item(item);
+                ui.set_drag_x(sx);
+                ui.set_drag_y(sy);
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        app_drawer.on_drag_moved(move |sx, sy| {
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_drag_x(sx);
+                ui.set_drag_y(sy);
+            }
+        });
+    }
+
+    {
+        let ui_weak = ui_weak.clone();
+        let app_drawer_weak = app_drawer_weak.clone();
+        let drawer_spring_timer = Rc::clone(&drawer_spring_timer);
+        let drawer_spring = Rc::clone(&drawer_spring);
+        let drawer_progress_path = drawer_progress_path.clone();
+        app_drawer.on_drag_ended(move |id, sx, sy| {
+            drawer_spring_timer.borrow().stop();
+            let _ = std::fs::write(&drawer_progress_path, "0.0");
+            {
+                let mut sp = drawer_spring.borrow_mut();
+                sp.position = 0.0;
+                sp.target = 0.0;
+                sp.velocity = 0.0;
+            }
+            if let Some(drawer) = app_drawer_weak.upgrade() {
+                drawer.set_is_dragging_app(false);
+                drawer.set_drawer_progress(0.0);
+            }
+            layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 0, false);
+            if let Some(ui) = ui_weak.upgrade() {
+                ui.set_is_dragging_app(false);
+                ui.set_active_mode(0);
+                ui.set_drawer_progress(0.0);
+                let drop_y = sy;
+                if drop_y >= 760.0 {
+                    ui.invoke_app_pinned_to_dock(id);
+                } else {
+                    let page = ui.get_current_page();
+                    let clamped_sy = if page == 0 && drop_y < 145.0 { 151.0 } else { sy };
+                    ui.invoke_app_dropped_on_homescreen(id, page, sx, clamped_sy);
+                }
+            }
         });
     }
 
