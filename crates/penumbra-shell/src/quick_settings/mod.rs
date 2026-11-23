@@ -17,7 +17,7 @@ pub struct QuickSettingsConfig {
 impl Default for QuickSettingsConfig {
     fn default() -> Self {
         let active = tile::default_active_ids();
-        let available = tile::registry()
+        let available = tile::registry_fast()
             .into_iter()
             .map(|t| t.id)
             .filter(|id| !active.contains(id))
@@ -60,7 +60,7 @@ impl QuickSettingsConfig {
 
     /// Drops unknown / duplicate ids and adds any registry tile that is missing from both lists.
     fn sanitized(mut self) -> Self {
-        let known: Vec<String> = tile::registry().into_iter().map(|t| t.id).collect();
+        let known: Vec<String> = tile::registry_fast().into_iter().map(|t| t.id).collect();
         let mut seen = Vec::new();
         let mut keep = |ids: &mut Vec<String>| {
             ids.retain(|id| {

@@ -134,12 +134,12 @@ impl NetworkService {
                 _ => ConnectivityState::Unknown,
             };
 
-            let is_connected = matches!(
-                connectivity,
-                ConnectivityState::Full | ConnectivityState::Limited
-            );
-
             let sys = Self::read_system();
+            let is_connected = !sys.ssid.is_empty()
+                || matches!(
+                    connectivity,
+                    ConnectivityState::Full | ConnectivityState::Limited
+                );
             let _ = tx.send(NetworkInfo {
                 is_connected,
                 is_wifi_enabled: wifi_enabled,
@@ -186,12 +186,19 @@ impl NetworkService {
         let mut ssid = String::new();
         if wifi_iface {
             if let Ok(out) = std::process::Command::new("nmcli")
-                .args(["-t", "-f", "active,ssid", "dev", "wifi"])
+                .args(["-t", "-f", "active,signal,ssid", "dev", "wifi"])
                 .output()
             {
                 for l in String::from_utf8_lossy(&out.stdout).lines() {
-                    if let Some(s) = l.strip_prefix("yes:") {
-                        ssid = s.to_string();
+                    if let Some(rest) = l.strip_prefix("yes:") {
+                        if let Some((sig_str, s)) = rest.split_once(':') {
+                            if let Ok(nm_sig) = sig_str.trim().parse::<u8>() {
+                                if nm_sig > 0 {
+                                    signal = nm_sig.min(100);
+                                }
+                            }
+                            ssid = s.to_string();
+                        }
                     }
                 }
             }

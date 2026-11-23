@@ -47,7 +47,7 @@ export component TopBarWindow inherits Window {
                 if (self.has-dragged) {
                     root.top-bar-released(is-qs);
                 } else if (event.kind == PointerEventKind.up && Math.abs(dy) <= 6px) {
-                    root.top-bar-pulled-down(350.0, is-qs);
+                    root.top-bar-pulled-down(520.0, is-qs);
                     root.top-bar-released(is-qs);
                 }
                 self.has-dragged = false;
@@ -135,7 +135,7 @@ export component TopBarWindow inherits Window {
                         width: 15px;
                         height: 15px;
                         source: root.wifi-signal >= 65 ? @image-url("icons/wifi.svg")
-                              : root.wifi-signal >= 35 ? @image-url("icons/wifi_2_bar.svg")
+                              : root.wifi-signal >= 25 ? @image-url("icons/wifi_2_bar.svg")
                               : @image-url("icons/wifi_1_bar.svg");
                         colorize: Theme.on-surface;
                     }

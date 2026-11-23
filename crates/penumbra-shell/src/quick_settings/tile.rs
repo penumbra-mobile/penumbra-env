@@ -105,12 +105,16 @@ pub fn set_wifi(active: bool) {
 }
 
 pub fn is_bluetooth_active() -> bool {
-    if let Ok(output) = std::process::Command::new("bluetoothctl").args(["show"]).output() {
+    if let Ok(output) = std::process::Command::new("timeout")
+        .args(["2", "bluetoothctl", "show"])
+        .stdin(std::process::Stdio::null())
+        .output()
+    {
         if let Ok(text) = String::from_utf8(output.stdout) {
             return text.lines().any(|l| l.trim().eq_ignore_ascii_case("Powered: yes"));
         }
     }
-    true
+    false
 }
 
 pub fn set_bluetooth(active: bool) {
