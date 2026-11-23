@@ -251,7 +251,12 @@ pub fn scan_wallpapers(folders: &[String]) -> Vec<DiscoveredWallpaper> {
                                 if let Some(end) = after.find(&close) {
                                     let candidate = after[..end].trim();
                                     let cp = Path::new(candidate);
-                                    if cp.is_file() && seen_paths.insert(candidate.to_string()) {
+                                    let ext_ok = cp
+                                        .extension()
+                                        .and_then(|e| e.to_str())
+                                        .map(|ext| supported_exts.iter().any(|&s| s.eq_ignore_ascii_case(ext)))
+                                        .unwrap_or(false);
+                                    if ext_ok && cp.is_file() && seen_paths.insert(candidate.to_string()) {
                                         let name = cp
                                             .file_stem()
                                             .map(|s| s.to_string_lossy().to_string())
