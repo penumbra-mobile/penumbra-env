@@ -123,17 +123,17 @@ export component DesktopWallpaperWindow inherits Window {
             spacing: 2px;
 
             DesktopMenuRow {
-                label: "Open Terminal";
+                label: @tr("Open Terminal");
                 icon-name: "terminal";
                 clicked => { root.menu-open = false; root.open-terminal(); }
             }
             DesktopMenuRow {
-                label: "Open Files";
+                label: @tr("Open Files");
                 icon-name: "folder";
                 clicked => { root.menu-open = false; root.open-files(); }
             }
             DesktopMenuRow {
-                label: "Applications";
+                label: @tr("Applications");
                 icon-name: "grid";
                 clicked => { root.menu-open = false; root.open-launcher(); }
             }
@@ -141,12 +141,12 @@ export component DesktopWallpaperWindow inherits Window {
             Rectangle { height: 1px; background: DesktopTheme.border-subtle; }
 
             DesktopMenuRow {
-                label: "Wallpaper & style";
+                label: @tr("Wallpaper & style");
                 icon-name: "edit";
                 clicked => { root.menu-open = false; root.open-settings("appearance"); }
             }
             DesktopMenuRow {
-                label: "Display settings";
+                label: @tr("Display settings");
                 icon-name: "settings";
                 clicked => { root.menu-open = false; root.open-settings("display"); }
             }
@@ -250,7 +250,7 @@ export component DesktopPanelWindow inherits Window {
                         alignment: center;
 
                         Text {
-                            text: "Applications";
+                            text: @tr("Applications");
                             font-size: 12px;
                             font-weight: 600;
                             color: root.launcher-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
@@ -630,7 +630,7 @@ export component DesktopLauncherWindow inherits Window {
                                     x: 0px;
                                     width: parent.width;
                                     height: parent.height;
-                                    text: "Search apps or =calculate...";
+                                    text: @tr("Search apps or =calculate...");
                                     font-size: DesktopTheme.font-title;
                                     color: DesktopTheme.on-surface-muted;
                                     vertical-alignment: center;
@@ -702,7 +702,7 @@ export component DesktopLauncherWindow inherits Window {
                         padding-right: 16px;
                         alignment: space-between;
                         Text {
-                            text: "Calculator";
+                            text: @tr("Calculator");
                             font-size: DesktopTheme.font-caption;
                             font-weight: 600;
                             color: DesktopTheme.on-primary-container;
@@ -739,7 +739,13 @@ export component DesktopLauncherWindow inherits Window {
                             alignment: center;
 
                             Text {
-                                text: cat;
+                                text: cat == "All" ? @tr("All") :
+                                      cat == "Internet" ? @tr("Internet") :
+                                      cat == "Utilities" ? @tr("Utilities") :
+                                      cat == "System" ? @tr("System") :
+                                      cat == "Development" ? @tr("Development") :
+                                      cat == "Office" ? @tr("Office") :
+                                      cat == "Multimedia" ? @tr("Multimedia") : cat;
                                 font-size: DesktopTheme.font-caption;
                                 font-weight: 600;
                                 color: cat == root.active-category ? DesktopTheme.on-primary : DesktopTheme.on-surface-variant;

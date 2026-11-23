@@ -1,3 +1,7 @@
 fn main() {
-    slint_build::compile("ui/shell_root.slint").expect("Failed to compile Penumbra Shell Slint UI");
+    let config = slint_build::CompilerConfiguration::new()
+        .with_bundled_translations("../../po")
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    slint_build::compile_with_config("ui/shell_root.slint", config)
+        .expect("Failed to compile Penumbra Shell Slint UI");
 }

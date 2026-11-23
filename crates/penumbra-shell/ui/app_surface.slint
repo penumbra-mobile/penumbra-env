@@ -438,7 +438,7 @@ export component AppSurface inherits Rectangle {
                     border-color: item.is-folder ? #7CDB8A : #D0BCFF;
 
                     tag-txt := Text {
-                        text: item.is-folder ? "Add" : "Folder";
+                        text: item.is-folder ? @tr("Add") : @tr("Folder");
                         font-size: 10px;
                         font-weight: 700;
                         color: item.is-folder ? #A9FFAE : #EADDFF;

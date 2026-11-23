@@ -312,7 +312,7 @@ export component QuickSettingsDrawer inherits Rectangle {
 
             PillSlider {
                 icon-text: "☀";
-                label: "Brightness";
+                label: @tr("Brightness");
                 value: root.brightness;
                 changed(val) => {
                     root.brightness = val;
@@ -322,7 +322,7 @@ export component QuickSettingsDrawer inherits Rectangle {
 
             PillSlider {
                 icon-text: "󰕾";
-                label: "Media Volume";
+                label: @tr("Media Volume");
                 value: root.volume;
                 changed(val) => {
                     root.volume = val;
@@ -342,7 +342,7 @@ export component QuickSettingsDrawer inherits Rectangle {
                     width: (parent.width - 10px) / 2;
                     is-active: root.tile-internet;
                     icon-text: "󰤨";
-                    title: "Internet";
+                    title: @tr("Internet");
                     subtitle: root.tile-internet ? "5G Connected" : "Disabled";
                     clicked => { root.tile-internet = self.is-active; }
                 }
@@ -363,7 +363,7 @@ export component QuickSettingsDrawer inherits Rectangle {
                     width: (parent.width - 10px) / 2;
                     is-active: root.tile-flashlight;
                     icon-text: "󰌵";
-                    title: "Flashlight";
+                    title: @tr("Flashlight");
                     subtitle: root.tile-flashlight ? "Active" : "Off";
                     clicked => { root.tile-flashlight = self.is-active; }
                 }
@@ -371,7 +371,7 @@ export component QuickSettingsDrawer inherits Rectangle {
                     width: (parent.width - 10px) / 2;
                     is-active: root.tile-dnd;
                     icon-text: "󰍶";
-                    title: "Do Not Disturb";
+                    title: @tr("Do Not Disturb");
                     subtitle: root.tile-dnd ? "Priority Only" : "Off";
                     clicked => { root.tile-dnd = self.is-active; }
                 }
@@ -392,7 +392,7 @@ export component QuickSettingsDrawer inherits Rectangle {
                     width: (parent.width - 10px) / 2;
                     is-active: root.tile-rotate;
                     icon-text: "󰑮";
-                    title: "Auto-Rotate";
+                    title: @tr("Auto-Rotate");
                     subtitle: root.tile-rotate ? "Portrait / Land" : "Locked";
                     clicked => { root.tile-rotate = self.is-active; }
                 }
@@ -433,14 +433,14 @@ export component QuickSettingsDrawer inherits Rectangle {
                     alignment: center;
 
                     Text {
-                        text: "Penumbra Core • Wayland Ready";
+                        text: @tr("Penumbra Core • Wayland Ready");
                         font-size: Theme.font-label;
                         font-weight: 700;
                         color: Theme.on-surface;
                     }
 
                     Text {
-                        text: "Wayland convergence active: DSI phone shell ready";
+                        text: @tr("Wayland convergence active: DSI phone shell ready");
                         font-size: Theme.font-caption;
                         color: Theme.on-surface-variant;
                     }

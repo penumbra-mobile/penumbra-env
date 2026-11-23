@@ -145,7 +145,7 @@ export component PowerDialog inherits Rectangle {
             spacing: 10px;
 
             Text {
-                text: "Device options";
+                text: @tr("Device options");
                 color: Theme.on-surface;
                 font-size: Theme.font-title;
                 font-weight: 700;
@@ -153,8 +153,8 @@ export component PowerDialog inherits Rectangle {
             }
 
             PowerActionRow {
-                title: "Power off";
-                subtitle: "Shut down device";
+                title: @tr("Power off");
+                subtitle: @tr("Shut down device");
                 icon-name: "power";
                 container-color: Theme.error-container;
                 badge-color: Theme.error;
@@ -165,8 +165,8 @@ export component PowerDialog inherits Rectangle {
             }
 
             PowerActionRow {
-                title: "Restart";
-                subtitle: "Reboot system";
+                title: @tr("Restart");
+                subtitle: @tr("Reboot system");
                 icon-name: "restart";
                 container-color: Theme.tertiary-container;
                 badge-color: Theme.tertiary;
@@ -177,8 +177,8 @@ export component PowerDialog inherits Rectangle {
             }
 
             PowerActionRow {
-                title: "Sign out";
-                subtitle: "End current session";
+                title: @tr("Sign out");
+                subtitle: @tr("End current session");
                 icon-name: "logout";
                 container-color: Theme.secondary-container;
                 badge-color: Theme.secondary;
@@ -214,7 +214,7 @@ export component PowerDialog inherits Rectangle {
                     }
 
                     Text {
-                        text: "Cancel";
+                        text: @tr("Cancel");
                         color: Theme.on-surface;
                         font-size: Theme.font-body;
                         font-weight: 600;

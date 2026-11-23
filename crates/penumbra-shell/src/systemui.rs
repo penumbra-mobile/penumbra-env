@@ -56,6 +56,8 @@ fn release_target(y_current: f64, v_y: f64) -> f64 {
 
 pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     info!("Initializing Penumbra Consolidated SystemUI (Phase 6C)...");
+    let active_lang = penumbra_services::i18n::active_lang_code();
+    let _ = slint::select_bundled_translation(if active_lang == "en" { "" } else { &active_lang });
 
     let (logical_w, logical_h, _scale) = layer_shell_slint::mobile_output_geometry();
     let lw = logical_w as i32;
@@ -1253,7 +1255,13 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let tb = top_bar_weak.clone();
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
-        let update_time = move || {
+        let mut last_lang = penumbra_services::i18n::active_lang_code();
+        let mut update_time = move || {
+            let cur_lang = penumbra_services::i18n::active_lang_code();
+            if cur_lang != last_lang {
+                let _ = slint::select_bundled_translation(if cur_lang == "en" { "" } else { &cur_lang });
+                last_lang = cur_lang;
+            }
             let now = Local::now();
             let time_str = now.format("%H:%M").to_string();
             let date_str = now.format("%A, %b %-d").to_string();

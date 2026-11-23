@@ -189,6 +189,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_drawer_weak = app_drawer.as_weak();
     layer_shell_slint::sync_input_region("penumbra-app-drawer", lw, lh, 0, false);
 
+    let active_lang = penumbra_services::i18n::active_lang_code();
+    let _ = slint::select_bundled_translation(if active_lang == "en" { "" } else { &active_lang });
+
     // Initialize Monet dynamic theme & icon preferences on both surfaces
     let initial_palette = penumbra_shell::theme::load_current_theme();
     let initial_disp_cfg = penumbra_services::display::DisplayConfig::load();
@@ -236,7 +239,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let clock_timer = Timer::default();
     {
         let ui_weak = ui_weak.clone();
-        let update_time = move || {
+        let mut last_lang = penumbra_services::i18n::active_lang_code();
+        let mut update_time = move || {
+            let cur_lang = penumbra_services::i18n::active_lang_code();
+            if cur_lang != last_lang {
+                let _ = slint::select_bundled_translation(if cur_lang == "en" { "" } else { &cur_lang });
+                last_lang = cur_lang;
+            }
             let now = Local::now();
             let time_str = now.format("%H:%M").to_string();
             let date_str = now.format("%A, %b %-d").to_string();

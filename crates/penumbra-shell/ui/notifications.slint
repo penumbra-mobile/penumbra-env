@@ -222,7 +222,7 @@ export component NotificationEmptyState inherits Rectangle {
         }
 
         Text {
-            text: "No notifications";
+            text: @tr("No notifications");
             font-size: 16px;
             font-weight: 700;
             color: Theme.on-surface;
@@ -230,7 +230,7 @@ export component NotificationEmptyState inherits Rectangle {
         }
 
         Text {
-            text: "You're all caught up";
+            text: @tr("You're all caught up");
             font-size: Theme.font-label;
             font-weight: 400;
             color: Theme.on-surface-variant;
@@ -276,7 +276,7 @@ export component NotificationStack inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: "Notifications";
+                        text: @tr("Notifications");
                         font-size: 13px;
                         font-weight: 700;
                         color: Theme.on-surface;
@@ -318,7 +318,7 @@ export component NotificationStack inherits Rectangle {
                         padding-left: 10px;
                         padding-right: 10px;
                         Text {
-                            text: "Clear all";
+                            text: @tr("Clear all");
                             font-size: Theme.font-caption;
                             font-weight: 600;
                             color: Theme.primary;

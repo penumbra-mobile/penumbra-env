@@ -237,6 +237,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = slint::select_bundled_translation(&penumbra_services::i18n::active_lang_code());
     info!(
         "Starting Penumbra Desktop Convergence Shell on output '{}' (panel={}, dock={}, launcher={})",
         args.output, !args.dock_only && !args.launcher_only,
@@ -692,7 +693,13 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let pop_weak_timer = popover_handle.clone();
     let telemetry_mgr_timer = telemetry_mgr.clone();
     let clock_timer = Timer::default();
+    let mut last_lang = penumbra_services::i18n::active_lang_code();
     clock_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+        let cur_lang = penumbra_services::i18n::active_lang_code();
+        if cur_lang != last_lang {
+            let _ = slint::select_bundled_translation(if cur_lang == "en" { "" } else { &cur_lang });
+            last_lang = cur_lang;
+        }
         let snap = telemetry_mgr_timer.snapshot();
         let vol_pct = (read_volume_ratio() * 100.0).round() as i32;
         if let Some(ref weak) = panel_weak_timer {

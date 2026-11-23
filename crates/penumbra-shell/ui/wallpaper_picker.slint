@@ -96,13 +96,13 @@ export component HomescreenContextMenu inherits Rectangle {
                             spacing: 1px;
 
                             Text {
-                                text: "Wallpaper & style";
+                                text: @tr("Wallpaper & style");
                                 font-size: 15px;
                                 font-weight: 700;
                                 color: Theme.on-surface;
                             }
                             Text {
-                                text: "Choose or scan wallpapers";
+                                text: @tr("Choose or scan wallpapers");
                                 font-size: 11px;
                                 color: Theme.on-surface-variant;
                             }
@@ -148,13 +148,13 @@ export component HomescreenContextMenu inherits Rectangle {
                             spacing: 1px;
 
                             Text {
-                                text: "Edit homescreen";
+                                text: @tr("Edit homescreen");
                                 font-size: 15px;
                                 font-weight: 700;
                                 color: Theme.on-surface;
                             }
                             Text {
-                                text: "Rearrange apps & shortcuts";
+                                text: @tr("Rearrange apps & shortcuts");
                                 font-size: 11px;
                                 color: Theme.on-surface-variant;
                             }
@@ -255,7 +255,7 @@ export component WallpaperPicker inherits Rectangle {
                     VerticalLayout {
                         alignment: center;
                         Text {
-                            text: "Wallpaper & Style";
+                            text: @tr("Wallpaper & Style");
                             font-size: 20px;
                             font-weight: 800;
                             color: Theme.on-surface;
@@ -305,7 +305,7 @@ export component WallpaperPicker inherits Rectangle {
                         background: root.active-tab == 0 ? Theme.primary : transparent;
 
                         Text {
-                            text: "🖼️ Gallery";
+                            text: @tr("🖼️ Gallery");
                             font-size: 13px;
                             font-weight: 700;
                             color: root.active-tab == 0 ? Theme.on-primary : Theme.on-surface;
@@ -325,7 +325,7 @@ export component WallpaperPicker inherits Rectangle {
                         background: root.active-tab == 1 ? Theme.primary : transparent;
 
                         Text {
-                            text: "📂 Browse";
+                            text: @tr("📂 Browse");
                             font-size: 13px;
                             font-weight: 700;
                             color: root.active-tab == 1 ? Theme.on-primary : Theme.on-surface;
@@ -345,7 +345,7 @@ export component WallpaperPicker inherits Rectangle {
                         background: root.active-tab == 2 ? Theme.primary : transparent;
 
                         Text {
-                            text: "📁 Folders";
+                            text: @tr("📁 Folders");
                             font-size: 13px;
                             font-weight: 700;
                             color: root.active-tab == 2 ? Theme.on-primary : Theme.on-surface;
@@ -436,7 +436,7 @@ export component WallpaperPicker inherits Rectangle {
                             background: #2A2535;
 
                             Text {
-                                text: "Reset";
+                                text: @tr("Reset");
                                 font-size: 12px;
                                 font-weight: 600;
                                 color: #FFB4AB;
@@ -462,7 +462,7 @@ export component WallpaperPicker inherits Rectangle {
                         alignment: space-between;
 
                         Text {
-                            text: "Available Wallpapers (" + root.wallpapers.length + ")";
+                            text: @tr("Available Wallpapers ({})", root.wallpapers.length);
                             font-size: 16px;
                             font-weight: 700;
                             color: Theme.on-surface;
@@ -477,7 +477,7 @@ export component WallpaperPicker inherits Rectangle {
                             background: Theme.surface-container-highest;
 
                             Text {
-                                text: "🔄 Refresh";
+                                text: @tr("🔄 Refresh");
                                 font-size: 11px;
                                 font-weight: 600;
                                 color: Theme.primary;
@@ -506,13 +506,13 @@ export component WallpaperPicker inherits Rectangle {
                         spacing: 8px;
 
                         Text {
-                            text: "No wallpapers found in scanned folders";
+                            text: @tr("No wallpapers found in scanned folders");
                             font-size: 14px;
                             color: Theme.on-surface-variant;
                             horizontal-alignment: center;
                         }
                         Text {
-                            text: "Use Browse tab or add folders in the Folders tab";
+                            text: @tr("Use Browse tab or add folders in the Folders tab");
                             font-size: 12px;
                             color: Theme.primary;
                             horizontal-alignment: center;
@@ -675,7 +675,7 @@ export component WallpaperPicker inherits Rectangle {
                         spacing: 8px;
 
                         Text {
-                            text: "➕ Add this folder to Wallpaper Scan Library";
+                            text: @tr("➕ Add this folder to Wallpaper Scan Library");
                             font-size: 12px;
                             font-weight: 700;
                             color: Theme.primary;
@@ -771,14 +771,14 @@ export component WallpaperPicker inherits Rectangle {
                     spacing: 14px;
 
                     Text {
-                        text: "Wallpaper Scan Directories";
+                        text: @tr("Wallpaper Scan Directories");
                         font-size: 16px;
                         font-weight: 700;
                         color: Theme.on-surface;
                     }
 
                     Text {
-                        text: "Penumbra automatically scans these directories (and subfolders) for wallpaper images.";
+                        text: @tr("Penumbra automatically scans these directories (and subfolders) for wallpaper images.");
                         font-size: 12px;
                         color: Theme.on-surface-variant;
                     }
@@ -863,7 +863,7 @@ export component WallpaperPicker inherits Rectangle {
                             spacing: 8px;
 
                             Text {
-                                text: "📂 Browse File System to Add Folder";
+                                text: @tr("📂 Browse File System to Add Folder");
                                 font-size: 14px;
                                 font-weight: 700;
                                 color: Theme.primary;

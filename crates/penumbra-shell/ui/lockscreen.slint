@@ -317,7 +317,7 @@ export component Lockscreen inherits Rectangle {
                         spacing: 8px;
 
                         Text {
-                            text: "Show keyboard";
+                            text: @tr("Show keyboard");
                             font-size: 14px;
                             font-weight: 500;
                             color: Theme.on-primary-container;
@@ -339,7 +339,7 @@ export component Lockscreen inherits Rectangle {
                     background: submit-touch.pressed ? Theme.primary-container : Theme.primary;
 
                     Text {
-                        text: "Unlock";
+                        text: @tr("Unlock");
                         font-size: 16px;
                         font-weight: 600;
                         color: submit-touch.pressed ? Theme.on-primary-container : Theme.on-primary;
@@ -391,7 +391,7 @@ export component Lockscreen inherits Rectangle {
                 }
 
                 Text {
-                    text: "Touch fingerprint sensor";
+                    text: @tr("Touch fingerprint sensor");
                     font-size: 12px;
                     color: Theme.on-surface-variant;
                     horizontal-alignment: center;
@@ -411,7 +411,7 @@ export component Lockscreen inherits Rectangle {
                     background: em-touch.pressed ? Theme.error-container : transparent;
 
                     Text {
-                        text: "Emergency";
+                        text: @tr("Emergency");
                         font-size: 13px;
                         font-weight: 500;
                         color: Theme.error;
@@ -434,7 +434,7 @@ export component Lockscreen inherits Rectangle {
                     background: cancel-touch.pressed ? Theme.surface-container-highest : transparent;
 
                     Text {
-                        text: "Cancel";
+                        text: @tr("Cancel");
                         font-size: 13px;
                         font-weight: 500;
                         color: Theme.on-surface-variant;
@@ -592,7 +592,7 @@ export component Lockscreen inherits Rectangle {
                 }
 
                 Text {
-                    text: "Swipe up to unlock";
+                    text: @tr("Swipe up to unlock");
                     font-size: 14px;
                     font-weight: 500;
                     color: Theme.on-surface-variant;
@@ -612,7 +612,7 @@ export component Lockscreen inherits Rectangle {
                     background: root.em-pressed ? Theme.error-container : Theme.surface-container-high;
 
                     Text {
-                        text: "Emergency";
+                        text: @tr("Emergency");
                         font-size: 12px;
                         font-weight: 500;
                         color: Theme.error;

@@ -1186,7 +1186,7 @@ export component QuickSettingsSlider inherits Rectangle {
                         }
 
                         Text {
-                            text: "Clear all";
+                            text: @tr("Clear all");
                             font-size: 12px;
                             font-weight: 700;
                             color: Theme.primary;
@@ -1223,7 +1223,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 Text {
                     x: parent.width - root.pad - 120px;
                     y: 38px;
-                    text: "Until 02:00";
+                    text: @tr("Until 02:00");
                     font-size: 10px;
                     font-weight: 600;
                     color: Theme.on-surface-variant;
@@ -1302,7 +1302,7 @@ export component QuickSettingsSlider inherits Rectangle {
                     y: root.media-active ? 236px : 94px;
                     width: parent.width - 2 * root.pad;
                     value <=> root.brightness;
-                    label: "Brightness";
+                    label: @tr("Brightness");
                     changed(v) => { root.brightness-changed(v); }
                 }
 
@@ -1367,13 +1367,13 @@ export component QuickSettingsSlider inherits Rectangle {
                         spacing: 2px;
                         alignment: center;
                         Text {
-                            text: "Edit tiles";
+                            text: @tr("Edit tiles");
                             font-size: 20px;
                             font-weight: 800;
                             color: Theme.on-surface;
                         }
                         Text {
-                            text: "Hold & drag to reorder";
+                            text: @tr("Hold & drag to reorder");
                             font-size: 12px;
                             font-weight: 500;
                             color: Theme.on-surface-variant;
@@ -1387,7 +1387,7 @@ export component QuickSettingsSlider inherits Rectangle {
 
                     // Reset button
                     PillButton {
-                        text: "Reset";
+                        text: @tr("Reset");
                         icon-name: "restart";
                         is-accent: false;
                         clicked => { root.reset-tiles(); }
@@ -1395,7 +1395,7 @@ export component QuickSettingsSlider inherits Rectangle {
 
                     // Done button
                     PillButton {
-                        text: "Done";
+                        text: @tr("Done");
                         icon-name: "check";
                         is-accent: true;
                         clicked => { root.exit-edit-mode(); }
@@ -1422,7 +1422,7 @@ export component QuickSettingsSlider inherits Rectangle {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "Active tiles";
+                                text: @tr("Active tiles");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: Theme.primary;
@@ -1435,7 +1435,7 @@ export component QuickSettingsSlider inherits Rectangle {
                                     padding-left: 8px;
                                     padding-right: 8px;
                                     Text {
-                                        text: "\{root.active-tiles.length} active";
+                                        text: @tr("{} active", root.active-tiles.length);
                                         font-size: 11px;
                                         font-weight: 600;
                                         color: Theme.on-surface-variant;
@@ -1445,7 +1445,7 @@ export component QuickSettingsSlider inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "Tiles visible in quick settings. Tap - to remove.";
+                            text: @tr("Tiles visible in quick settings. Tap - to remove.");
                             font-size: 11px;
                             color: Theme.on-surface-variant;
                         }
@@ -1483,7 +1483,7 @@ export component QuickSettingsSlider inherits Rectangle {
                             alignment: center;
                             Icon { name: "edit"; icon-size: 16px; icon-color: Theme.primary; }
                             Text {
-                                text: "Hold and drag tiles to reorder";
+                                text: @tr("Hold and drag tiles to reorder");
                                 font-size: 12px;
                                 font-weight: 600;
                                 color: Theme.on-surface;
@@ -1498,7 +1498,7 @@ export component QuickSettingsSlider inherits Rectangle {
                         HorizontalLayout {
                             alignment: space-between;
                             Text {
-                                text: "Available tiles";
+                                text: @tr("Available tiles");
                                 font-size: 12px;
                                 font-weight: 700;
                                 color: Theme.secondary;
@@ -1511,7 +1511,7 @@ export component QuickSettingsSlider inherits Rectangle {
                                     padding-left: 8px;
                                     padding-right: 8px;
                                     Text {
-                                        text: "\{root.available-tiles.length} available";
+                                        text: @tr("{} available", root.available-tiles.length);
                                         font-size: 11px;
                                         font-weight: 600;
                                         color: Theme.on-primary-container;
@@ -1521,7 +1521,7 @@ export component QuickSettingsSlider inherits Rectangle {
                             }
                         }
                         Text {
-                            text: "Tap + to add tile to your active shade.";
+                            text: @tr("Tap + to add tile to your active shade.");
                             font-size: 11px;
                             color: Theme.on-surface-variant;
                         }
