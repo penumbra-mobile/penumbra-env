@@ -7,43 +7,43 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Open Terminal"
-msgstr ""
+msgstr "Terminal öffnen"
 
 msgid "Open Files"
-msgstr ""
+msgstr "Dateien öffnen"
 
 msgid "Applications"
-msgstr ""
+msgstr "Anwendungen"
 
 msgid "Wallpaper & style"
-msgstr ""
+msgstr "Hintergrund & Stil"
 
 msgid "Display settings"
-msgstr ""
+msgstr "Anzeigeeinstellungen"
 
 msgid "Search apps or =calculate..."
-msgstr ""
+msgstr "Apps suchen oder =berechnen..."
 
 msgid "Calculator"
-msgstr ""
+msgstr "Rechner"
 
 msgid "All"
-msgstr ""
+msgstr "Alle"
 
 msgid "Internet"
-msgstr ""
+msgstr "Internet"
 
 msgid "Utilities"
-msgstr ""
+msgstr "Werkzeuge"
 
 msgid "System"
-msgstr ""
+msgstr "System"
 
 msgid "Development"
-msgstr ""
+msgstr "Entwicklung"
 
 msgid "Office"
-msgstr ""
+msgstr "Büro"
 
 msgid "Multimedia"
-msgstr ""
+msgstr "Multimedia"

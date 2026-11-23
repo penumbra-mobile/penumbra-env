@@ -1,0 +1,189 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-shell 0.1.0\n"
+"Language: it\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Search apps..."
+msgstr "Cerca app..."
+
+msgid "No apps found"
+msgstr "Nessuna app trovata"
+
+msgid "Add"
+msgstr "Aggiungi"
+
+msgid "Folder"
+msgstr "Cartella"
+
+msgid "Show keyboard"
+msgstr "Mostra tastiera"
+
+msgid "Unlock"
+msgstr "Sblocca"
+
+msgid "Touch fingerprint sensor"
+msgstr "Tocca il sensore di impronte"
+
+msgid "Emergency"
+msgstr "Emergenza"
+
+msgid "Cancel"
+msgstr "Annulla"
+
+msgid "Swipe up to unlock"
+msgstr "Scorri verso l'alto per sbloccare"
+
+msgid "No notifications"
+msgstr "Nessuna notifica"
+
+msgid "You're all caught up"
+msgstr "Sei aggiornato"
+
+msgid "Notifications"
+msgstr "Notifiche"
+
+msgid "Clear all"
+msgstr "Cancella tutto"
+
+msgid "Device options"
+msgstr "Opzioni dispositivo"
+
+msgid "Power off"
+msgstr "Spegni"
+
+msgid "Shut down device"
+msgstr "Arresta il dispositivo"
+
+msgid "Restart"
+msgstr "Riavvia"
+
+msgid "Reboot system"
+msgstr "Riavvia il sistema"
+
+msgid "Sign out"
+msgstr "Disconnetti"
+
+msgid "End current session"
+msgstr "Termina la sessione corrente"
+
+msgid "Brightness"
+msgstr "Luminosità"
+
+msgid "Media Volume"
+msgstr "Volume multimediale"
+
+msgid "Internet"
+msgstr "Internet"
+
+msgid "Flashlight"
+msgstr "Torcia"
+
+msgid "Do Not Disturb"
+msgstr "Non disturbare"
+
+msgid "Auto-Rotate"
+msgstr "Rotazione automatica"
+
+msgid "Penumbra Core • Wayland Ready"
+msgstr "Penumbra Core • Wayland pronto"
+
+msgid "Wayland convergence active: DSI phone shell ready"
+msgstr "Convergenza Wayland attiva: interfaccia telefono DSI pronta"
+
+msgid "Until 02:00"
+msgstr "Fino alle 02:00"
+
+msgid "Edit tiles"
+msgstr "Modifica riquadri"
+
+msgid "Hold & drag to reorder"
+msgstr "Tieni premuto e trascina per riordinare"
+
+msgid "Reset"
+msgstr "Ripristina"
+
+msgid "Done"
+msgstr "Fatto"
+
+msgid "Active tiles"
+msgstr "Riquadri attivi"
+
+msgid "{} active"
+msgstr "{} attivi"
+
+msgid "Tiles visible in quick settings. Tap - to remove."
+msgstr "Riquadri visibili nelle impostazioni rapide. Tocca - per rimuovere."
+
+msgid "Hold and drag tiles to reorder"
+msgstr "Tieni premuto e trascina i riquadri per riordinarli"
+
+msgid "Available tiles"
+msgstr "Riquadri disponibili"
+
+msgid "{} available"
+msgstr "{} disponibili"
+
+msgid "Tap + to add tile to your active shade."
+msgstr "Tocca + per aggiungere un riquadro al pannello attivo."
+
+msgid "No recent applications"
+msgstr "Nessuna applicazione recente"
+
+msgid "Tap anywhere to return home"
+msgstr "Tocca ovunque per tornare alla schermata Home"
+
+msgid "Wallpaper & style"
+msgstr "Sfondo e stile"
+
+msgid "Choose or scan wallpapers"
+msgstr "Scegli o cerca sfondi"
+
+msgid "Edit homescreen"
+msgstr "Modifica schermata Home"
+
+msgid "Rearrange apps & shortcuts"
+msgstr "Riordina app e scorciatoie"
+
+msgid "Wallpaper & Style"
+msgstr "Sfondo e stile"
+
+msgid "🖼️ Gallery"
+msgstr "🖼️ Galleria"
+
+msgid "📂 Browse"
+msgstr "📂 Sfoglia"
+
+msgid "📁 Folders"
+msgstr "📁 Cartelle"
+
+msgid "Available Wallpapers ({})"
+msgstr "Sfondi disponibili ({})"
+
+msgid "🔄 Refresh"
+msgstr "🔄 Aggiorna"
+
+msgid "No wallpapers found in scanned folders"
+msgstr "Nessuno sfondo trovato nelle cartelle scansionate"
+
+msgid "Use Browse tab or add folders in the Folders tab"
+msgstr "Usa la scheda Sfoglia o aggiungi cartelle nella scheda Cartelle"
+
+msgid "➕ Add this folder to Wallpaper Scan Library"
+msgstr "➕ Aggiungi questa cartella alla libreria sfondi"
+
+msgid "Wallpaper Scan Directories"
+msgstr "Cartelle di scansione sfondi"
+
+msgid ""
+"Penumbra automatically scans these directories (and subfolders) for "
+"wallpaper images."
+msgstr ""
+"Penumbra scansiona automaticamente queste cartelle (e sottocartelle) per "
+"le immagini di sfondo."
+
+msgid "📂 Browse File System to Add Folder"
+msgstr "📂 Sfoglia il file system per aggiungere una cartella"
+

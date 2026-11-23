@@ -10,37 +10,37 @@ msgid "Search apps..."
 msgstr "Apps suchen..."
 
 msgid "No apps found"
-msgstr ""
+msgstr "Keine Apps gefunden"
 
 msgid "Add"
-msgstr ""
+msgstr "Hinzufügen"
 
 msgid "Folder"
-msgstr ""
+msgstr "Ordner"
 
 msgid "Show keyboard"
-msgstr ""
+msgstr "Tastatur anzeigen"
 
 msgid "Unlock"
-msgstr ""
+msgstr "Entsperren"
 
 msgid "Touch fingerprint sensor"
-msgstr ""
+msgstr "Fingerabdrucksensor berühren"
 
 msgid "Emergency"
-msgstr ""
+msgstr "Notruf"
 
 msgid "Cancel"
 msgstr "Abbrechen"
 
 msgid "Swipe up to unlock"
-msgstr ""
+msgstr "Zum Entsperren nach oben wischen"
 
 msgid "No notifications"
 msgstr "Keine Benachrichtigungen"
 
 msgid "You're all caught up"
-msgstr ""
+msgstr "Alle Benachrichtigungen gelesen"
 
 msgid "Notifications"
 msgstr "Benachrichtigungen"
@@ -49,141 +49,140 @@ msgid "Clear all"
 msgstr "Alle löschen"
 
 msgid "Device options"
-msgstr ""
+msgstr "Geräteoptionen"
 
 msgid "Power off"
 msgstr "Ausschalten"
 
 msgid "Shut down device"
-msgstr ""
+msgstr "Gerät herunterfahren"
 
 msgid "Restart"
 msgstr "Neustart"
 
 msgid "Reboot system"
-msgstr ""
+msgstr "System neu starten"
 
-#, fuzzy
 msgid "Sign out"
 msgstr "Abmelden"
 
 msgid "End current session"
-msgstr ""
+msgstr "Aktuelle Sitzung beenden"
 
 msgid "Brightness"
 msgstr "Helligkeit"
 
-#, fuzzy
 msgid "Media Volume"
-msgstr "Lautstärke"
+msgstr "Medienlautstärke"
 
 msgid "Internet"
-msgstr ""
+msgstr "Internet"
 
 msgid "Flashlight"
-msgstr ""
+msgstr "Taschenlampe"
 
 msgid "Do Not Disturb"
-msgstr ""
+msgstr "Bitte nicht stören"
 
 msgid "Auto-Rotate"
-msgstr ""
+msgstr "Automatisch drehen"
 
 msgid "Penumbra Core • Wayland Ready"
-msgstr ""
+msgstr "Penumbra Core • Wayland bereit"
 
 msgid "Wayland convergence active: DSI phone shell ready"
-msgstr ""
+msgstr "Wayland-Konvergenz aktiv: DSI-Telefonoberfläche bereit"
 
 msgid "Until 02:00"
-msgstr ""
+msgstr "Bis 02:00"
 
 msgid "Edit tiles"
-msgstr ""
+msgstr "Kacheln bearbeiten"
 
 msgid "Hold & drag to reorder"
-msgstr ""
+msgstr "Gedrückt halten & ziehen zum Sortieren"
 
 msgid "Reset"
-msgstr ""
+msgstr "Zurücksetzen"
 
 msgid "Done"
-msgstr ""
+msgstr "Fertig"
 
 msgid "Active tiles"
-msgstr ""
+msgstr "Aktive Kacheln"
 
 msgid "{} active"
-msgstr ""
+msgstr "{} aktiv"
 
 msgid "Tiles visible in quick settings. Tap - to remove."
-msgstr ""
+msgstr "In Schnelleinstellungen sichtbare Kacheln. Zum Entfernen - tippen."
 
 msgid "Hold and drag tiles to reorder"
-msgstr ""
+msgstr "Kacheln gedrückt halten und zum Sortieren ziehen"
 
 msgid "Available tiles"
-msgstr ""
+msgstr "Verfügbare Kacheln"
 
 msgid "{} available"
-msgstr ""
+msgstr "{} verfügbar"
 
 msgid "Tap + to add tile to your active shade."
-msgstr ""
+msgstr "Tippen Sie +, um eine Kachel hinzuzufügen."
 
-#, fuzzy
 msgid "No recent applications"
-msgstr "Keine Benachrichtigungen"
+msgstr "Keine kürzlich verwendeten Apps"
 
 msgid "Tap anywhere to return home"
-msgstr ""
+msgstr "Tippen Sie irgendwohin, um zum Startbildschirm zurückzukehren"
 
 msgid "Wallpaper & style"
-msgstr ""
+msgstr "Hintergrund & Stil"
 
 msgid "Choose or scan wallpapers"
-msgstr ""
+msgstr "Hintergründe auswählen oder suchen"
 
 msgid "Edit homescreen"
-msgstr ""
+msgstr "Startbildschirm bearbeiten"
 
 msgid "Rearrange apps & shortcuts"
-msgstr ""
+msgstr "Apps & Verknüpfungen neu anordnen"
 
 msgid "Wallpaper & Style"
-msgstr ""
+msgstr "Hintergrund & Stil"
 
 msgid "🖼️ Gallery"
-msgstr ""
+msgstr "🖼️ Galerie"
 
 msgid "📂 Browse"
-msgstr ""
+msgstr "📂 Durchsuchen"
 
 msgid "📁 Folders"
-msgstr ""
+msgstr "📁 Ordner"
 
 msgid "Available Wallpapers ({})"
-msgstr ""
+msgstr "Verfügbare Hintergründe ({})"
 
 msgid "🔄 Refresh"
-msgstr ""
+msgstr "🔄 Aktualisieren"
 
 msgid "No wallpapers found in scanned folders"
-msgstr ""
+msgstr "Keine Hintergründe in gescannten Ordnern gefunden"
 
 msgid "Use Browse tab or add folders in the Folders tab"
-msgstr ""
+msgstr "Verwenden Sie Durchsuchen oder fügen Sie unter Ordner neue hinzu"
 
 msgid "➕ Add this folder to Wallpaper Scan Library"
-msgstr ""
+msgstr "➕ Diesen Ordner zur Hintergrund-Bibliothek hinzufügen"
 
 msgid "Wallpaper Scan Directories"
-msgstr ""
+msgstr "Hintergrund-Scan-Verzeichnisse"
 
 msgid ""
 "Penumbra automatically scans these directories (and subfolders) for "
 "wallpaper images."
 msgstr ""
+"Penumbra durchsucht diese Verzeichnisse (und Unterordner) automatisch nach "
+"Hintergrundbildern."
 
 msgid "📂 Browse File System to Add Folder"
-msgstr ""
+msgstr "📂 Dateisystem durchsuchen, um Ordner hinzuzufügen"

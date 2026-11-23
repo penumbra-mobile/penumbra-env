@@ -1,0 +1,189 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-shell 0.1.0\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Search apps..."
+msgstr "Rechercher des applications..."
+
+msgid "No apps found"
+msgstr "Aucune application trouvée"
+
+msgid "Add"
+msgstr "Ajouter"
+
+msgid "Folder"
+msgstr "Dossier"
+
+msgid "Show keyboard"
+msgstr "Afficher le clavier"
+
+msgid "Unlock"
+msgstr "Déverrouiller"
+
+msgid "Touch fingerprint sensor"
+msgstr "Touchez le capteur d'empreinte"
+
+msgid "Emergency"
+msgstr "Urgence"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Swipe up to unlock"
+msgstr "Balayez vers le haut pour déverrouiller"
+
+msgid "No notifications"
+msgstr "Aucune notification"
+
+msgid "You're all caught up"
+msgstr "Vous êtes à jour"
+
+msgid "Notifications"
+msgstr "Notifications"
+
+msgid "Clear all"
+msgstr "Tout effacer"
+
+msgid "Device options"
+msgstr "Options de l'appareil"
+
+msgid "Power off"
+msgstr "Éteindre"
+
+msgid "Shut down device"
+msgstr "Éteindre l'appareil"
+
+msgid "Restart"
+msgstr "Redémarrer"
+
+msgid "Reboot system"
+msgstr "Redémarrer le système"
+
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+msgid "End current session"
+msgstr "Terminer la session actuelle"
+
+msgid "Brightness"
+msgstr "Luminosité"
+
+msgid "Media Volume"
+msgstr "Volume multimédia"
+
+msgid "Internet"
+msgstr "Internet"
+
+msgid "Flashlight"
+msgstr "Lampe torche"
+
+msgid "Do Not Disturb"
+msgstr "Ne pas déranger"
+
+msgid "Auto-Rotate"
+msgstr "Rotation automatique"
+
+msgid "Penumbra Core • Wayland Ready"
+msgstr "Penumbra Core • Wayland prêt"
+
+msgid "Wayland convergence active: DSI phone shell ready"
+msgstr "Convergence Wayland active : interface téléphone DSI prête"
+
+msgid "Until 02:00"
+msgstr "Jusqu'à 02:00"
+
+msgid "Edit tiles"
+msgstr "Modifier les tuiles"
+
+msgid "Hold & drag to reorder"
+msgstr "Maintenir et glisser pour réorganiser"
+
+msgid "Reset"
+msgstr "Réinitialiser"
+
+msgid "Done"
+msgstr "Terminé"
+
+msgid "Active tiles"
+msgstr "Tuiles actives"
+
+msgid "{} active"
+msgstr "{} actives"
+
+msgid "Tiles visible in quick settings. Tap - to remove."
+msgstr "Tuiles visibles dans les paramètres rapides. Appuyez sur - pour retirer."
+
+msgid "Hold and drag tiles to reorder"
+msgstr "Maintenez et glissez les tuiles pour les réorganiser"
+
+msgid "Available tiles"
+msgstr "Tuiles disponibles"
+
+msgid "{} available"
+msgstr "{} disponibles"
+
+msgid "Tap + to add tile to your active shade."
+msgstr "Appuyez sur + pour ajouter une tuile à votre panneau."
+
+msgid "No recent applications"
+msgstr "Aucune application récente"
+
+msgid "Tap anywhere to return home"
+msgstr "Appuyez n'importe où pour revenir à l'accueil"
+
+msgid "Wallpaper & style"
+msgstr "Fond d'écran et style"
+
+msgid "Choose or scan wallpapers"
+msgstr "Choisir ou scanner des fonds d'écran"
+
+msgid "Edit homescreen"
+msgstr "Modifier l'écran d'accueil"
+
+msgid "Rearrange apps & shortcuts"
+msgstr "Réorganiser les applications et raccourcis"
+
+msgid "Wallpaper & Style"
+msgstr "Fond d'écran et style"
+
+msgid "🖼️ Gallery"
+msgstr "🖼️ Galerie"
+
+msgid "📂 Browse"
+msgstr "📂 Parcourir"
+
+msgid "📁 Folders"
+msgstr "📁 Dossiers"
+
+msgid "Available Wallpapers ({})"
+msgstr "Fonds d'écran disponibles ({})"
+
+msgid "🔄 Refresh"
+msgstr "🔄 Actualiser"
+
+msgid "No wallpapers found in scanned folders"
+msgstr "Aucun fond d'écran trouvé dans les dossiers scannés"
+
+msgid "Use Browse tab or add folders in the Folders tab"
+msgstr "Utilisez l'onglet Parcourir ou ajoutez des dossiers dans Dossiers"
+
+msgid "➕ Add this folder to Wallpaper Scan Library"
+msgstr "➕ Ajouter ce dossier à la bibliothèque de fonds d'écran"
+
+msgid "Wallpaper Scan Directories"
+msgstr "Dossiers d'analyse des fonds d'écran"
+
+msgid ""
+"Penumbra automatically scans these directories (and subfolders) for "
+"wallpaper images."
+msgstr ""
+"Penumbra analyse automatiquement ces répertoires (et sous-dossiers) pour "
+"trouver des images de fond d'écran."
+
+msgid "📂 Browse File System to Add Folder"
+msgstr "📂 Parcourir le système de fichiers pour ajouter un dossier"
+

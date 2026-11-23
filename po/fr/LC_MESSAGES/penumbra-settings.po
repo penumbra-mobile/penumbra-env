@@ -1,0 +1,788 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-settings 0.1.0\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Penumbra Settings"
+msgstr "Paramètres Penumbra"
+
+msgid "Processor"
+msgstr "Processeur"
+
+msgid "Memory"
+msgstr "Mémoire"
+
+msgid "Internal storage"
+msgstr "Stockage interne"
+
+msgid "OS Version"
+msgstr "Version du système"
+
+msgid "Linux kernel"
+msgstr "Noyau Linux"
+
+msgid "Compositor & Shell"
+msgstr "Compositeur et Shell"
+
+msgid "System uptime"
+msgstr "Temps de fonctionnement"
+
+msgid "System language"
+msgstr "Langue du système"
+
+msgid ""
+"Applies to Penumbra Shell, Settings, and Linux apps (falls back to English "
+"when untranslated)."
+msgstr ""
+"S'applique à Penumbra Shell, aux Paramètres et aux applications Linux "
+"(revient à l'anglais si non traduit)."
+
+msgid "English (Default)"
+msgstr "English (Par défaut)"
+
+msgid "Română (Romanian)"
+msgstr "Română (Roumain)"
+
+msgid "Deutsch (German)"
+msgstr "Deutsch (Allemand)"
+
+msgid "Français (French)"
+msgstr "Français"
+
+msgid "Español (Spanish)"
+msgstr "Español (Espagnol)"
+
+msgid "Italiano (Italian)"
+msgstr "Italiano (Italien)"
+
+msgid "Dynamic Monet"
+msgstr "Monet dynamique"
+
+msgid "Custom palette"
+msgstr "Palette personnalisée"
+
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+msgid "Colors"
+msgstr "Couleurs"
+
+msgid "Extract Material 3 Expressive tones from wallpaper"
+msgstr "Extraire les tons Material 3 Expressive du fond d'écran"
+
+msgid "Theme & icons"
+msgstr "Thème et icônes"
+
+msgid "Dark theme"
+msgstr "Thème sombre"
+
+msgid "OLED pitch-black surfaces and tinted containers"
+msgstr "Surfaces noir pur OLED et conteneurs teintés"
+
+msgid "Themed icons"
+msgstr "Icônes thématiques"
+
+msgid "Apply Monet accent colors to supported app icons"
+msgstr "Appliquer les couleurs d'accent Monet aux icônes compatibles"
+
+msgid "Icon shape (Material 3 Expressive)"
+msgstr "Forme d'icône (Material 3 Expressive)"
+
+msgid "Squircle"
+msgstr "Squircle"
+
+msgid "Circle"
+msgstr "Cercle"
+
+msgid "Rounded"
+msgstr "Arrondi"
+
+msgid "Pill"
+msgstr "Pilule"
+
+msgid "Clover"
+msgstr "Trèfle"
+
+msgid "Flower"
+msgstr "Fleur"
+
+msgid "Arch"
+msgstr "Arche"
+
+msgid "Diamond"
+msgstr "Losange"
+
+msgid "Wallpaper"
+msgstr "Fond d'écran"
+
+msgid "Rescan"
+msgstr "Réanalyser"
+
+msgid "Clear"
+msgstr "Effacer"
+
+msgid "Search folders ({})"
+msgstr "Dossiers de recherche ({})"
+
+msgid "+ Add folder"
+msgstr "+ Ajouter un dossier"
+
+msgid ""
+"No wallpapers found in configured folders.\n"
+"Add /usr/share/backgrounds or ~/Pictures."
+msgstr ""
+"Aucun fond d'écran trouvé dans les dossiers configurés.\n"
+"Ajoutez /usr/share/backgrounds ou ~/Pictures."
+
+msgid "Add wallpaper folder"
+msgstr "Ajouter un dossier de fonds d'écran"
+
+msgid "GNOME Sys"
+msgstr "GNOME Système"
+
+msgid "GNOME User"
+msgstr "GNOME Utilisateur"
+
+msgid "Pictures"
+msgstr "Images"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Add folder"
+msgstr "Ajouter un dossier"
+
+msgid "Charging"
+msgstr "En charge"
+
+msgid "Power profile"
+msgstr "Profil d'alimentation"
+
+msgid "Power Saver"
+msgstr "Économie d'énergie"
+
+msgid "Extend battery"
+msgstr "Prolonger la batterie"
+
+msgid "Balanced"
+msgstr "Équilibré"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Performance"
+msgstr "Performances"
+
+msgid "Max speed"
+msgstr "Vitesse max"
+
+msgid "Power management"
+msgstr "Gestion de l'alimentation"
+
+msgid "Battery Saver"
+msgstr "Économiseur de batterie"
+
+msgid "Extends battery life by restricting background activity"
+msgstr "Prolonge la batterie en limitant l'activité en arrière-plan"
+
+msgid "Adaptive Charging"
+msgstr "Charge adaptative"
+
+msgid "Protects battery health during prolonged plug-in"
+msgstr "Protège la santé de la batterie lors d'un branchement prolongé"
+
+msgid "Diagnostics & health"
+msgstr "Diagnostics et santé"
+
+msgid "Battery health"
+msgstr "Santé de la batterie"
+
+msgid "Battery hardware"
+msgstr "Matériel batterie"
+
+msgid "Use Bluetooth"
+msgstr "Utiliser le Bluetooth"
+
+msgid "Scanning for devices... (Tap to stop)"
+msgstr "Recherche d'appareils... (Appuyez pour arrêter)"
+
+msgid "Scan for nearby devices"
+msgstr "Rechercher des appareils à proximité"
+
+msgid "Saved & Connected Devices"
+msgstr "Appareils enregistrés et connectés"
+
+msgid "Disconnect"
+msgstr "Déconnecter"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Forget"
+msgstr "Oublier"
+
+msgid "Available Nearby"
+msgstr "Disponibles à proximité"
+
+msgid "Pair"
+msgstr "Associer"
+
+msgid "Connection preferences"
+msgstr "Préférences de connexion"
+
+msgid "Visible to other devices"
+msgstr "Visible par les autres appareils"
+
+msgid "Device name"
+msgstr "Nom de l'appareil"
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Edit"
+msgstr "Modifier"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Bluetooth address"
+msgstr "Adresse Bluetooth"
+
+msgid "Brightness level"
+msgstr "Niveau de luminosité"
+
+msgid "15 seconds"
+msgstr "15 secondes"
+
+msgid "30 seconds"
+msgstr "30 secondes"
+
+msgid "1 minute"
+msgstr "1 minute"
+
+msgid "2 minutes"
+msgstr "2 minutes"
+
+msgid "5 minutes"
+msgstr "5 minutes"
+
+msgid "10 minutes"
+msgstr "10 minutes"
+
+msgid "Never"
+msgstr "Jamais"
+
+msgid "Display arrangement & convergence"
+msgstr "Disposition des écrans et convergence"
+
+msgid "Mirror displays"
+msgstr "Recopier les écrans"
+
+msgid "Mirroring external screen"
+msgstr "Recopie de l'écran externe"
+
+msgid "Extended desktop (Join displays)"
+msgstr "Bureau étendu (Joindre les écrans)"
+
+msgid "Use as primary display"
+msgstr "Utiliser comme écran principal"
+
+msgid "This is the primary display"
+msgstr "Ceci est l'écran principal"
+
+msgid "Secondary display"
+msgstr "Écran secondaire"
+
+msgid "Display properties ({})"
+msgstr "Propriétés de l'écran ({})"
+
+msgid "Resolution & Refresh Rate"
+msgstr "Résolution et fréquence"
+
+msgid "Scale"
+msgstr "Mise à l'échelle"
+
+msgid "Backlight brightness"
+msgstr "Luminosité du rétroéclairage"
+
+msgid "Night light & color"
+msgstr "Éclairage nocturne et couleur"
+
+msgid "Night light"
+msgstr "Éclairage nocturne"
+
+msgid "Warm amber tint active (sunset to sunrise)"
+msgstr "Teinte ambrée chaude active (du coucher au lever du soleil)"
+
+msgid "Off"
+msgstr "Désactivé"
+
+msgid "Pitch black OLED enabled"
+msgstr "Noir pur OLED activé"
+
+msgid "Adaptive brightness"
+msgstr "Luminosité adaptative"
+
+msgid "Optimize brightness for ambient light sensor"
+msgstr "Optimiser la luminosité selon le capteur de lumière ambiante"
+
+msgid "Accent color"
+msgstr "Couleur d'accent"
+
+msgid "Screen timeout"
+msgstr "Mise en veille de l'écran"
+
+msgid "Turn off screen after {} of inactivity"
+msgstr "Éteindre l'écran après {} d'inactivité"
+
+msgid "On-screen keyboard"
+msgstr "Clavier visuel"
+
+msgid "Hide on physical keyboard"
+msgstr "Masquer avec un clavier physique"
+
+msgid "Retracts on-screen keyboard when a hardware keyboard is connected"
+msgstr "Rétracte le clavier visuel lorsqu'un clavier matériel est connecté"
+
+msgid "Physical keyboards"
+msgstr "Claviers physiques"
+
+msgid "No physical keyboard detected"
+msgstr "Aucun clavier physique détecté"
+
+msgid "Connect a USB or Bluetooth typing keyboard"
+msgstr "Connectez un clavier USB ou Bluetooth"
+
+msgid "Virtual Keyboard Integration"
+msgstr "Intégration du clavier virtuel"
+
+msgid ""
+"Penumbra Settings automatically detects Wayland virtual keyboards following "
+"the KDE Plasma specification (X-KDE-Wayland-VirtualKeyboard=true in .desktop "
+"entry files)."
+msgstr ""
+"Paramètres Penumbra détecte automatiquement les claviers virtuels Wayland "
+"selon la spécification KDE Plasma (X-KDE-Wayland-VirtualKeyboard=true dans "
+"les fichiers .desktop)."
+
+msgid "Search settings..."
+msgstr "Rechercher dans les paramètres..."
+
+msgid "No results for \"{}\""
+msgstr "Aucun résultat pour « {} »"
+
+msgid "Network & internet"
+msgstr "Réseau et internet"
+
+msgid "Mobile network & eSIM"
+msgstr "Réseau mobile et eSIM"
+
+msgid "Connected devices"
+msgstr "Appareils connectés"
+
+msgid "Apps"
+msgstr "Applications"
+
+msgid "Notifications"
+msgstr "Notifications"
+
+msgid "Notification history, conversations"
+msgstr "Historique des notifications, conversations"
+
+msgid "Sound & vibration"
+msgstr "Son et vibreur"
+
+msgid "Volume, haptics, Do Not Disturb"
+msgstr "Volume, haptique, Ne pas déranger"
+
+msgid "Modes"
+msgstr "Modes"
+
+msgid "Do Not Disturb, Bedtime, Driving"
+msgstr "Ne pas déranger, Sommeil, Conduite"
+
+msgid "Display"
+msgstr "Affichage"
+
+msgid "Dark theme, font size, touch controls"
+msgstr "Thème sombre, taille de police, commandes tactiles"
+
+msgid "Wallpaper & style"
+msgstr "Fond d'écran et style"
+
+msgid "Colors, themed icons, app grid"
+msgstr "Couleurs, icônes thématiques, grille d'applications"
+
+msgid "Security & privacy"
+msgstr "Sécurité et confidentialité"
+
+msgid "PIN, password, fingerprint"
+msgstr "PIN, mot de passe, empreinte"
+
+msgid "Storage"
+msgstr "Stockage"
+
+msgid "Battery"
+msgstr "Batterie"
+
+msgid "Keyboard"
+msgstr "Clavier"
+
+msgid "On-screen keyboard, physical keyboard"
+msgstr "Clavier visuel, clavier physique"
+
+msgid "About phone"
+msgstr "À propos du téléphone"
+
+msgid "SIM PIN required"
+msgstr "Code PIN SIM requis"
+
+msgid "Unlock"
+msgstr "Déverrouiller"
+
+msgid "Mobile Data"
+msgstr "Données mobiles"
+
+msgid "Access data using cellular network"
+msgstr "Accéder aux données via le réseau cellulaire"
+
+msgid "Data Roaming"
+msgstr "Itinérance des données"
+
+msgid "Connect to data services when roaming"
+msgstr "Se connecter aux services de données en itinérance"
+
+msgid "Preferred Network Mode"
+msgstr "Mode réseau préféré"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "4G / 3G"
+msgstr "4G / 3G"
+
+msgid "4G Only"
+msgstr "4G uniquement"
+
+msgid "3G / 2G"
+msgstr "3G / 2G"
+
+msgid "Access Point Names (APNs)"
+msgstr "Noms des points d'accès (APN)"
+
+msgid "+ Add APN"
+msgstr "+ Ajouter un APN"
+
+msgid "No GSM APN profiles configured. Tap + Add APN to create one."
+msgstr "Aucun profil APN GSM configuré. Appuyez sur + Ajouter un APN."
+
+msgid "No APN set"
+msgstr "Aucun APN défini"
+
+msgid "New Access Point"
+msgstr "Nouveau point d'accès"
+
+msgid "Edit Access Point"
+msgstr "Modifier le point d'accès"
+
+msgid "Name"
+msgstr "Nom"
+
+msgid "Profile Name"
+msgstr "Nom du profil"
+
+msgid "APN (e.g. internet)"
+msgstr "APN (ex. internet)"
+
+msgid "Username"
+msgstr "Nom d'utilisateur"
+
+msgid "Password"
+msgstr "Mot de passe"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "eSIM Manager (LPA)"
+msgstr "Gestionnaire eSIM (LPA)"
+
+msgid "Refresh"
+msgstr "Actualiser"
+
+msgid "eUICC / lpac backend not available"
+msgstr "Backend eUICC / lpac indisponible"
+
+msgid "Disable"
+msgstr "Désactiver"
+
+msgid "Enable"
+msgstr "Activer"
+
+msgid "Del"
+msgstr "Suppr."
+
+msgid "Download eSIM Profile (Activation Code)"
+msgstr "Télécharger un profil eSIM (Code d'activation)"
+
+msgid "Add"
+msgstr "Ajouter"
+
+msgid "Set Screen PIN"
+msgstr "Définir le code PIN"
+
+msgid "Set Screen Password"
+msgstr "Définir le mot de passe"
+
+msgid "DEVICE LOCK"
+msgstr "VERROUILLAGE DE L'APPAREIL"
+
+msgid "Swipe"
+msgstr "Glisser"
+
+msgid "Swipe to unlock, no credential required"
+msgstr "Glisser pour déverrouiller, aucun identifiant requis"
+
+msgid "Active"
+msgstr "Actif"
+
+msgid "PIN"
+msgstr "PIN"
+
+msgid "Quick 4-to-8 digit numeric passcode"
+msgstr "Code numérique rapide de 4 à 8 chiffres"
+
+msgid "Alphanumeric password with on-screen keyboard"
+msgstr "Mot de passe alphanumérique avec le clavier visuel"
+
+msgid "None"
+msgstr "Aucun"
+
+msgid "No lock screen, wakes directly to home"
+msgstr "Pas d'écran de verrouillage, accès direct à l'accueil"
+
+msgid "BIOMETRIC UNLOCK"
+msgstr "DÉVERROUILLAGE BIOMÉTRIQUE"
+
+msgid "Fingerprint unlock"
+msgstr "Déverrouillage par empreinte"
+
+msgid "Enabled for fast unlock"
+msgstr "Activé pour un déverrouillage rapide"
+
+msgid "Disabled"
+msgstr "Désactivé"
+
+msgid "Fingerprint sensor unavailable"
+msgstr "Capteur d'empreinte indisponible"
+
+msgid "PRIVACY & NOTIFICATIONS"
+msgstr "CONFIDENTIALITÉ ET NOTIFICATIONS"
+
+msgid "Sensitive notifications"
+msgstr "Notifications sensibles"
+
+msgid "Hide contents on lock screen"
+msgstr "Masquer le contenu sur l'écran de verrouillage"
+
+msgid ""
+"Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your "
+"device."
+msgstr ""
+"Saisissez un code PIN numérique de 4 à 8 chiffres. Ce code sera requis pour "
+"déverrouiller votre appareil."
+
+msgid "Confirm your PIN:"
+msgstr "Confirmez votre code PIN :"
+
+msgid "Save PIN"
+msgstr "Enregistrer le PIN"
+
+msgid ""
+"Enter an alphanumeric password. You can use the on-screen keyboard to unlock."
+msgstr ""
+"Saisissez un mot de passe alphanumérique. Vous pouvez utiliser le clavier "
+"visuel pour déverrouiller."
+
+msgid "Confirm your password:"
+msgstr "Confirmez votre mot de passe :"
+
+msgid "Save Password"
+msgstr "Enregistrer le mot de passe"
+
+msgid "Sound output & routing"
+msgstr "Sortie audio et routage"
+
+msgid "Speaker"
+msgstr "Haut-parleur"
+
+msgid "Headset"
+msgstr "Casque"
+
+msgid "HDMI / TV"
+msgstr "HDMI / TV"
+
+msgid "Mute output"
+msgstr "Couper la sortie"
+
+msgid "Audio muted"
+msgstr "Son coupé"
+
+msgid "Playing audio normally"
+msgstr "Lecture audio normale"
+
+msgid "Volume channels"
+msgstr "Canaux de volume"
+
+msgid "Media volume"
+msgstr "Volume multimédia"
+
+msgid "Call volume"
+msgstr "Volume d'appel"
+
+msgid "Ring & notifications"
+msgstr "Sonnerie et notifications"
+
+msgid "Microphone input"
+msgstr "Entrée microphone"
+
+msgid "Modes & feedback"
+msgstr "Modes et retours"
+
+msgid "Do Not Disturb"
+msgstr "Ne pas déranger"
+
+msgid "On"
+msgstr "Activé"
+
+msgid "Vibrate for calls"
+msgstr "Vibrer pour les appels"
+
+msgid "Always vibrate"
+msgstr "Toujours vibrer"
+
+msgid "Never vibrate"
+msgstr "Ne jamais vibrer"
+
+msgid "Use Wi-Fi"
+msgstr "Utiliser le Wi-Fi"
+
+msgid "Authenticating"
+msgstr "Authentification"
+
+msgid "Status update"
+msgstr "Mise à jour du statut"
+
+msgid "Reason: {}"
+msgstr "Raison : {}"
+
+msgid "Scan & Retry"
+msgstr "Analyser et réessayer"
+
+msgid "Dismiss"
+msgstr "Fermer"
+
+msgid "Connected network"
+msgstr "Réseau connecté"
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "Available networks"
+msgstr "Réseaux disponibles"
+
+msgid "Scanning for networks..."
+msgstr "Recherche de réseaux..."
+
+msgid "Searching for available Wi-Fi access points"
+msgstr "Recherche des points d'accès Wi-Fi disponibles"
+
+msgid "Saved"
+msgstr "Enregistré"
+
+msgid "Saved networks"
+msgstr "Réseaux enregistrés"
+
+msgid "Connected • Tap for details"
+msgstr "Connecté • Appuyez pour les détails"
+
+msgid "Saved • Tap for details or forget"
+msgstr "Enregistré • Appuyez pour les détails ou oublier"
+
+msgid "Hotspot & Tethering"
+msgstr "Point d'accès et partage"
+
+msgid "Wi-Fi Hotspot"
+msgstr "Point d'accès Wi-Fi"
+
+msgid "Network Name"
+msgstr "Nom du réseau"
+
+msgid "Password (8+ chars)"
+msgstr "Mot de passe (8+ caractères)"
+
+msgid "Network preferences"
+msgstr "Préférences réseau"
+
+msgid "Scan for networks"
+msgstr "Rechercher des réseaux"
+
+msgid "Trigger broadcast beacon discovery"
+msgstr "Déclencher la découverte de réseaux"
+
+msgid "Wi-Fi MAC address"
+msgstr "Adresse MAC Wi-Fi"
+
+msgid "Connect to Network"
+msgstr "Se connecter au réseau"
+
+msgid "Enter authentication password for {} ({}):"
+msgstr "Saisissez le mot de passe d'authentification pour {} ({}) :"
+
+msgid "Status"
+msgstr "État"
+
+msgid "Connected"
+msgstr "Connecté"
+
+msgid "Signal strength"
+msgstr "Force du signal"
+
+msgid "IPv4 address"
+msgstr "Adresse IPv4"
+
+msgid "Hardware MAC"
+msgstr "MAC matériel"
+
+msgid "Network & Wi-Fi"
+msgstr "Réseau et Wi-Fi"
+
+msgid "Mobile & eSIM"
+msgstr "Mobile et eSIM"
+
+msgid "Bluetooth Devices"
+msgstr "Appareils Bluetooth"
+
+msgid "Displays & Convergence"
+msgstr "Écrans et convergence"
+
+msgid "Sound & Volume"
+msgstr "Son et volume"
+
+msgid "Battery & Power"
+msgstr "Batterie et alimentation"
+
+msgid "Keyboard & Input"
+msgstr "Clavier et saisie"
+
+msgid "Security & Lock"
+msgstr "Sécurité et verrouillage"
+
+msgid "About Device"
+msgstr "À propos de l'appareil"
+
+msgid "Display Arrangement (Drag / Select to configure)"
+msgstr "Disposition des écrans (Glisser / Sélectionner pour configurer)"
+

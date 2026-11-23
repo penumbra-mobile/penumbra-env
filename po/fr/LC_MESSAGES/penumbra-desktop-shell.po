@@ -1,0 +1,50 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-desktop-shell 0.1.0\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Open Terminal"
+msgstr "Ouvrir le terminal"
+
+msgid "Open Files"
+msgstr "Ouvrir les fichiers"
+
+msgid "Applications"
+msgstr "Applications"
+
+msgid "Wallpaper & style"
+msgstr "Fond d'écran et style"
+
+msgid "Display settings"
+msgstr "Paramètres d'affichage"
+
+msgid "Search apps or =calculate..."
+msgstr "Rechercher des applications ou =calculer..."
+
+msgid "Calculator"
+msgstr "Calculatrice"
+
+msgid "All"
+msgstr "Tout"
+
+msgid "Internet"
+msgstr "Internet"
+
+msgid "Utilities"
+msgstr "Utilitaires"
+
+msgid "System"
+msgstr "Système"
+
+msgid "Development"
+msgstr "Développement"
+
+msgid "Office"
+msgstr "Bureautique"
+
+msgid "Multimedia"
+msgstr "Multimédia"
+
