@@ -18,6 +18,17 @@ fi
 export XDG_CURRENT_DESKTOP=Penumbra:GNOME
 export XDG_SESSION_DESKTOP=Penumbra
 export XDG_SESSION_TYPE=wayland
+
+# Load user/system locale.conf so all Wayland/GTK/Qt/Firefox/Penumbra apps inherit LANG & LANGUAGE
+for _loc_file in "${XDG_CONFIG_HOME:-$HOME/.config}/penumbra/locale.conf" "${XDG_CONFIG_HOME:-$HOME/.config}/locale.conf" "/etc/locale.conf"; do
+    if [[ -r "$_loc_file" ]]; then
+        set -a
+        # shellcheck disable=SC1090
+        source "$_loc_file"
+        set +a
+        break
+    fi
+done
 export GDK_BACKEND=wayland,x11
 export QT_QPA_PLATFORM="wayland;xcb"
 export SDL_VIDEODRIVER=wayland

@@ -1,0 +1,787 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-settings 0.1.0\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Penumbra Settings"
+msgstr "Setări Penumbra"
+
+msgid "Processor"
+msgstr "Procesor"
+
+msgid "Memory"
+msgstr "Memorie"
+
+msgid "Internal storage"
+msgstr "Stocare internă"
+
+msgid "OS Version"
+msgstr "Versiune SO"
+
+msgid "Linux kernel"
+msgstr "Nucleu Linux"
+
+msgid "Compositor & Shell"
+msgstr "Compozitor și interfață"
+
+msgid "System uptime"
+msgstr "Timp de funcționare"
+
+msgid "System language"
+msgstr "Limba sistemului"
+
+msgid ""
+"Applies to Penumbra Shell, Settings, and Linux apps (falls back to English "
+"when untranslated)."
+msgstr ""
+"Se aplică pentru Penumbra Shell, Setări și aplicațiile Linux (revine la "
+"engleză dacă nu există traducere)."
+
+msgid "English (Default)"
+msgstr "English (Implicit)"
+
+msgid "Română (Romanian)"
+msgstr "Română"
+
+msgid "Deutsch (German)"
+msgstr "Deutsch (Germană)"
+
+msgid "Français (French)"
+msgstr "Français (Franceză)"
+
+msgid "Español (Spanish)"
+msgstr "Español (Spaniolă)"
+
+msgid "Italiano (Italian)"
+msgstr "Italiano (Italiană)"
+
+msgid "Dynamic Monet"
+msgstr "Monet dinamic"
+
+msgid "Custom palette"
+msgstr "Paletă personalizată"
+
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+msgid "Colors"
+msgstr "Culori"
+
+msgid "Extract Material 3 Expressive tones from wallpaper"
+msgstr "Extrage tonuri Material 3 Expressive din imaginea de fundal"
+
+msgid "Theme & icons"
+msgstr "Temă și pictograme"
+
+msgid "Dark theme"
+msgstr "Temă întunecată"
+
+msgid "OLED pitch-black surfaces and tinted containers"
+msgstr "Suprafețe negru pur OLED și containere colorate"
+
+msgid "Themed icons"
+msgstr "Pictograme tematice"
+
+msgid "Apply Monet accent colors to supported app icons"
+msgstr "Aplică culorile de accent Monet pe pictogramele compatibile"
+
+msgid "Icon shape (Material 3 Expressive)"
+msgstr "Formă pictograme (Material 3 Expressive)"
+
+msgid "Squircle"
+msgstr "Pătrat rotunjit"
+
+msgid "Circle"
+msgstr "Cerc"
+
+msgid "Rounded"
+msgstr "Rotunjit"
+
+msgid "Pill"
+msgstr "Pastilă"
+
+msgid "Clover"
+msgstr "Trifoi"
+
+msgid "Flower"
+msgstr "Floare"
+
+msgid "Arch"
+msgstr "Arcadă"
+
+msgid "Diamond"
+msgstr "Romb"
+
+msgid "Wallpaper"
+msgstr "Fundal"
+
+msgid "Rescan"
+msgstr "Rescanează"
+
+msgid "Clear"
+msgstr "Șterge"
+
+msgid "Search folders ({})"
+msgstr "Dosare de căutare ({})"
+
+msgid "+ Add folder"
+msgstr "+ Adaugă dosar"
+
+msgid ""
+"No wallpapers found in configured folders.\n"
+"Add /usr/share/backgrounds or ~/Pictures."
+msgstr ""
+"Nu s-au găsit imagini de fundal în dosarele configurate.\n"
+"Adăugați /usr/share/backgrounds sau ~/Pictures."
+
+msgid "Add wallpaper folder"
+msgstr "Adaugă dosar de fundaluri"
+
+msgid "GNOME Sys"
+msgstr "GNOME Sistem"
+
+msgid "GNOME User"
+msgstr "GNOME Utilizator"
+
+msgid "Pictures"
+msgstr "Imagini"
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "Add folder"
+msgstr "Adaugă dosar"
+
+msgid "Charging"
+msgstr "Se încarcă"
+
+msgid "Power profile"
+msgstr "Profil de alimentare"
+
+msgid "Power Saver"
+msgstr "Economisire baterie"
+
+msgid "Extend battery"
+msgstr "Extinde autonomia"
+
+msgid "Balanced"
+msgstr "Echilibrat"
+
+msgid "Standard"
+msgstr "Standard"
+
+msgid "Performance"
+msgstr "Performanță"
+
+msgid "Max speed"
+msgstr "Viteză maximă"
+
+msgid "Power management"
+msgstr "Gestionare energie"
+
+msgid "Battery Saver"
+msgstr "Economisire baterie"
+
+msgid "Extends battery life by restricting background activity"
+msgstr "Extinde durata bateriei restricționând activitatea în fundal"
+
+msgid "Adaptive Charging"
+msgstr "Încărcare adaptivă"
+
+msgid "Protects battery health during prolonged plug-in"
+msgstr "Protejează sănătatea bateriei la încărcare prelungită"
+
+msgid "Diagnostics & health"
+msgstr "Diagnosticare și stare"
+
+msgid "Battery health"
+msgstr "Starea bateriei"
+
+msgid "Battery hardware"
+msgstr "Hardware baterie"
+
+msgid "Use Bluetooth"
+msgstr "Folosește Bluetooth"
+
+msgid "Scanning for devices... (Tap to stop)"
+msgstr "Se caută dispozitive... (Atingeți pentru oprire)"
+
+msgid "Scan for nearby devices"
+msgstr "Caută dispozitive din apropiere"
+
+msgid "Saved & Connected Devices"
+msgstr "Dispozitive salvate și conectate"
+
+msgid "Disconnect"
+msgstr "Deconectează"
+
+msgid "Connect"
+msgstr "Conectează"
+
+msgid "Forget"
+msgstr "Uită"
+
+msgid "Available Nearby"
+msgstr "Disponibile în apropiere"
+
+msgid "Pair"
+msgstr "Asociază"
+
+msgid "Connection preferences"
+msgstr "Preferințe conexiune"
+
+msgid "Visible to other devices"
+msgstr "Vizibil pentru alte dispozitive"
+
+msgid "Device name"
+msgstr "Nume dispozitiv"
+
+msgid "Close"
+msgstr "Închide"
+
+msgid "Edit"
+msgstr "Editează"
+
+msgid "Save"
+msgstr "Salvează"
+
+msgid "Bluetooth address"
+msgstr "Adresă Bluetooth"
+
+msgid "Brightness level"
+msgstr "Nivel luminozitate"
+
+msgid "15 seconds"
+msgstr "15 secunde"
+
+msgid "30 seconds"
+msgstr "30 secunde"
+
+msgid "1 minute"
+msgstr "1 minut"
+
+msgid "2 minutes"
+msgstr "2 minute"
+
+msgid "5 minutes"
+msgstr "5 minute"
+
+msgid "10 minutes"
+msgstr "10 minute"
+
+msgid "Never"
+msgstr "Niciodată"
+
+msgid "Display arrangement & convergence"
+msgstr "Aranjament ecrane și convergență"
+
+msgid "Mirror displays"
+msgstr "Oglindire ecrane"
+
+msgid "Mirroring external screen"
+msgstr "Se oglindește ecranul extern"
+
+msgid "Extended desktop (Join displays)"
+msgstr "Desktop extins (Unire ecrane)"
+
+msgid "Use as primary display"
+msgstr "Folosește ca ecran principal"
+
+msgid "This is the primary display"
+msgstr "Acesta este ecranul principal"
+
+msgid "Secondary display"
+msgstr "Ecran secundar"
+
+msgid "Display properties ({})"
+msgstr "Proprietăți ecran ({})"
+
+msgid "Resolution & Refresh Rate"
+msgstr "Rezoluție și rată de reîmprospătare"
+
+msgid "Scale"
+msgstr "Scalare"
+
+msgid "Backlight brightness"
+msgstr "Luminozitate iluminare"
+
+msgid "Night light & color"
+msgstr "Lumină nocturnă și culori"
+
+msgid "Night light"
+msgstr "Lumină nocturnă"
+
+msgid "Warm amber tint active (sunset to sunrise)"
+msgstr "Nuanță caldă de chihlimbar activă (apus până la răsărit)"
+
+msgid "Off"
+msgstr "Oprit"
+
+msgid "Pitch black OLED enabled"
+msgstr "Negru pur OLED activat"
+
+msgid "Adaptive brightness"
+msgstr "Luminozitate adaptivă"
+
+msgid "Optimize brightness for ambient light sensor"
+msgstr "Optimizează luminozitatea după senzorul de lumină ambientală"
+
+msgid "Accent color"
+msgstr "Culoare de accent"
+
+msgid "Screen timeout"
+msgstr "Expirare ecran"
+
+msgid "Turn off screen after {} of inactivity"
+msgstr "Oprește ecranul după {} de inactivitate"
+
+msgid "On-screen keyboard"
+msgstr "Tastatură pe ecran"
+
+msgid "Hide on physical keyboard"
+msgstr "Ascunde la tastatură fizică"
+
+msgid "Retracts on-screen keyboard when a hardware keyboard is connected"
+msgstr "Ascunde tastatura pe ecran când este conectată o tastatură hardware"
+
+msgid "Physical keyboards"
+msgstr "Tastaturi fizice"
+
+msgid "No physical keyboard detected"
+msgstr "Nicio tastatură fizică detectată"
+
+msgid "Connect a USB or Bluetooth typing keyboard"
+msgstr "Conectați o tastatură USB sau Bluetooth"
+
+msgid "Virtual Keyboard Integration"
+msgstr "Integrare tastatură virtuală"
+
+msgid ""
+"Penumbra Settings automatically detects Wayland virtual keyboards following "
+"the KDE Plasma specification (X-KDE-Wayland-VirtualKeyboard=true in .desktop "
+"entry files)."
+msgstr ""
+"Setări Penumbra detectează automat tastaturile virtuale Wayland conform "
+"specificației KDE Plasma (X-KDE-Wayland-VirtualKeyboard=true în fișierele ."
+"desktop)."
+
+msgid "Search settings..."
+msgstr "Caută setări..."
+
+msgid "No results for \"{}\""
+msgstr "Niciun rezultat pentru „{}”"
+
+msgid "Network & internet"
+msgstr "Rețea și internet"
+
+msgid "Mobile network & eSIM"
+msgstr "Rețea mobilă și eSIM"
+
+msgid "Connected devices"
+msgstr "Dispozitive conectate"
+
+msgid "Apps"
+msgstr "Aplicații"
+
+msgid "Notifications"
+msgstr "Notificări"
+
+msgid "Notification history, conversations"
+msgstr "Istoric notificări, conversații"
+
+msgid "Sound & vibration"
+msgstr "Sunet și vibrații"
+
+msgid "Volume, haptics, Do Not Disturb"
+msgstr "Volum, vibrații, Nu deranjați"
+
+msgid "Modes"
+msgstr "Moduri"
+
+msgid "Do Not Disturb, Bedtime, Driving"
+msgstr "Nu deranjați, Somn, Condus"
+
+msgid "Display"
+msgstr "Ecran"
+
+msgid "Dark theme, font size, touch controls"
+msgstr "Temă întunecată, mărime font, comenzi tactile"
+
+msgid "Wallpaper & style"
+msgstr "Fundal și stil"
+
+msgid "Colors, themed icons, app grid"
+msgstr "Culori, pictograme tematice, grilă aplicații"
+
+msgid "Security & privacy"
+msgstr "Securitate și confidențialitate"
+
+msgid "PIN, password, fingerprint"
+msgstr "PIN, parolă, amprentă"
+
+msgid "Storage"
+msgstr "Stocare"
+
+msgid "Battery"
+msgstr "Baterie"
+
+msgid "Keyboard"
+msgstr "Tastatură"
+
+msgid "On-screen keyboard, physical keyboard"
+msgstr "Tastatură pe ecran, tastatură fizică"
+
+msgid "About phone"
+msgstr "Despre telefon"
+
+msgid "SIM PIN required"
+msgstr "PIN SIM necesar"
+
+msgid "Unlock"
+msgstr "Deblochează"
+
+msgid "Mobile Data"
+msgstr "Date mobile"
+
+msgid "Access data using cellular network"
+msgstr "Acces la date prin rețeaua celulară"
+
+msgid "Data Roaming"
+msgstr "Roaming de date"
+
+msgid "Connect to data services when roaming"
+msgstr "Conectare la servicii de date în roaming"
+
+msgid "Preferred Network Mode"
+msgstr "Mod rețea preferat"
+
+msgid "Auto"
+msgstr "Automat"
+
+msgid "4G / 3G"
+msgstr "4G / 3G"
+
+msgid "4G Only"
+msgstr "Doar 4G"
+
+msgid "3G / 2G"
+msgstr "3G / 2G"
+
+msgid "Access Point Names (APNs)"
+msgstr "Nume puncte de acces (APN)"
+
+msgid "+ Add APN"
+msgstr "+ Adaugă APN"
+
+msgid "No GSM APN profiles configured. Tap + Add APN to create one."
+msgstr "Niciun profil APN GSM configurat. Atingeți + Adaugă APN pentru a crea unul."
+
+msgid "No APN set"
+msgstr "Niciun APN setat"
+
+msgid "New Access Point"
+msgstr "Punct de acces nou"
+
+msgid "Edit Access Point"
+msgstr "Editează punctul de acces"
+
+msgid "Name"
+msgstr "Nume"
+
+msgid "Profile Name"
+msgstr "Nume profil"
+
+msgid "APN (e.g. internet)"
+msgstr "APN (ex. internet)"
+
+msgid "Username"
+msgstr "Nume utilizator"
+
+msgid "Password"
+msgstr "Parolă"
+
+msgid "Delete"
+msgstr "Șterge"
+
+msgid "eSIM Manager (LPA)"
+msgstr "Gestionare eSIM (LPA)"
+
+msgid "Refresh"
+msgstr "Reîmprospătare"
+
+msgid "eUICC / lpac backend not available"
+msgstr "Backend eUICC / lpac indisponibil"
+
+msgid "Disable"
+msgstr "Dezactivează"
+
+msgid "Enable"
+msgstr "Activează"
+
+msgid "Del"
+msgstr "Șterge"
+
+msgid "Download eSIM Profile (Activation Code)"
+msgstr "Descarcă profil eSIM (Cod de activare)"
+
+msgid "Add"
+msgstr "Adaugă"
+
+msgid "Set Screen PIN"
+msgstr "Setează PIN ecran"
+
+msgid "Set Screen Password"
+msgstr "Setează parolă ecran"
+
+msgid "DEVICE LOCK"
+msgstr "BLOCARE DISPOZITIV"
+
+msgid "Swipe"
+msgstr "Glisare"
+
+msgid "Swipe to unlock, no credential required"
+msgstr "Glisați pentru deblocare, fără parolă"
+
+msgid "Active"
+msgstr "Activ"
+
+msgid "PIN"
+msgstr "PIN"
+
+msgid "Quick 4-to-8 digit numeric passcode"
+msgstr "Cod numeric rapid de 4-8 cifre"
+
+msgid "Alphanumeric password with on-screen keyboard"
+msgstr "Parolă alfanumerică cu tastatura pe ecran"
+
+msgid "None"
+msgstr "Fără"
+
+msgid "No lock screen, wakes directly to home"
+msgstr "Fără ecran de blocare, pornește direct la ecranul principal"
+
+msgid "BIOMETRIC UNLOCK"
+msgstr "DEBLOCARE BIOMETRICĂ"
+
+msgid "Fingerprint unlock"
+msgstr "Deblocare cu amprentă"
+
+msgid "Enabled for fast unlock"
+msgstr "Activat pentru deblocare rapidă"
+
+msgid "Disabled"
+msgstr "Dezactivat"
+
+msgid "Fingerprint sensor unavailable"
+msgstr "Senzor de amprentă indisponibil"
+
+msgid "PRIVACY & NOTIFICATIONS"
+msgstr "CONFIDENȚIALITATE ȘI NOTIFICĂRI"
+
+msgid "Sensitive notifications"
+msgstr "Notificări sensibile"
+
+msgid "Hide contents on lock screen"
+msgstr "Ascunde conținutul pe ecranul de blocare"
+
+msgid ""
+"Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your "
+"device."
+msgstr ""
+"Introduceți un PIN numeric de 4-8 cifre. Acest PIN va fi necesar pentru a "
+"debloca dispozitivul."
+
+msgid "Confirm your PIN:"
+msgstr "Confirmați PIN-ul:"
+
+msgid "Save PIN"
+msgstr "Salvează PIN"
+
+msgid ""
+"Enter an alphanumeric password. You can use the on-screen keyboard to unlock."
+msgstr ""
+"Introduceți o parolă alfanumerică. Puteți folosi tastatura pe ecran pentru "
+"deblocare."
+
+msgid "Confirm your password:"
+msgstr "Confirmați parola:"
+
+msgid "Save Password"
+msgstr "Salvează parola"
+
+msgid "Sound output & routing"
+msgstr "Ieșire audio și rutare"
+
+msgid "Speaker"
+msgstr "Difuzor"
+
+msgid "Headset"
+msgstr "Căști"
+
+msgid "HDMI / TV"
+msgstr "HDMI / TV"
+
+msgid "Mute output"
+msgstr "Dezactivează sunetul"
+
+msgid "Audio muted"
+msgstr "Sunet dezactivat"
+
+msgid "Playing audio normally"
+msgstr "Redare audio normală"
+
+msgid "Volume channels"
+msgstr "Canale de volum"
+
+msgid "Media volume"
+msgstr "Volum media"
+
+msgid "Call volume"
+msgstr "Volum apel"
+
+msgid "Ring & notifications"
+msgstr "Sonerie și notificări"
+
+msgid "Microphone input"
+msgstr "Intrare microfon"
+
+msgid "Modes & feedback"
+msgstr "Moduri și feedback"
+
+msgid "Do Not Disturb"
+msgstr "Nu deranjați"
+
+msgid "On"
+msgstr "Pornit"
+
+msgid "Vibrate for calls"
+msgstr "Vibrează la apeluri"
+
+msgid "Always vibrate"
+msgstr "Vibrează întotdeauna"
+
+msgid "Never vibrate"
+msgstr "Nu vibra niciodată"
+
+msgid "Use Wi-Fi"
+msgstr "Folosește Wi-Fi"
+
+msgid "Authenticating"
+msgstr "Se autentifică"
+
+msgid "Status update"
+msgstr "Actualizare stare"
+
+msgid "Reason: {}"
+msgstr "Motiv: {}"
+
+msgid "Scan & Retry"
+msgstr "Scanează și reîncearcă"
+
+msgid "Dismiss"
+msgstr "Închide"
+
+msgid "Connected network"
+msgstr "Rețea conectată"
+
+msgid "Details"
+msgstr "Detalii"
+
+msgid "Available networks"
+msgstr "Rețele disponibile"
+
+msgid "Scanning for networks..."
+msgstr "Se caută rețele..."
+
+msgid "Searching for available Wi-Fi access points"
+msgstr "Se caută puncte de acces Wi-Fi disponibile"
+
+msgid "Saved"
+msgstr "Salvat"
+
+msgid "Saved networks"
+msgstr "Rețele salvate"
+
+msgid "Connected • Tap for details"
+msgstr "Conectat • Atingeți pentru detalii"
+
+msgid "Saved • Tap for details or forget"
+msgstr "Salvat • Atingeți pentru detalii sau uitare"
+
+msgid "Hotspot & Tethering"
+msgstr "Hotspot și partajare"
+
+msgid "Wi-Fi Hotspot"
+msgstr "Hotspot Wi-Fi"
+
+msgid "Network Name"
+msgstr "Nume rețea"
+
+msgid "Password (8+ chars)"
+msgstr "Parolă (min. 8 caractere)"
+
+msgid "Network preferences"
+msgstr "Preferințe rețea"
+
+msgid "Scan for networks"
+msgstr "Caută rețele"
+
+msgid "Trigger broadcast beacon discovery"
+msgstr "Declanșează descoperirea rețelelor"
+
+msgid "Wi-Fi MAC address"
+msgstr "Adresă MAC Wi-Fi"
+
+msgid "Connect to Network"
+msgstr "Conectare la rețea"
+
+msgid "Enter authentication password for {} ({}):"
+msgstr "Introduceți parola de autentificare pentru {} ({}):"
+
+msgid "Status"
+msgstr "Stare"
+
+msgid "Connected"
+msgstr "Conectat"
+
+msgid "Signal strength"
+msgstr "Putere semnal"
+
+msgid "IPv4 address"
+msgstr "Adresă IPv4"
+
+msgid "Hardware MAC"
+msgstr "Adresă MAC hardware"
+
+msgid "Network & Wi-Fi"
+msgstr "Rețea și Wi-Fi"
+
+msgid "Mobile & eSIM"
+msgstr "Rețea mobilă și eSIM"
+
+msgid "Bluetooth Devices"
+msgstr "Dispozitive Bluetooth"
+
+msgid "Displays & Convergence"
+msgstr "Ecrane și Convergență"
+
+msgid "Sound & Volume"
+msgstr "Sunet și volum"
+
+msgid "Battery & Power"
+msgstr "Baterie și energie"
+
+msgid "Keyboard & Input"
+msgstr "Tastatură și introducere"
+
+msgid "Security & Lock"
+msgstr "Securitate și blocare"
+
+msgid "About Device"
+msgstr "Despre dispozitiv"
+
+msgid "Display Arrangement (Drag / Select to configure)"
+msgstr "Aranjament ecrane (Trageți / Selectați pentru configurare)"

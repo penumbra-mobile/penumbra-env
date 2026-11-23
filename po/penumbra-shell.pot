@@ -1,0 +1,184 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-shell 0.1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Search apps..."
+msgstr ""
+
+msgid "No apps found"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Folder"
+msgstr ""
+
+msgid "Show keyboard"
+msgstr ""
+
+msgid "Unlock"
+msgstr ""
+
+msgid "Touch fingerprint sensor"
+msgstr ""
+
+msgid "Emergency"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Swipe up to unlock"
+msgstr ""
+
+msgid "No notifications"
+msgstr ""
+
+msgid "You're all caught up"
+msgstr ""
+
+msgid "Notifications"
+msgstr ""
+
+msgid "Clear all"
+msgstr ""
+
+msgid "Device options"
+msgstr ""
+
+msgid "Power off"
+msgstr ""
+
+msgid "Shut down device"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Reboot system"
+msgstr ""
+
+msgid "Sign out"
+msgstr ""
+
+msgid "End current session"
+msgstr ""
+
+msgid "Brightness"
+msgstr ""
+
+msgid "Media Volume"
+msgstr ""
+
+msgid "Internet"
+msgstr ""
+
+msgid "Flashlight"
+msgstr ""
+
+msgid "Do Not Disturb"
+msgstr ""
+
+msgid "Auto-Rotate"
+msgstr ""
+
+msgid "Penumbra Core • Wayland Ready"
+msgstr ""
+
+msgid "Wayland convergence active: DSI phone shell ready"
+msgstr ""
+
+msgid "Until 02:00"
+msgstr ""
+
+msgid "Edit tiles"
+msgstr ""
+
+msgid "Hold & drag to reorder"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Active tiles"
+msgstr ""
+
+msgid "{} active"
+msgstr ""
+
+msgid "Tiles visible in quick settings. Tap - to remove."
+msgstr ""
+
+msgid "Hold and drag tiles to reorder"
+msgstr ""
+
+msgid "Available tiles"
+msgstr ""
+
+msgid "{} available"
+msgstr ""
+
+msgid "Tap + to add tile to your active shade."
+msgstr ""
+
+msgid "No recent applications"
+msgstr ""
+
+msgid "Tap anywhere to return home"
+msgstr ""
+
+msgid "Wallpaper & style"
+msgstr ""
+
+msgid "Choose or scan wallpapers"
+msgstr ""
+
+msgid "Edit homescreen"
+msgstr ""
+
+msgid "Rearrange apps & shortcuts"
+msgstr ""
+
+msgid "Wallpaper & Style"
+msgstr ""
+
+msgid "🖼️ Gallery"
+msgstr ""
+
+msgid "📂 Browse"
+msgstr ""
+
+msgid "📁 Folders"
+msgstr ""
+
+msgid "Available Wallpapers ({})"
+msgstr ""
+
+msgid "🔄 Refresh"
+msgstr ""
+
+msgid "No wallpapers found in scanned folders"
+msgstr ""
+
+msgid "Use Browse tab or add folders in the Folders tab"
+msgstr ""
+
+msgid "➕ Add this folder to Wallpaper Scan Library"
+msgstr ""
+
+msgid "Wallpaper Scan Directories"
+msgstr ""
+
+msgid "Penumbra automatically scans these directories (and subfolders) for wallpaper images."
+msgstr ""
+
+msgid "📂 Browse File System to Add Folder"
+msgstr ""
+

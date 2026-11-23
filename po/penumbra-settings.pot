@@ -1,0 +1,766 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-settings 0.1.0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Penumbra Settings"
+msgstr ""
+
+msgid "Processor"
+msgstr ""
+
+msgid "Memory"
+msgstr ""
+
+msgid "Internal storage"
+msgstr ""
+
+msgid "OS Version"
+msgstr ""
+
+msgid "Linux kernel"
+msgstr ""
+
+msgid "Compositor & Shell"
+msgstr ""
+
+msgid "System uptime"
+msgstr ""
+
+msgid "System language"
+msgstr ""
+
+msgid "Applies to Penumbra Shell, Settings, and Linux apps (falls back to English when untranslated)."
+msgstr ""
+
+msgid "English (Default)"
+msgstr ""
+
+msgid "Română (Romanian)"
+msgstr ""
+
+msgid "Deutsch (German)"
+msgstr ""
+
+msgid "Français (French)"
+msgstr ""
+
+msgid "Español (Spanish)"
+msgstr ""
+
+msgid "Italiano (Italian)"
+msgstr ""
+
+msgid "Dynamic Monet"
+msgstr ""
+
+msgid "Custom palette"
+msgstr ""
+
+msgid "Wi-Fi"
+msgstr ""
+
+msgid "Colors"
+msgstr ""
+
+msgid "Extract Material 3 Expressive tones from wallpaper"
+msgstr ""
+
+msgid "Theme & icons"
+msgstr ""
+
+msgid "Dark theme"
+msgstr ""
+
+msgid "OLED pitch-black surfaces and tinted containers"
+msgstr ""
+
+msgid "Themed icons"
+msgstr ""
+
+msgid "Apply Monet accent colors to supported app icons"
+msgstr ""
+
+msgid "Icon shape (Material 3 Expressive)"
+msgstr ""
+
+msgid "Squircle"
+msgstr ""
+
+msgid "Circle"
+msgstr ""
+
+msgid "Rounded"
+msgstr ""
+
+msgid "Pill"
+msgstr ""
+
+msgid "Clover"
+msgstr ""
+
+msgid "Flower"
+msgstr ""
+
+msgid "Arch"
+msgstr ""
+
+msgid "Diamond"
+msgstr ""
+
+msgid "Wallpaper"
+msgstr ""
+
+msgid "Rescan"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Search folders ({})"
+msgstr ""
+
+msgid "+ Add folder"
+msgstr ""
+
+msgid "No wallpapers found in configured folders.\nAdd /usr/share/backgrounds or ~/Pictures."
+msgstr ""
+
+msgid "Add wallpaper folder"
+msgstr ""
+
+msgid "GNOME Sys"
+msgstr ""
+
+msgid "GNOME User"
+msgstr ""
+
+msgid "Pictures"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Add folder"
+msgstr ""
+
+msgid "Charging"
+msgstr ""
+
+msgid "Power profile"
+msgstr ""
+
+msgid "Power Saver"
+msgstr ""
+
+msgid "Extend battery"
+msgstr ""
+
+msgid "Balanced"
+msgstr ""
+
+msgid "Standard"
+msgstr ""
+
+msgid "Performance"
+msgstr ""
+
+msgid "Max speed"
+msgstr ""
+
+msgid "Power management"
+msgstr ""
+
+msgid "Battery Saver"
+msgstr ""
+
+msgid "Extends battery life by restricting background activity"
+msgstr ""
+
+msgid "Adaptive Charging"
+msgstr ""
+
+msgid "Protects battery health during prolonged plug-in"
+msgstr ""
+
+msgid "Diagnostics & health"
+msgstr ""
+
+msgid "Battery health"
+msgstr ""
+
+msgid "Battery hardware"
+msgstr ""
+
+msgid "Use Bluetooth"
+msgstr ""
+
+msgid "Scanning for devices... (Tap to stop)"
+msgstr ""
+
+msgid "Scan for nearby devices"
+msgstr ""
+
+msgid "Saved & Connected Devices"
+msgstr ""
+
+msgid "Disconnect"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Forget"
+msgstr ""
+
+msgid "Available Nearby"
+msgstr ""
+
+msgid "Pair"
+msgstr ""
+
+msgid "Connection preferences"
+msgstr ""
+
+msgid "Visible to other devices"
+msgstr ""
+
+msgid "Device name"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Bluetooth address"
+msgstr ""
+
+msgid "Brightness level"
+msgstr ""
+
+msgid "15 seconds"
+msgstr ""
+
+msgid "30 seconds"
+msgstr ""
+
+msgid "1 minute"
+msgstr ""
+
+msgid "2 minutes"
+msgstr ""
+
+msgid "5 minutes"
+msgstr ""
+
+msgid "10 minutes"
+msgstr ""
+
+msgid "Never"
+msgstr ""
+
+msgid "Display arrangement & convergence"
+msgstr ""
+
+msgid "Mirror displays"
+msgstr ""
+
+msgid "Mirroring external screen"
+msgstr ""
+
+msgid "Extended desktop (Join displays)"
+msgstr ""
+
+msgid "Use as primary display"
+msgstr ""
+
+msgid "This is the primary display"
+msgstr ""
+
+msgid "Secondary display"
+msgstr ""
+
+msgid "Display properties ({})"
+msgstr ""
+
+msgid "Resolution & Refresh Rate"
+msgstr ""
+
+msgid "Scale"
+msgstr ""
+
+msgid "Backlight brightness"
+msgstr ""
+
+msgid "Night light & color"
+msgstr ""
+
+msgid "Night light"
+msgstr ""
+
+msgid "Warm amber tint active (sunset to sunrise)"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Pitch black OLED enabled"
+msgstr ""
+
+msgid "Adaptive brightness"
+msgstr ""
+
+msgid "Optimize brightness for ambient light sensor"
+msgstr ""
+
+msgid "Accent color"
+msgstr ""
+
+msgid "Screen timeout"
+msgstr ""
+
+msgid "Turn off screen after {} of inactivity"
+msgstr ""
+
+msgid "On-screen keyboard"
+msgstr ""
+
+msgid "Hide on physical keyboard"
+msgstr ""
+
+msgid "Retracts on-screen keyboard when a hardware keyboard is connected"
+msgstr ""
+
+msgid "Physical keyboards"
+msgstr ""
+
+msgid "No physical keyboard detected"
+msgstr ""
+
+msgid "Connect a USB or Bluetooth typing keyboard"
+msgstr ""
+
+msgid "Virtual Keyboard Integration"
+msgstr ""
+
+msgid "Penumbra Settings automatically detects Wayland virtual keyboards following the KDE Plasma specification (X-KDE-Wayland-VirtualKeyboard=true in .desktop entry files)."
+msgstr ""
+
+msgid "Search settings..."
+msgstr ""
+
+msgid "No results for \"{}\""
+msgstr ""
+
+msgid "Network & internet"
+msgstr ""
+
+msgid "Mobile network & eSIM"
+msgstr ""
+
+msgid "Connected devices"
+msgstr ""
+
+msgid "Apps"
+msgstr ""
+
+msgid "Notifications"
+msgstr ""
+
+msgid "Notification history, conversations"
+msgstr ""
+
+msgid "Sound & vibration"
+msgstr ""
+
+msgid "Volume, haptics, Do Not Disturb"
+msgstr ""
+
+msgid "Modes"
+msgstr ""
+
+msgid "Do Not Disturb, Bedtime, Driving"
+msgstr ""
+
+msgid "Display"
+msgstr ""
+
+msgid "Dark theme, font size, touch controls"
+msgstr ""
+
+msgid "Wallpaper & style"
+msgstr ""
+
+msgid "Colors, themed icons, app grid"
+msgstr ""
+
+msgid "Security & privacy"
+msgstr ""
+
+msgid "PIN, password, fingerprint"
+msgstr ""
+
+msgid "Storage"
+msgstr ""
+
+msgid "Battery"
+msgstr ""
+
+msgid "Keyboard"
+msgstr ""
+
+msgid "On-screen keyboard, physical keyboard"
+msgstr ""
+
+msgid "About phone"
+msgstr ""
+
+msgid "SIM PIN required"
+msgstr ""
+
+msgid "Unlock"
+msgstr ""
+
+msgid "Mobile Data"
+msgstr ""
+
+msgid "Access data using cellular network"
+msgstr ""
+
+msgid "Data Roaming"
+msgstr ""
+
+msgid "Connect to data services when roaming"
+msgstr ""
+
+msgid "Preferred Network Mode"
+msgstr ""
+
+msgid "Auto"
+msgstr ""
+
+msgid "4G / 3G"
+msgstr ""
+
+msgid "4G Only"
+msgstr ""
+
+msgid "3G / 2G"
+msgstr ""
+
+msgid "Access Point Names (APNs)"
+msgstr ""
+
+msgid "+ Add APN"
+msgstr ""
+
+msgid "No GSM APN profiles configured. Tap + Add APN to create one."
+msgstr ""
+
+msgid "No APN set"
+msgstr ""
+
+msgid "New Access Point"
+msgstr ""
+
+msgid "Edit Access Point"
+msgstr ""
+
+msgid "Name"
+msgstr ""
+
+msgid "Profile Name"
+msgstr ""
+
+msgid "APN (e.g. internet)"
+msgstr ""
+
+msgid "Username"
+msgstr ""
+
+msgid "Password"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "eSIM Manager (LPA)"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "eUICC / lpac backend not available"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Del"
+msgstr ""
+
+msgid "Download eSIM Profile (Activation Code)"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Set Screen PIN"
+msgstr ""
+
+msgid "Set Screen Password"
+msgstr ""
+
+msgid "DEVICE LOCK"
+msgstr ""
+
+msgid "Swipe"
+msgstr ""
+
+msgid "Swipe to unlock, no credential required"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "PIN"
+msgstr ""
+
+msgid "Quick 4-to-8 digit numeric passcode"
+msgstr ""
+
+msgid "Alphanumeric password with on-screen keyboard"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "No lock screen, wakes directly to home"
+msgstr ""
+
+msgid "BIOMETRIC UNLOCK"
+msgstr ""
+
+msgid "Fingerprint unlock"
+msgstr ""
+
+msgid "Enabled for fast unlock"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Fingerprint sensor unavailable"
+msgstr ""
+
+msgid "PRIVACY & NOTIFICATIONS"
+msgstr ""
+
+msgid "Sensitive notifications"
+msgstr ""
+
+msgid "Hide contents on lock screen"
+msgstr ""
+
+msgid "Enter a 4-to-8 digit numeric PIN. This PIN will be required to unlock your device."
+msgstr ""
+
+msgid "Confirm your PIN:"
+msgstr ""
+
+msgid "Save PIN"
+msgstr ""
+
+msgid "Enter an alphanumeric password. You can use the on-screen keyboard to unlock."
+msgstr ""
+
+msgid "Confirm your password:"
+msgstr ""
+
+msgid "Save Password"
+msgstr ""
+
+msgid "Sound output & routing"
+msgstr ""
+
+msgid "Speaker"
+msgstr ""
+
+msgid "Headset"
+msgstr ""
+
+msgid "HDMI / TV"
+msgstr ""
+
+msgid "Mute output"
+msgstr ""
+
+msgid "Audio muted"
+msgstr ""
+
+msgid "Playing audio normally"
+msgstr ""
+
+msgid "Volume channels"
+msgstr ""
+
+msgid "Media volume"
+msgstr ""
+
+msgid "Call volume"
+msgstr ""
+
+msgid "Ring & notifications"
+msgstr ""
+
+msgid "Microphone input"
+msgstr ""
+
+msgid "Modes & feedback"
+msgstr ""
+
+msgid "Do Not Disturb"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Vibrate for calls"
+msgstr ""
+
+msgid "Always vibrate"
+msgstr ""
+
+msgid "Never vibrate"
+msgstr ""
+
+msgid "Use Wi-Fi"
+msgstr ""
+
+msgid "Authenticating"
+msgstr ""
+
+msgid "Status update"
+msgstr ""
+
+msgid "Reason: {}"
+msgstr ""
+
+msgid "Scan & Retry"
+msgstr ""
+
+msgid "Dismiss"
+msgstr ""
+
+msgid "Connected network"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "Available networks"
+msgstr ""
+
+msgid "Scanning for networks..."
+msgstr ""
+
+msgid "Searching for available Wi-Fi access points"
+msgstr ""
+
+msgid "Saved"
+msgstr ""
+
+msgid "Saved networks"
+msgstr ""
+
+msgid "Connected • Tap for details"
+msgstr ""
+
+msgid "Saved • Tap for details or forget"
+msgstr ""
+
+msgid "Hotspot & Tethering"
+msgstr ""
+
+msgid "Wi-Fi Hotspot"
+msgstr ""
+
+msgid "Network Name"
+msgstr ""
+
+msgid "Password (8+ chars)"
+msgstr ""
+
+msgid "Network preferences"
+msgstr ""
+
+msgid "Scan for networks"
+msgstr ""
+
+msgid "Trigger broadcast beacon discovery"
+msgstr ""
+
+msgid "Wi-Fi MAC address"
+msgstr ""
+
+msgid "Connect to Network"
+msgstr ""
+
+msgid "Enter authentication password for {} ({}):"
+msgstr ""
+
+msgid "Status"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Signal strength"
+msgstr ""
+
+msgid "IPv4 address"
+msgstr ""
+
+msgid "Hardware MAC"
+msgstr ""
+
+msgid "Network & Wi-Fi"
+msgstr ""
+
+msgid "Mobile & eSIM"
+msgstr ""
+
+msgid "Bluetooth Devices"
+msgstr ""
+
+msgid "Displays & Convergence"
+msgstr ""
+
+msgid "Sound & Volume"
+msgstr ""
+
+msgid "Battery & Power"
+msgstr ""
+
+msgid "Keyboard & Input"
+msgstr ""
+
+msgid "Security & Lock"
+msgstr ""
+
+msgid "About Device"
+msgstr ""
+
+msgid "Display Arrangement (Drag / Select to configure)"
+msgstr ""
+

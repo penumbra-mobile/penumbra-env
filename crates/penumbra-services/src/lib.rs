@@ -5,6 +5,7 @@ pub mod audio;
 pub mod backlight;
 pub mod battery;
 pub mod display;
+pub mod i18n;
 pub mod mpris;
 pub mod network;
 pub mod security;
