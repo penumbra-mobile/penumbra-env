@@ -1471,6 +1471,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let spring_timer_ipc = Rc::clone(&spring_timer);
         let is_animating_ipc = Rc::clone(&is_animating);
         let tb = top_bar_weak.clone();
+        let nb = nav_bar_weak.clone();
         let last_known_open = Rc::new(RefCell::new(false));
         let last_known_dragging = Rc::new(RefCell::new(false));
         let last_known_qs = Rc::new(RefCell::new(false));
@@ -1510,6 +1511,25 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 ShellState::load()
             };
+
+            // Sync Material surface fill for TopBar and NavBar:
+            // filled when viewing an app window, transparent when dragging to Recents/Home or in QS.
+            let should_be_solid = state.mode == PhoneMode::App
+                && !state.nav_gesture_active
+                && !state.is_dragging
+                && !state.drawer_open
+                && !state.drawer_dragging
+                && !state.is_locked;
+            if let Some(bar) = tb.upgrade() {
+                if bar.get_solid() != should_be_solid {
+                    bar.set_solid(should_be_solid);
+                }
+            }
+            if let Some(nav) = nb.upgrade() {
+                if nav.get_solid() != should_be_solid {
+                    nav.set_solid(should_be_solid);
+                }
+            }
 
             // Direct sync of lockscreen state from compositor
             if state.is_locked != last_known_locked_ipc.get() {

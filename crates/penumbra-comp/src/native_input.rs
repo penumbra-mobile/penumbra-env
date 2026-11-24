@@ -563,24 +563,6 @@ pub(crate) fn handle(
             input.last_tap_time = None;
             input.last_tap_pos = None;
 
-            // Detect Android system-wide lateral back gesture starting from left or right edge.
-            // Edge zone: 28px margin.
-            // Vertical zone: 35.0..873.0 (excluding status bar top and nav bar bottom).
-            const EDGE_ZONE: f64 = 28.0;
-            let is_left_edge = pos.x <= EDGE_ZONE;
-            let is_right_edge = pos.x >= (PHONE_W as f64 - EDGE_ZONE);
-            let in_vertical_zone = pos.y >= 35.0 && pos.y <= (NAV_BAR_Y as f64 - 10.0);
-
-            if !server.shell_state.is_locked && (is_left_edge || is_right_edge) && in_vertical_zone && input.edge_gesture.is_none() {
-                input.edge_gesture = Some(EdgeBackGesture {
-                    slot,
-                    start_pos: pos,
-                    from_left: is_left_edge,
-                    triggered: false,
-                });
-                return;
-            }
-
             // Navigation bar or Overview gesture tracking:
             // Intercept if touching the bottom navigation swipe area (matching navbar height exactly, y >= NAV_BAR_Y)
             // OR if already in Overview mode (where the entire screen is an interactive task switcher).
@@ -667,6 +649,49 @@ pub(crate) fn handle(
             }
 
             let focus = server.phone_focus_under(pos);
+            let is_kbd_target = focus
+                .as_ref()
+                .and_then(|(target_surf, _)| {
+                    smithay::desktop::layer_map_for_output(&server.output_a)
+                        .layers()
+                        .find(|l| l.wl_surface() == target_surf)
+                        .map(|l| {
+                            let ns = l.namespace();
+                            ns.contains("keyboard")
+                                || ns.contains("osk")
+                                || ns.contains("squeekboard")
+                                || ns.contains("phosh-osk")
+                                || ns.contains("stevia")
+                                || ns.contains("maliit")
+                        })
+                })
+                .unwrap_or(false);
+            let in_osk_region = server.active_osk_height > 0
+                && pos.y >= (PHONE_H as f64 - server.active_osk_height as f64);
+
+            // Track potential Android lateral back gesture without swallowing the initial TouchDown.
+            // Taps and edge buttons/keys pass through normally; if an inward horizontal swipe
+            // commits, TouchMotion cancels the client touch sequence.
+            const EDGE_ZONE: f64 = 24.0;
+            let is_left_edge = pos.x <= EDGE_ZONE;
+            let is_right_edge = pos.x >= (PHONE_W as f64 - EDGE_ZONE);
+            let in_vertical_zone = pos.y >= 35.0 && pos.y <= (NAV_BAR_Y as f64 - 10.0);
+
+            if !server.shell_state.is_locked
+                && !is_kbd_target
+                && !in_osk_region
+                && (is_left_edge || is_right_edge)
+                && in_vertical_zone
+                && input.edge_gesture.is_none()
+            {
+                input.edge_gesture = Some(EdgeBackGesture {
+                    slot,
+                    start_pos: pos,
+                    from_left: is_left_edge,
+                    triggered: false,
+                });
+            }
+
             input.touches.insert(slot, TouchContact {
                 focus: focus.clone(),
             });
@@ -807,15 +832,23 @@ pub(crate) fn handle(
 
             if let Some(ref mut edge) = input.edge_gesture {
                 if edge.slot == slot {
+                    if edge.triggered {
+                        return;
+                    }
                     let dx = pos.x - edge.start_pos.x;
                     let dy = (pos.y - edge.start_pos.y).abs();
-                    // Lateral inward threshold: 35px horizontal travel, horizontally dominant
-                    if edge.from_left && dx > 35.0 && dx > dy * 1.1 {
+                    if dy > 24.0 && dy > dx.abs() * 1.2 {
+                        // Vertical scroll along the edge: release gesture tracking so scrolling continues cleanly
+                        input.edge_gesture = None;
+                    } else if (edge.from_left && dx > 35.0 && dx > dy * 1.1)
+                        || (!edge.from_left && dx < -35.0 && (-dx) > dy * 1.1)
+                    {
                         edge.triggered = true;
-                    } else if !edge.from_left && dx < -35.0 && (-dx) > dy * 1.1 {
-                        edge.triggered = true;
+                        input.touches.remove(&slot);
+                        input.touch_handle.cancel(server);
+                        input.touch_handle.frame(server);
+                        return;
                     }
-                    return;
                 }
             }
 
@@ -1084,14 +1117,12 @@ pub(crate) fn handle(
             }
 
             if let Some(edge) = input.edge_gesture.take() {
-                if edge.slot == slot {
-                    if edge.triggered {
-                        tracing::info!(
-                            from_left = edge.from_left,
-                            "Android lateral back gesture recognized -> trigger Back"
-                        );
-                        server.trigger_back();
-                    }
+                if edge.slot == slot && edge.triggered {
+                    tracing::info!(
+                        from_left = edge.from_left,
+                        "Android lateral back gesture recognized -> trigger Back"
+                    );
+                    server.trigger_back();
                     return;
                 }
             }

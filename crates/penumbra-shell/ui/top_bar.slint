@@ -23,6 +23,7 @@ export component TopBarWindow inherits Window {
     in-out property <bool> vpn-active: false;
     in-out property <bool> docked: false;
     in-out property <float> shade-progress: 0.0;
+    in-out property <bool> solid: false;
 
     callback top-bar-pulled-down(float /* dy */, bool /* is_qs */);
     callback top-bar-released(bool /* is_qs */);
@@ -65,13 +66,14 @@ export component TopBarWindow inherits Window {
         }
     }
 
-    // Material 3 Expressive Top Bar (borderless, transparent, official Material Symbols Rounded)
+    // Material 3 Expressive Top Bar (borderless, transparent on Home/Recents, surface-filled in App)
     Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: transparent;
+        background: root.solid ? Theme.surface-container-lowest : transparent;
+        animate background { duration: 150ms; }
         opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
 
         HorizontalLayout {
