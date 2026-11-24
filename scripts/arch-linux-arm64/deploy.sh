@@ -28,6 +28,9 @@ required_bins=(
     penumbra-greeter
     penumbra-shell
     penumbra-desktop-shell
+    penumbra-calls
+    penumbra-messaging
+    penumbra-contacts
 )
 
 BOLD='\033[1m'
@@ -200,7 +203,13 @@ cp "$repo_root/scripts/penumbra-session" \
     "$repo_root/data/penumbra.desktop" \
     "$repo_root/data/penumbra-settings.desktop" \
     "$repo_root/data/penumbra-keyboard.desktop" \
+    "$repo_root/data/penumbra-calls.desktop" \
+    "$repo_root/data/penumbra-messaging.desktop" \
+    "$repo_root/data/penumbra-contacts.desktop" \
     "$repo_root/data/penumbra-settings.svg" \
+    "$repo_root/data/penumbra-calls.svg" \
+    "$repo_root/data/penumbra-messaging.svg" \
+    "$repo_root/data/penumbra-contacts.svg" \
     "$stage_dir/"
 cp -a "$repo_root/assets/." "$stage_dir/assets/"
 
@@ -216,9 +225,11 @@ install -d /usr/local/bin /usr/share/wayland-sessions /usr/share/applications /u
 install -m 0755 "$stage"/bin/* /usr/local/bin/
 install -m 0755 "$stage"/penumbra-session "$stage"/penumbra-nested-session "$stage"/penumbra-native-session /usr/local/bin/
 install -m 0644 "$stage"/penumbra.desktop /usr/share/wayland-sessions/penumbra.desktop
-install -m 0644 "$stage"/penumbra-settings.desktop "$stage"/penumbra-keyboard.desktop /usr/share/applications/
+install -m 0644 "$stage"/penumbra-settings.desktop "$stage"/penumbra-keyboard.desktop "$stage"/penumbra-calls.desktop "$stage"/penumbra-messaging.desktop "$stage"/penumbra-contacts.desktop /usr/share/applications/
 install -d /usr/share/icons/hicolor/scalable/apps
-install -m 0644 "$stage"/penumbra-settings.svg /usr/share/icons/hicolor/scalable/apps/penumbra-settings.svg
+install -m 0644 "$stage"/penumbra-settings.svg "$stage"/penumbra-calls.svg "$stage"/penumbra-messaging.svg "$stage"/penumbra-contacts.svg /usr/share/icons/hicolor/scalable/apps/
+gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
+pkill -x gnome-calls 2>/dev/null || true
 cp -a "$stage"/assets/. /usr/share/penumbra/assets/
 
 install -d /etc/udev/rules.d

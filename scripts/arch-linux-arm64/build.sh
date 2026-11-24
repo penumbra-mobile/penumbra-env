@@ -20,6 +20,9 @@ required_bins=(
     penumbra-greeter
     penumbra-shell
     penumbra-desktop-shell
+    penumbra-calls
+    penumbra-messaging
+    penumbra-contacts
 )
 
 BLUE='\033[0;34m'

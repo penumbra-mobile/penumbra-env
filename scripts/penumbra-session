@@ -19,6 +19,18 @@ export XDG_CURRENT_DESKTOP=Penumbra:GNOME
 export XDG_SESSION_DESKTOP=Penumbra
 export XDG_SESSION_TYPE=wayland
 
+# Ensure GNOME/Phosh telephony daemons never hijack calls from Penumbra Calls
+pkill -x gnome-calls 2>/dev/null || true
+systemctl --user stop calls-daemon.service 2>/dev/null || true
+systemctl --user mask calls-daemon.service 2>/dev/null || true
+# Ensure fp4-callaudiod doesn't fight Penumbra's direct q6voiced + ALSA mixer routing
+systemctl --user stop callaudiod.service 2>/dev/null || true
+systemctl --user mask callaudiod.service 2>/dev/null || true
+if [[ -f /etc/xdg/autostart/org.gnome.Calls-daemon.desktop ]]; then
+    mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/autostart"
+    printf '[Desktop Entry]\nHidden=true\n' > "${XDG_CONFIG_HOME:-$HOME/.config}/autostart/org.gnome.Calls-daemon.desktop"
+fi
+
 # Load user/system locale.conf so all Wayland/GTK/Qt/Firefox/Penumbra apps inherit LANG & LANGUAGE
 for _loc_file in "${XDG_CONFIG_HOME:-$HOME/.config}/penumbra/locale.conf" "${XDG_CONFIG_HOME:-$HOME/.config}/locale.conf" "/etc/locale.conf"; do
     if [[ -r "$_loc_file" ]]; then

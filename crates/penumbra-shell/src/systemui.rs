@@ -1285,6 +1285,38 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     refresh_tiles();
     tracing::debug!("SystemUI init: telemetry tasks spawning");
 
+    // Incoming cellular call monitor: event-driven D-Bus listener launches `penumbra-calls` immediately on RingingIn
+    std::thread::spawn(|| {
+        let mut seen_ringing = std::collections::HashSet::<String>::new();
+        penumbra_services::telephony::watch_call_events(move || {
+            if let Ok(calls) = penumbra_services::telephony::list_active_calls() {
+                let mut current_paths = std::collections::HashSet::<String>::new();
+                for c in calls {
+                    current_paths.insert(c.path.clone());
+                    if c.state == penumbra_services::telephony::CallState::RingingIn
+                        && !seen_ringing.contains(&c.path)
+                    {
+                        seen_ringing.insert(c.path.clone());
+                        let already_open = std::process::Command::new("pgrep")
+                            .args(["-x", "penumbra-calls"])
+                            .status()
+                            .map(|s| s.success())
+                            .unwrap_or(false);
+                        if !already_open {
+                            info!("Incoming call from {} ({}): launching penumbra-calls", c.number, c.path);
+                            if let Ok(mut child) = std::process::Command::new("penumbra-calls").spawn() {
+                                std::thread::spawn(move || {
+                                    let _ = child.wait();
+                                });
+                            }
+                        }
+                    }
+                }
+                seen_ringing.retain(|p| current_paths.contains(p));
+            }
+        });
+    });
+
     enum TileSyncMsg {
         Radios { wifi: bool, bt: bool, airplane: bool },
         Internet { connected: bool, ssid: String },

@@ -58,4 +58,7 @@ PY
 extract_domain "penumbra-shell" "$ROOT_DIR/crates/penumbra-shell/ui"
 extract_domain "penumbra-desktop-shell" "$ROOT_DIR/crates/penumbra-desktop-shell/ui"
 extract_domain "penumbra-settings" "$ROOT_DIR/crates/penumbra-settings/ui"
+extract_domain "penumbra-calls" "$ROOT_DIR/crates/penumbra-calls/ui"
+extract_domain "penumbra-messaging" "$ROOT_DIR/crates/penumbra-messaging/ui"
+extract_domain "penumbra-contacts" "$ROOT_DIR/crates/penumbra-contacts/ui"
 
