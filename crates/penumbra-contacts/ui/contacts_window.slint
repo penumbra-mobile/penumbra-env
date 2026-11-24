@@ -8,6 +8,83 @@ export struct ContactRow {
     favorite: bool,
 }
 
+component ContactIcon inherits Rectangle {
+    in property <string> name: "person";
+    in property <length> icon-size: 20px;
+    in property <color> icon-color: #ffffff;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    background: transparent;
+
+    if root.name == "search": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z";
+    }
+    if root.name == "close": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z";
+    }
+    if root.name == "add": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z";
+    }
+    if root.name == "back": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z";
+    }
+    if root.name == "edit": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z";
+    }
+    if root.name == "delete": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z";
+    }
+    if root.name == "star": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z";
+    }
+    if root.name == "star-outline": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z";
+    }
+    if root.name == "phone": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z";
+    }
+    if root.name == "message": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z";
+    }
+    if root.name == "person": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z";
+    }
+}
+
 export component ContactsWindow inherits Window {
     title: @tr("Contacts");
     preferred-width: 412px;
@@ -34,10 +111,12 @@ export component ContactsWindow inherits Window {
     in-out property <string> sel-email: "";
     in-out property <string> sel-notes: "";
     in-out property <string> sel-initials: "?";
+    in-out property <bool> sel-favorite: false;
 
     callback search-changed(string);
     callback save-contact(string, string, string, string, string);
     callback delete-contact(string);
+    callback toggle-favorite(string);
     callback call-number(string);
     callback message-number(string);
 
@@ -45,7 +124,10 @@ export component ContactsWindow inherits Window {
     // 1. CONTACTS LIST
     // =========================================================================
     if root.mode == "list": VerticalLayout {
-        padding: 16px;
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 14px;
         spacing: 12px;
 
         HorizontalLayout {
@@ -53,34 +135,47 @@ export component ContactsWindow inherits Window {
             height: 44px;
             Text {
                 text: @tr("Contacts");
-                font-size: 24px;
+                font-size: 26px;
                 font-weight: 700;
                 color: root.on-surface;
                 vertical-alignment: center;
             }
-            Rectangle {
-                height: 36px;
-                border-radius: 18px;
-                background: root.primary-container;
-                HorizontalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    Text {
-                        text: @tr("+ Add");
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: root.on-primary-container;
-                        vertical-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 38px;
+                    border-radius: 19px;
+                    background: add-btn-ta.pressed ? root.primary : root.primary-container;
+                    border-width: 1px;
+                    border-color: add-btn-ta.pressed ? #ffffff44 : #ffffff1f;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            ContactIcon { name: "add"; icon-size: 16px; icon-color: root.on-primary-container; }
+                        }
+                        Text {
+                            text: @tr("Add");
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: root.on-primary-container;
+                            vertical-alignment: center;
+                        }
                     }
-                }
-                TouchArea {
-                    clicked => {
-                        root.sel-id = "";
-                        root.sel-name = "";
-                        root.sel-phone = "";
-                        root.sel-email = "";
-                        root.sel-notes = "";
-                        root.mode = "edit";
+                    add-btn-ta := TouchArea {
+                        clicked => {
+                            root.sel-id = "";
+                            root.sel-name = "";
+                            root.sel-phone = "";
+                            root.sel-email = "";
+                            root.sel-notes = "";
+                            root.sel-initials = "?";
+                            root.sel-favorite = false;
+                            root.mode = "edit";
+                        }
                     }
                 }
             }
@@ -91,22 +186,61 @@ export component ContactsWindow inherits Window {
             height: 46px;
             border-radius: 23px;
             background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff14;
             HorizontalLayout {
                 padding-left: 16px;
-                padding-right: 16px;
-                spacing: 8px;
-                Text {
-                    text: "🔍";
-                    font-size: 14px;
-                    vertical-alignment: center;
+                padding-right: 10px;
+                spacing: 10px;
+                VerticalLayout {
+                    alignment: center;
+                    ContactIcon {
+                        name: "search";
+                        icon-size: 18px;
+                        icon-color: root.on-surface-variant;
+                    }
                 }
-                TextInput {
-                    text <=> root.search-query;
-                    font-size: 14px;
-                    color: root.on-surface;
-                    vertical-alignment: center;
-                    single-line: true;
-                    edited => { root.search-changed(self.text); }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: transparent;
+                    if root.search-query == "": Text {
+                        text: @tr("Search contacts or numbers");
+                        font-size: 14px;
+                        color: root.on-surface-variant.with-alpha(0.55);
+                        vertical-alignment: center;
+                    }
+                    TextInput {
+                        width: 100%;
+                        height: 100%;
+                        text <=> root.search-query;
+                        font-size: 14px;
+                        color: root.on-surface;
+                        vertical-alignment: center;
+                        single-line: true;
+                        edited => { root.search-changed(self.text); }
+                    }
+                }
+                if root.search-query != "": VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 30px;
+                        height: 30px;
+                        border-radius: 15px;
+                        background: clear-ta.pressed ? root.primary-container : root.surface-high;
+                        HorizontalLayout {
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                ContactIcon { name: "close"; icon-size: 14px; icon-color: root.on-surface-variant; }
+                            }
+                        }
+                        clear-ta := TouchArea {
+                            clicked => {
+                                root.search-query = "";
+                                root.search-changed("");
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -119,92 +253,42 @@ export component ContactsWindow inherits Window {
                 spacing: 8px;
 
                 if root.contacts.length == 0: Rectangle {
-                    height: 120px;
-                    border-radius: 24px;
+                    height: 140px;
+                    border-radius: 28px;
                     background: root.surface-low;
-                    Text {
-                        text: @tr("No contacts yet");
-                        font-size: 15px;
-                        color: root.on-surface-variant;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        HorizontalLayout {
+                            alignment: center;
+                            ContactIcon {
+                                name: root.search-query != "" ? "search" : "person";
+                                icon-size: 28px;
+                                icon-color: root.on-surface-variant;
+                            }
+                        }
+                        Text {
+                            text: root.search-query != "" ? @tr("No matching contacts") : @tr("No contacts yet");
+                            font-size: 15px;
+                            font-weight: 500;
+                            color: root.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
                     }
                 }
 
                 for c in root.contacts: Rectangle {
-                    height: 70px;
+                    height: 72px;
                     border-radius: 24px;
-                    background: root.surface-low;
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 12px;
-                        spacing: 12px;
+                    background: row-ta.pressed ? root.surface-high : root.surface-low;
+                    border-width: 1px;
+                    border-color: row-ta.pressed ? #ffffff26 : #ffffff14;
+                    animate background { duration: 100ms; }
 
-                        Rectangle {
-                            width: 44px;
-                            height: 44px;
-                            border-radius: 22px;
-                            background: root.primary-container;
-                            y: (parent.height - self.height) / 2;
-                            Text {
-                                text: c.initials;
-                                font-size: 16px;
-                                font-weight: 700;
-                                color: root.on-primary-container;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            alignment: center;
-                            spacing: 2px;
-                            Text {
-                                text: c.name;
-                                font-size: 16px;
-                                font-weight: 600;
-                                color: root.on-surface;
-                            }
-                            Text {
-                                text: c.phone;
-                                font-size: 13px;
-                                color: root.on-surface-variant;
-                            }
-                        }
-
-                        Rectangle {
-                            width: 38px;
-                            height: 38px;
-                            border-radius: 19px;
-                            background: root.surface-high;
-                            y: (parent.height - self.height) / 2;
-                            Text {
-                                text: "💬";
-                                font-size: 14px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea { clicked => { root.message-number(c.phone); } }
-                        }
-
-                        Rectangle {
-                            width: 38px;
-                            height: 38px;
-                            border-radius: 19px;
-                            background: #2e7d32;
-                            y: (parent.height - self.height) / 2;
-                            Text {
-                                text: "📞";
-                                font-size: 14px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                            TouchArea { clicked => { root.call-number(c.phone); } }
-                        }
-                    }
-
-                    TouchArea {
+                    // Placed before action buttons so quick-action pills receive their own clicks
+                    row-ta := TouchArea {
                         clicked => {
                             root.sel-id = c.id;
                             root.sel-name = c.name;
@@ -212,7 +296,100 @@ export component ContactsWindow inherits Window {
                             root.sel-email = c.email;
                             root.sel-notes = c.notes;
                             root.sel-initials = c.initials;
+                            root.sel-favorite = c.favorite;
                             root.mode = "detail";
+                        }
+                    }
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 44px;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: root.primary-container;
+                                border-width: 1px;
+                                border-color: c.favorite ? root.primary : #ffffff1a;
+                                Text {
+                                    text: c.initials;
+                                    font-size: 16px;
+                                    font-weight: 700;
+                                    color: root.on-primary-container;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                Text {
+                                    text: c.name;
+                                    font-size: 16px;
+                                    font-weight: 600;
+                                    color: root.on-surface;
+                                    overflow: elide;
+                                }
+                                if c.favorite: VerticalLayout {
+                                    alignment: center;
+                                    ContactIcon { name: "star"; icon-size: 14px; icon-color: root.primary; }
+                                }
+                            }
+                            Text {
+                                text: c.phone;
+                                font-size: 13px;
+                                color: root.on-surface-variant;
+                                overflow: elide;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 38px;
+                                height: 38px;
+                                border-radius: 19px;
+                                background: row-msg-ta.pressed ? root.primary-container : root.surface-high;
+                                border-width: 1px;
+                                border-color: #ffffff14;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        ContactIcon { name: "message"; icon-size: 16px; icon-color: root.primary; }
+                                    }
+                                }
+                                row-msg-ta := TouchArea { clicked => { root.message-number(c.phone); } }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 38px;
+                                height: 38px;
+                                border-radius: 19px;
+                                background: row-call-ta.pressed ? #1b5e20 : #2e7d32;
+                                border-width: 1px;
+                                border-color: #a3e8b033;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        ContactIcon { name: "phone"; icon-size: 16px; icon-color: #ffffff; }
+                                    }
+                                }
+                                row-call-ta := TouchArea { clicked => { root.call-number(c.phone); } }
+                            }
                         }
                     }
                 }
@@ -224,64 +401,107 @@ export component ContactsWindow inherits Window {
     // 2. CONTACT DETAIL VIEW
     // =========================================================================
     if root.mode == "detail": VerticalLayout {
-        padding: 16px;
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 16px;
         spacing: 16px;
 
         HorizontalLayout {
             alignment: space-between;
             height: 44px;
-            Rectangle {
-                width: 40px;
-                height: 40px;
-                border-radius: 20px;
-                background: root.surface-high;
-                Text {
-                    text: "←";
-                    font-size: 18px;
-                    color: root.on-surface;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 20px;
+                    background: back-ta.pressed ? root.primary-container : root.surface-high;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    HorizontalLayout {
+                        alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            ContactIcon { name: "back"; icon-size: 18px; icon-color: root.on-surface; }
+                        }
+                    }
+                    back-ta := TouchArea { clicked => { root.mode = "list"; } }
                 }
-                TouchArea { clicked => { root.mode = "list"; } }
             }
             HorizontalLayout {
                 spacing: 8px;
-                Rectangle {
-                    height: 36px;
-                    border-radius: 18px;
-                    background: root.surface-high;
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        Text {
-                            text: @tr("Edit");
-                            font-size: 13px;
-                            font-weight: 600;
-                            color: root.primary;
-                            vertical-alignment: center;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 19px;
+                        background: root.sel-favorite ? root.primary-container : root.surface-high;
+                        border-width: 1px;
+                        border-color: root.sel-favorite ? #ffffff33 : #ffffff14;
+                        HorizontalLayout {
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                ContactIcon {
+                                    name: root.sel-favorite ? "star" : "star-outline";
+                                    icon-size: 18px;
+                                    icon-color: root.sel-favorite ? root.primary : root.on-surface-variant;
+                                }
+                            }
                         }
+                        TouchArea { clicked => { root.toggle-favorite(root.sel-id); } }
                     }
-                    TouchArea { clicked => { root.mode = "edit"; } }
                 }
-                Rectangle {
-                    height: 36px;
-                    border-radius: 18px;
-                    background: #93000a;
-                    HorizontalLayout {
-                        padding-left: 14px;
-                        padding-right: 14px;
-                        Text {
-                            text: @tr("Delete");
-                            font-size: 13px;
-                            font-weight: 600;
-                            color: #ffdad6;
-                            vertical-alignment: center;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 38px;
+                        border-radius: 19px;
+                        background: edit-btn-ta.pressed ? root.primary-container : root.surface-high;
+                        border-width: 1px;
+                        border-color: #ffffff14;
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 6px;
+                            VerticalLayout {
+                                alignment: center;
+                                ContactIcon { name: "edit"; icon-size: 15px; icon-color: root.primary; }
+                            }
+                            Text {
+                                text: @tr("Edit");
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: root.primary;
+                                vertical-alignment: center;
+                            }
                         }
+                        edit-btn-ta := TouchArea { clicked => { root.mode = "edit"; } }
                     }
-                    TouchArea {
-                        clicked => {
-                            root.delete-contact(root.sel-id);
-                            root.mode = "list";
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 19px;
+                        background: del-btn-ta.pressed ? #690005 : #93000a;
+                        border-width: 1px;
+                        border-color: #ffb4a933;
+                        HorizontalLayout {
+                            alignment: center;
+                            VerticalLayout {
+                                alignment: center;
+                                ContactIcon { name: "delete"; icon-size: 17px; icon-color: #ffdad6; }
+                            }
+                        }
+                        del-btn-ta := TouchArea {
+                            clicked => {
+                                root.delete-contact(root.sel-id);
+                                root.mode = "list";
+                            }
                         }
                     }
                 }
@@ -290,30 +510,35 @@ export component ContactsWindow inherits Window {
 
         // Avatar & Name
         VerticalLayout {
-            padding-top: 12px;
-            spacing: 10px;
+            padding-top: 8px;
+            spacing: 12px;
             alignment: center;
-            Rectangle {
-                width: 88px;
-                height: 88px;
-                border-radius: 44px;
-                background: root.primary-container;
-                x: (parent.width - self.width) / 2;
-                Text {
-                    text: root.sel-initials;
-                    font-size: 32px;
-                    font-weight: 700;
-                    color: root.on-primary-container;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 92px;
+                    height: 92px;
+                    border-radius: 46px;
+                    background: root.primary-container;
+                    border-width: 2px;
+                    border-color: root.primary.with-alpha(0.4);
+                    Text {
+                        text: root.sel-initials;
+                        font-size: 32px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
             }
             Text {
                 text: root.sel-name;
-                font-size: 24px;
+                font-size: 26px;
                 font-weight: 700;
                 color: root.on-surface;
                 horizontal-alignment: center;
+                overflow: elide;
             }
         }
 
@@ -324,53 +549,75 @@ export component ContactsWindow inherits Window {
             Rectangle {
                 horizontal-stretch: 1;
                 border-radius: 26px;
-                background: #2e7d32;
-                Text {
-                    text: @tr("Call");
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: #ffffff;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                background: det-call-ta.pressed ? #1b5e20 : #2e7d32;
+                border-width: 1px;
+                border-color: #a3e8b044;
+                animate background { duration: 100ms; }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        ContactIcon { name: "phone"; icon-size: 18px; icon-color: #ffffff; }
+                    }
+                    Text {
+                        text: @tr("Call");
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: #ffffff;
+                        vertical-alignment: center;
+                    }
                 }
-                TouchArea { clicked => { root.call-number(root.sel-phone); } }
+                det-call-ta := TouchArea { clicked => { root.call-number(root.sel-phone); } }
             }
             Rectangle {
                 horizontal-stretch: 1;
                 border-radius: 26px;
-                background: root.primary-container;
-                Text {
-                    text: @tr("Message");
-                    font-size: 15px;
-                    font-weight: 700;
-                    color: root.on-primary-container;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                background: det-msg-ta.pressed ? root.primary : root.primary-container;
+                border-width: 1px;
+                border-color: #ffffff1f;
+                animate background { duration: 100ms; }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        ContactIcon { name: "message"; icon-size: 18px; icon-color: root.on-primary-container; }
+                    }
+                    Text {
+                        text: @tr("Message");
+                        font-size: 15px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        vertical-alignment: center;
+                    }
                 }
-                TouchArea { clicked => { root.message-number(root.sel-phone); } }
+                det-msg-ta := TouchArea { clicked => { root.message-number(root.sel-phone); } }
             }
         }
 
         // Info Card
         Rectangle {
-            border-radius: 24px;
+            border-radius: 28px;
             background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff14;
             VerticalLayout {
-                padding: 16px;
-                spacing: 12px;
+                padding: 18px;
+                spacing: 14px;
                 VerticalLayout {
-                    spacing: 2px;
-                    Text { text: @tr("Phone"); font-size: 12px; color: root.on-surface-variant; }
-                    Text { text: root.sel-phone; font-size: 16px; color: root.on-surface; }
+                    spacing: 3px;
+                    Text { text: @tr("Phone"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
+                    Text { text: root.sel-phone; font-size: 16px; font-weight: 500; color: root.on-surface; }
                 }
                 if root.sel-email != "": VerticalLayout {
-                    spacing: 2px;
-                    Text { text: @tr("Email"); font-size: 12px; color: root.on-surface-variant; }
+                    spacing: 3px;
+                    Text { text: @tr("Email"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
                     Text { text: root.sel-email; font-size: 15px; color: root.on-surface; }
                 }
                 if root.sel-notes != "": VerticalLayout {
-                    spacing: 2px;
-                    Text { text: @tr("Notes"); font-size: 12px; color: root.on-surface-variant; }
+                    spacing: 3px;
+                    Text { text: @tr("Notes"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
                     Text { text: root.sel-notes; font-size: 14px; color: root.on-surface; wrap: word-wrap; }
                 }
             }
@@ -381,27 +628,40 @@ export component ContactsWindow inherits Window {
     // 3. ADD / EDIT CONTACT
     // =========================================================================
     if root.mode == "edit": VerticalLayout {
-        padding: 16px;
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 16px;
         spacing: 14px;
 
         HorizontalLayout {
             alignment: space-between;
             height: 44px;
-            Rectangle {
-                height: 36px;
-                border-radius: 18px;
-                background: root.surface-high;
-                HorizontalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    Text {
-                        text: @tr("Cancel");
-                        font-size: 13px;
-                        color: root.on-surface;
-                        vertical-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 38px;
+                    border-radius: 19px;
+                    background: cancel-ta.pressed ? root.surface-low : root.surface-high;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        Text {
+                            text: @tr("Cancel");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.on-surface;
+                            vertical-alignment: center;
+                        }
+                    }
+                    cancel-ta := TouchArea {
+                        clicked => {
+                            root.mode = root.sel-id != "" ? "detail" : "list";
+                        }
                     }
                 }
-                TouchArea { clicked => { root.mode = "list"; } }
             }
             Text {
                 text: root.sel-id == "" ? @tr("New contact") : @tr("Edit contact");
@@ -410,70 +670,112 @@ export component ContactsWindow inherits Window {
                 color: root.on-surface;
                 vertical-alignment: center;
             }
-            Rectangle {
-                height: 36px;
-                border-radius: 18px;
-                background: root.primary-container;
-                HorizontalLayout {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    Text {
-                        text: @tr("Save");
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: root.on-primary-container;
-                        vertical-alignment: center;
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 38px;
+                    border-radius: 19px;
+                    background: (root.sel-name == "" && root.sel-phone == "") ? root.primary-container.with-alpha(0.4) : (save-ta.pressed ? root.primary : root.primary-container);
+                    border-width: 1px;
+                    border-color: #ffffff1f;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        Text {
+                            text: @tr("Save");
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: root.on-primary-container;
+                            vertical-alignment: center;
+                        }
                     }
-                }
-                TouchArea {
-                    clicked => {
-                        if (root.sel-name != "" || root.sel-phone != "") {
-                            root.save-contact(root.sel-id, root.sel-name, root.sel-phone, root.sel-email, root.sel-notes);
-                            root.mode = "list";
+                    save-ta := TouchArea {
+                        clicked => {
+                            if (root.sel-name != "" || root.sel-phone != "") {
+                                root.save-contact(root.sel-id, root.sel-name, root.sel-phone, root.sel-email, root.sel-notes);
+                                root.mode = root.sel-id != "" ? "detail" : "list";
+                            }
                         }
                     }
                 }
             }
         }
 
-        VerticalLayout {
-            spacing: 10px;
-            Text { text: @tr("Name"); font-size: 12px; color: root.on-surface-variant; }
-            Rectangle {
-                height: 48px; border-radius: 16px; background: root.surface-low;
-                HorizontalLayout {
-                    padding-left: 14px; padding-right: 14px;
-                    TextInput { text <=> root.sel-name; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
-                }
-            }
+        Flickable {
+            vertical-stretch: 1;
+            content-height: edit-col.min-height + 24px;
+            edit-col := VerticalLayout {
+                width: parent.width;
+                spacing: 12px;
 
-            Text { text: @tr("Phone"); font-size: 12px; color: root.on-surface-variant; }
-            Rectangle {
-                height: 48px; border-radius: 16px; background: root.surface-low;
-                HorizontalLayout {
-                    padding-left: 14px; padding-right: 14px;
-                    TextInput { text <=> root.sel-phone; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: @tr("Name"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
+                    Rectangle {
+                        height: 48px; border-radius: 16px; background: root.surface-low;
+                        border-width: 1px; border-color: #ffffff14;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px;
+                            Rectangle {
+                                horizontal-stretch: 1; background: transparent;
+                                if root.sel-name == "": Text { text: @tr("Full name"); font-size: 15px; color: root.on-surface-variant.with-alpha(0.5); vertical-alignment: center; }
+                                TextInput { width: 100%; height: 100%; text <=> root.sel-name; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                            }
+                        }
+                    }
                 }
-            }
 
-            Text { text: @tr("Email"); font-size: 12px; color: root.on-surface-variant; }
-            Rectangle {
-                height: 48px; border-radius: 16px; background: root.surface-low;
-                HorizontalLayout {
-                    padding-left: 14px; padding-right: 14px;
-                    TextInput { text <=> root.sel-email; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: @tr("Phone"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
+                    Rectangle {
+                        height: 48px; border-radius: 16px; background: root.surface-low;
+                        border-width: 1px; border-color: #ffffff14;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px;
+                            Rectangle {
+                                horizontal-stretch: 1; background: transparent;
+                                if root.sel-phone == "": Text { text: @tr("Phone number"); font-size: 15px; color: root.on-surface-variant.with-alpha(0.5); vertical-alignment: center; }
+                                TextInput { width: 100%; height: 100%; text <=> root.sel-phone; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                            }
+                        }
+                    }
                 }
-            }
 
-            Text { text: @tr("Notes"); font-size: 12px; color: root.on-surface-variant; }
-            Rectangle {
-                height: 80px; border-radius: 16px; background: root.surface-low;
-                HorizontalLayout {
-                    padding: 14px;
-                    TextInput { text <=> root.sel-notes; font-size: 14px; color: root.on-surface; wrap: word-wrap; }
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: @tr("Email"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
+                    Rectangle {
+                        height: 48px; border-radius: 16px; background: root.surface-low;
+                        border-width: 1px; border-color: #ffffff14;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px;
+                            Rectangle {
+                                horizontal-stretch: 1; background: transparent;
+                                if root.sel-email == "": Text { text: @tr("Email address"); font-size: 15px; color: root.on-surface-variant.with-alpha(0.5); vertical-alignment: center; }
+                                TextInput { width: 100%; height: 100%; text <=> root.sel-email; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                            }
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 6px;
+                    Text { text: @tr("Notes"); font-size: 12px; font-weight: 600; color: root.on-surface-variant; }
+                    Rectangle {
+                        height: 96px; border-radius: 16px; background: root.surface-low;
+                        border-width: 1px; border-color: #ffffff14;
+                        HorizontalLayout {
+                            padding: 14px;
+                            Rectangle {
+                                horizontal-stretch: 1; background: transparent;
+                                if root.sel-notes == "": Text { text: @tr("Optional notes"); font-size: 14px; color: root.on-surface-variant.with-alpha(0.5); }
+                                TextInput { width: 100%; height: 100%; text <=> root.sel-notes; font-size: 14px; color: root.on-surface; wrap: word-wrap; }
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
-

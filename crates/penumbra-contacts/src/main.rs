@@ -46,12 +46,19 @@ fn apply_palette(ui: &ContactsWindow) {
 
 fn reload_contacts(ui: &ContactsWindow, query: &str) {
     let q = query.trim().to_lowercase();
-    let rows: Vec<ContactRow> = contacts::load_contacts()
+    let mut list = contacts::load_contacts();
+    list.sort_by(|a, b| {
+        b.favorite
+            .cmp(&a.favorite)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    let rows: Vec<ContactRow> = list
         .into_iter()
         .filter(|c| {
             q.is_empty()
                 || c.name.to_lowercase().contains(&q)
                 || c.phone.to_lowercase().contains(&q)
+                || c.email.to_lowercase().contains(&q)
         })
         .map(|c| {
             let initials = c.initials();
@@ -101,20 +108,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let weak = ui.as_weak();
         ui.on_save_contact(move |id, name, phone, email, notes| {
+            let id_s: String = id.into();
+            let existing_fav = if !id_s.is_empty() {
+                contacts::load_contacts()
+                    .into_iter()
+                    .find(|c| c.id == id_s)
+                    .map(|c| c.favorite)
+                    .unwrap_or(false)
+            } else {
+                false
+            };
             let contact = contacts::Contact {
-                id: id.into(),
+                id: id_s,
                 name: if name.trim().is_empty() {
                     phone.to_string()
                 } else {
-                    name.to_string()
+                    name.trim().to_string()
                 },
-                phone: phone.into(),
-                email: email.into(),
-                notes: notes.into(),
-                favorite: false,
+                phone: phone.trim().into(),
+                email: email.trim().into(),
+                notes: notes.trim().into(),
+                favorite: existing_fav,
             };
+            let saved_initials = contact.initials();
+            let saved_name = contact.name.clone();
+            let saved_phone = contact.phone.clone();
+            let saved_email = contact.email.clone();
+            let saved_notes = contact.notes.clone();
             let _ = contacts::upsert_contact(contact);
             if let Some(w) = weak.upgrade() {
+                w.set_sel_name(saved_name.into());
+                w.set_sel_phone(saved_phone.into());
+                w.set_sel_email(saved_email.into());
+                w.set_sel_notes(saved_notes.into());
+                w.set_sel_initials(saved_initials.into());
+                w.set_sel_favorite(existing_fav);
+                let q = w.get_search_query().to_string();
+                reload_contacts(&w, &q);
+            }
+        });
+    }
+
+    {
+        let weak = ui.as_weak();
+        ui.on_toggle_favorite(move |id| {
+            let id_s: String = id.into();
+            let mut new_fav = false;
+            if let Some(mut c) = contacts::load_contacts().into_iter().find(|c| c.id == id_s) {
+                c.favorite = !c.favorite;
+                new_fav = c.favorite;
+                let _ = contacts::upsert_contact(c);
+            }
+            if let Some(w) = weak.upgrade() {
+                w.set_sel_favorite(new_fav);
                 let q = w.get_search_query().to_string();
                 reload_contacts(&w, &q);
             }

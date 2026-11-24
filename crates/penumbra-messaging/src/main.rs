@@ -1,8 +1,10 @@
 //! Penumbra SMS Messaging (`penumbra-messaging`)
 //! Real ModemManager1.Modem.Messaging + Shared Contacts & Calls integration.
 
+use std::collections::VecDeque;
 use std::process::Command;
 use std::rc::Rc;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use clap::Parser;
@@ -58,26 +60,48 @@ fn format_rel(ts: u64) -> String {
     }
 }
 
-fn reload_threads(ui: &MessagingWindow) {
-    let rows: Vec<ThreadRow> = messaging::list_threads()
+fn contact_initials_for(name: &str) -> String {
+    if name.trim().is_empty() {
+        return String::new();
+    }
+    let parts: Vec<&str> = name.split_whitespace().collect();
+    match parts.as_slice() {
+        [] => String::new(),
+        [one] => one.chars().take(2).collect::<String>().to_uppercase(),
+        [first, last, ..] => {
+            let a = first.chars().next().unwrap_or('?');
+            let b = last.chars().next().unwrap_or('?');
+            format!("{a}{b}").to_uppercase()
+        }
+    }
+}
+
+fn apply_threads_to_ui(ui: &MessagingWindow, threads: Vec<messaging::SmsThread>) {
+    let rows: Vec<ThreadRow> = threads
         .into_iter()
-        .map(|t| ThreadRow {
-            peer_number: t.peer_number.into(),
-            display_name: t.contact_name.into(),
-            last_message: t.last_message.into(),
-            time_label: format_rel(t.last_timestamp_secs).into(),
+        .map(|t| {
+            let initials = contact_initials_for(&t.contact_name);
+            ThreadRow {
+                peer_number: t.peer_number.into(),
+                display_name: t.contact_name.into(),
+                initials: initials.into(),
+                last_message: t.last_message.into(),
+                time_label: format_rel(t.last_timestamp_secs).into(),
+            }
         })
         .collect();
     ui.set_threads(ModelRc::from(Rc::new(VecModel::from(rows))));
 }
 
-fn reload_thread_messages(ui: &MessagingWindow, peer: &str) {
-    let name = contacts::resolve_number(peer)
-        .map(|c| c.name)
-        .unwrap_or_default();
+fn apply_messages_to_ui(
+    ui: &MessagingWindow,
+    peer: &str,
+    peer_name: &str,
+    msgs: Vec<messaging::SmsMessage>,
+) {
     ui.set_active_peer(peer.into());
-    ui.set_active_peer_name(name.into());
-    let bubbles: Vec<ChatBubble> = messaging::messages_for_peer(peer)
+    ui.set_active_peer_name(peer_name.into());
+    let bubbles: Vec<ChatBubble> = msgs
         .into_iter()
         .map(|m| ChatBubble {
             text: m.text.into(),
@@ -86,6 +110,33 @@ fn reload_thread_messages(ui: &MessagingWindow, peer: &str) {
         })
         .collect();
     ui.set_messages(ModelRc::from(Rc::new(VecModel::from(bubbles))));
+}
+
+fn reload_contact_suggestions(ui: &MessagingWindow, query: &str) {
+    let q = query.trim().to_lowercase();
+    let rows: Vec<ContactPickRow> = contacts::load_contacts()
+        .into_iter()
+        .filter(|c| {
+            q.is_empty()
+                || c.name.to_lowercase().contains(&q)
+                || c.phone.to_lowercase().contains(&q)
+        })
+        .map(|c| {
+            let initials = c.initials();
+            ContactPickRow {
+                name: c.name.into(),
+                phone: c.phone.into(),
+                initials: initials.into(),
+            }
+        })
+        .collect();
+    ui.set_contact_suggestions(ModelRc::from(Rc::new(VecModel::from(rows))));
+}
+
+enum MsgCmd {
+    SyncThreads,
+    SyncThread(String),
+    SendSms(String, String),
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -97,50 +148,133 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ui = MessagingWindow::new()?;
     apply_palette(&ui);
-    reload_threads(&ui);
+    apply_threads_to_ui(&ui, messaging::list_threads());
+    reload_contact_suggestions(&ui, "");
 
     if let Some(peer) = args.to {
-        reload_thread_messages(&ui, &peer);
+        let name = contacts::resolve_number(&peer)
+            .map(|c| c.name)
+            .unwrap_or_default();
+        let msgs = messaging::messages_for_peer(&peer);
+        apply_messages_to_ui(&ui, &peer, &name, msgs);
     }
 
+    // Background worker for D-Bus SMS send & ModemManager sync (0ms UI freeze).
+    let (cmd_tx, cmd_rx) = mpsc::channel::<MsgCmd>();
     {
         let weak = ui.as_weak();
-        ui.on_open_thread(move |peer| {
-            if let Some(w) = weak.upgrade() {
-                w.set_status_banner("".into());
-                reload_thread_messages(&w, &peer);
+        std::thread::spawn(move || {
+            let mut queue = VecDeque::new();
+            while let Some(cmd) = queue.pop_front().or_else(|| cmd_rx.recv().ok()) {
+                while let Ok(more) = cmd_rx.try_recv() {
+                    queue.push_back(more);
+                }
+                match cmd {
+                    MsgCmd::SyncThreads => {
+                        queue.retain(|c| !matches!(c, MsgCmd::SyncThreads));
+                        let threads = messaging::list_threads();
+                        let w = weak.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(win) = w.upgrade() {
+                                apply_threads_to_ui(&win, threads);
+                            }
+                        });
+                    }
+                    MsgCmd::SyncThread(peer) => {
+                        queue.retain(|c| !matches!(c, MsgCmd::SyncThread(_)));
+                        let name = contacts::resolve_number(&peer)
+                            .map(|c| c.name)
+                            .unwrap_or_default();
+                        let msgs = messaging::messages_for_peer(&peer);
+                        let w = weak.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(win) = w.upgrade() {
+                                if win.get_active_peer().as_str() == peer {
+                                    apply_messages_to_ui(&win, &peer, &name, msgs);
+                                }
+                            }
+                        });
+                    }
+                    MsgCmd::SendSms(peer, text) => {
+                        let res = messaging::send_sms(&peer, &text);
+                        let name = contacts::resolve_number(&peer)
+                            .map(|c| c.name)
+                            .unwrap_or_default();
+                        let msgs = messaging::messages_for_peer(&peer);
+                        let threads = messaging::list_threads();
+                        let w = weak.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(win) = w.upgrade() {
+                                win.set_sending(false);
+                                match res {
+                                    Ok(_) => {
+                                        win.set_draft_text("".into());
+                                        win.set_status_banner("".into());
+                                    }
+                                    Err(e) => {
+                                        win.set_status_banner(e.into());
+                                    }
+                                }
+                                apply_messages_to_ui(&win, &peer, &name, msgs);
+                                apply_threads_to_ui(&win, threads);
+                            }
+                        });
+                    }
+                }
             }
         });
     }
 
     {
         let weak = ui.as_weak();
+        let tx = cmd_tx.clone();
+        ui.on_open_thread(move |peer| {
+            if let Some(w) = weak.upgrade() {
+                w.set_status_banner("".into());
+                w.set_active_peer(peer.clone());
+                let name = contacts::resolve_number(&peer)
+                    .map(|c| c.name)
+                    .unwrap_or_default();
+                w.set_active_peer_name(name.into());
+            }
+            let _ = tx.send(MsgCmd::SyncThread(peer.into()));
+        });
+    }
+
+    {
+        let weak = ui.as_weak();
+        let tx = cmd_tx.clone();
         ui.on_back_to_threads(move || {
             if let Some(w) = weak.upgrade() {
                 w.set_active_peer("".into());
                 w.set_active_peer_name("".into());
                 w.set_status_banner("".into());
-                reload_threads(&w);
+            }
+            let _ = tx.send(MsgCmd::SyncThreads);
+        });
+    }
+
+    {
+        let weak = ui.as_weak();
+        ui.on_recipient_filter_changed(move |q| {
+            if let Some(w) = weak.upgrade() {
+                reload_contact_suggestions(&w, &q);
             }
         });
     }
 
     {
         let weak = ui.as_weak();
+        let tx = cmd_tx.clone();
         ui.on_send_message(move |peer, text| {
-            if let Some(w) = weak.upgrade() {
-                w.set_status_banner("".into());
-                match messaging::send_sms(&peer, &text) {
-                    Ok(_) => {
-                        w.set_draft_text("".into());
-                        reload_thread_messages(&w, &peer);
-                        reload_threads(&w);
-                    }
-                    Err(e) => {
-                        w.set_status_banner(e.into());
-                    }
-                }
+            if text.trim().is_empty() {
+                return;
             }
+            if let Some(w) = weak.upgrade() {
+                w.set_sending(true);
+                w.set_status_banner("".into());
+            }
+            let _ = tx.send(MsgCmd::SendSms(peer.into(), text.into()));
         });
     }
 
@@ -161,13 +295,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sync_timer = Timer::default();
     {
         let weak = ui.as_weak();
+        let tx = cmd_tx.clone();
         sync_timer.start(TimerMode::Repeated, Duration::from_secs(2), move || {
             if let Some(w) = weak.upgrade() {
                 let peer = w.get_active_peer().to_string();
                 if peer.is_empty() {
-                    reload_threads(&w);
+                    let _ = tx.send(MsgCmd::SyncThreads);
                 } else {
-                    reload_thread_messages(&w, &peer);
+                    let _ = tx.send(MsgCmd::SyncThread(peer));
                 }
             }
         });
