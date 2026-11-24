@@ -32,7 +32,7 @@ fn hex_to_color(hex: &str) -> Color {
 }
 
 fn apply_palette(ui: &ContactsWindow) {
-    let pal = theme::MonetPalette::load_from_ipc_path(std::path::Path::new("/tmp/penumbra-theme.json"))
+    let pal = theme::MonetPalette::load_from_ipc_path(&theme::MonetPalette::default_ipc_path())
         .unwrap_or_else(|_| theme::MonetPalette::default_dark());
     ui.set_bg_color(hex_to_color(&pal.surface_container_lowest));
     ui.set_surface_low(hex_to_color(&pal.surface_container_low));
@@ -185,6 +185,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ui.on_message_number(|num| {
         let _ = Command::new("penumbra-messaging").args(["--to", &num]).spawn();
     });
+
+    let theme_timer = slint::Timer::default();
+    {
+        let weak = ui.as_weak();
+        let theme_path = theme::MonetPalette::default_ipc_path();
+        let mut last_mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
+        theme_timer.start(slint::TimerMode::Repeated, std::time::Duration::from_secs(2), move || {
+            if let Some(w) = weak.upgrade() {
+                let mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
+                if mtime != last_mtime {
+                    last_mtime = mtime;
+                    apply_palette(&w);
+                }
+            }
+        });
+    }
 
     ui.run()?;
     Ok(())

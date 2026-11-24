@@ -35,7 +35,7 @@ fn hex_to_color(hex: &str) -> Color {
 }
 
 fn apply_palette(ui: &MessagingWindow) {
-    let pal = theme::MonetPalette::load_from_ipc_path(std::path::Path::new("/tmp/penumbra-theme.json"))
+    let pal = theme::MonetPalette::load_from_ipc_path(&theme::MonetPalette::default_ipc_path())
         .unwrap_or_else(|_| theme::MonetPalette::default_dark());
     ui.set_bg_color(hex_to_color(&pal.surface_container_lowest));
     ui.set_surface_low(hex_to_color(&pal.surface_container_low));
@@ -296,8 +296,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     {
         let weak = ui.as_weak();
         let tx = cmd_tx.clone();
+        let theme_path = theme::MonetPalette::default_ipc_path();
+        let mut last_theme_mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
         sync_timer.start(TimerMode::Repeated, Duration::from_secs(2), move || {
             if let Some(w) = weak.upgrade() {
+                let mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
+                if mtime != last_theme_mtime {
+                    last_theme_mtime = mtime;
+                    apply_palette(&w);
+                }
                 let peer = w.get_active_peer().to_string();
                 if peer.is_empty() {
                     let _ = tx.send(MsgCmd::SyncThreads);

@@ -34,7 +34,7 @@ fn hex_to_color(hex: &str) -> Color {
 }
 
 fn apply_palette(ui: &CallsWindow) {
-    let pal = theme::MonetPalette::load_from_ipc_path(std::path::Path::new("/tmp/penumbra-theme.json"))
+    let pal = theme::MonetPalette::load_from_ipc_path(&theme::MonetPalette::default_ipc_path())
         .unwrap_or_else(|_| theme::MonetPalette::default_dark());
     ui.set_bg_color(hex_to_color(&pal.surface_container_lowest));
     ui.set_surface_low(hex_to_color(&pal.surface_container_low));
@@ -349,15 +349,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    // 1-second timer while a call is active: updates `00:00` clock AND triggers a
-    // non-blocking SyncCalls fallback so remote hangups/rejects can never get stuck.
+    // 1-second timer: updates `00:00` clock + SyncCalls fallback while in call,
+    // and live-reloads accent theme if Settings updates `penumbra-theme.json`.
     let duration_timer = Timer::default();
     {
         let weak = ui.as_weak();
         let active_start_tick = std::sync::Arc::clone(&active_start);
         let tx = cmd_tx.clone();
+        let theme_path = theme::MonetPalette::default_ipc_path();
+        let mut last_theme_mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
         duration_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             if let Some(w) = weak.upgrade() {
+                let mtime = std::fs::metadata(&theme_path).and_then(|m| m.modified()).ok();
+                if mtime != last_theme_mtime {
+                    last_theme_mtime = mtime;
+                    apply_palette(&w);
+                }
                 if w.get_has_call() {
                     if let Ok(guard) = active_start_tick.lock() {
                         if let Some((_, start)) = *guard {
