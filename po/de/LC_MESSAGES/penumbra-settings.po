@@ -365,8 +365,8 @@ msgid ""
 "entry files)."
 msgstr ""
 "Penumbra-Einstellungen erkennt automatisch virtuelle Wayland-Tastaturen "
-"gemäß KDE-Plasma-Spezifikation (X-KDE-Wayland-VirtualKeyboard=true in ."
-"desktop-Dateien)."
+"gemäß KDE-Plasma-Spezifikation (X-KDE-Wayland-VirtualKeyboard=true "
+"in .desktop-Dateien)."
 
 msgid "Search settings..."
 msgstr "Einstellungen durchsuchen..."
@@ -612,44 +612,94 @@ msgstr "Passwort bestätigen:"
 msgid "Save Password"
 msgstr "Passwort speichern"
 
-msgid "Sound output & routing"
-msgstr "Audioausgabe & Routing"
+msgid "Muted"
+msgstr ""
 
-msgid "Speaker"
-msgstr "Lautsprecher"
+#, fuzzy
+msgid "Balance"
+msgstr "Ausgeglichen"
 
-msgid "Headset"
-msgstr "Kopfhörer"
+msgid "Center"
+msgstr ""
 
-msgid "HDMI / TV"
-msgstr "HDMI / TV"
+msgid "Left"
+msgstr ""
 
-msgid "Mute output"
+msgid "Right"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Test..."
+msgstr ""
+
+#, fuzzy
+msgid "Output Device"
+msgstr "Über das Gerät"
+
+#, fuzzy
+msgid "No Output Devices"
+msgstr "Über das Gerät"
+
+#, fuzzy
+msgid "Default output"
 msgstr "Ausgabe stummschalten"
 
-msgid "Audio muted"
-msgstr "Audio stummgeschaltet"
+#, fuzzy
+msgid "Configuration"
+msgstr "Benachrichtigungen"
 
-msgid "Playing audio normally"
-msgstr "Normale Audiowiedergabe"
+#, fuzzy
+msgid "Default profile"
+msgstr "Energieprofil"
 
-msgid "Volume channels"
+msgid "Output Volume"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Device"
+msgstr "Über das Gerät"
+
+#, fuzzy
+msgid "No Input Devices"
+msgstr "Über das Gerät"
+
+msgid "Default input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Volume"
+msgstr "Ton & Lautstärke"
+
+#, fuzzy
+msgid "Sounds"
+msgstr "Abgerundet"
+
+#, fuzzy
+msgid "Volume Levels"
 msgstr "Lautstärkekanäle"
 
-msgid "Media volume"
-msgstr "Medienlautstärke"
+msgid "Per-application volume controls"
+msgstr ""
 
-msgid "Call volume"
-msgstr "Anruflautstärke"
+msgid "Alert Sound"
+msgstr ""
 
-msgid "Ring & notifications"
-msgstr "Klingelton & Benachrichtigungen"
+msgid "String"
+msgstr ""
 
-msgid "Microphone input"
-msgstr "Mikrofoneingang"
+msgid "Swing"
+msgstr ""
 
-msgid "Modes & feedback"
-msgstr "Modi & Feedback"
+msgid "Hum"
+msgstr ""
+
+msgid "Click"
+msgstr ""
 
 msgid "Do Not Disturb"
 msgstr "Bitte nicht stören"
@@ -665,6 +715,32 @@ msgstr "Immer vibrieren"
 
 msgid "Never vibrate"
 msgstr "Nie vibrieren"
+
+msgid "No Sound Playing"
+msgstr ""
+
+msgid "Active application audio streams appear here"
+msgstr ""
+
+#, fuzzy
+msgid "Outputs"
+msgstr "Über das Gerät"
+
+msgid "Inputs"
+msgstr ""
+
+#, fuzzy
+msgid "Test Speakers"
+msgstr "Lautsprecher"
+
+msgid "Front Left"
+msgstr ""
+
+msgid "Front Right"
+msgstr ""
+
+msgid "Test Both"
+msgstr ""
 
 msgid "Use Wi-Fi"
 msgstr "WLAN verwenden"
@@ -785,3 +861,37 @@ msgstr "Über das Gerät"
 
 msgid "Display Arrangement (Drag / Select to configure)"
 msgstr "Anzeigeanordnung (Ziehen / Auswählen zum Konfigurieren)"
+
+#, fuzzy
+#~ msgid "Active output device"
+#~ msgstr "Über das Gerät"
+
+#~ msgid "Sound output & routing"
+#~ msgstr "Audioausgabe & Routing"
+
+#~ msgid "Headset"
+#~ msgstr "Kopfhörer"
+
+#~ msgid "HDMI / TV"
+#~ msgstr "HDMI / TV"
+
+#~ msgid "Audio muted"
+#~ msgstr "Audio stummgeschaltet"
+
+#~ msgid "Playing audio normally"
+#~ msgstr "Normale Audiowiedergabe"
+
+#~ msgid "Media volume"
+#~ msgstr "Medienlautstärke"
+
+#~ msgid "Call volume"
+#~ msgstr "Anruflautstärke"
+
+#~ msgid "Ring & notifications"
+#~ msgstr "Klingelton & Benachrichtigungen"
+
+#~ msgid "Microphone input"
+#~ msgstr "Mikrofoneingang"
+
+#~ msgid "Modes & feedback"
+#~ msgstr "Modi & Feedback"

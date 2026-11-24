@@ -612,44 +612,94 @@ msgstr "Confirmez votre mot de passe :"
 msgid "Save Password"
 msgstr "Enregistrer le mot de passe"
 
-msgid "Sound output & routing"
-msgstr "Sortie audio et routage"
+msgid "Muted"
+msgstr ""
 
-msgid "Speaker"
-msgstr "Haut-parleur"
+#, fuzzy
+msgid "Balance"
+msgstr "Équilibré"
 
-msgid "Headset"
-msgstr "Casque"
+msgid "Center"
+msgstr ""
 
-msgid "HDMI / TV"
-msgstr "HDMI / TV"
+msgid "Left"
+msgstr ""
 
-msgid "Mute output"
+msgid "Right"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Test..."
+msgstr ""
+
+#, fuzzy
+msgid "Output Device"
+msgstr "À propos de l'appareil"
+
+#, fuzzy
+msgid "No Output Devices"
+msgstr "À propos de l'appareil"
+
+#, fuzzy
+msgid "Default output"
 msgstr "Couper la sortie"
 
-msgid "Audio muted"
-msgstr "Son coupé"
+#, fuzzy
+msgid "Configuration"
+msgstr "Notifications"
 
-msgid "Playing audio normally"
-msgstr "Lecture audio normale"
+#, fuzzy
+msgid "Default profile"
+msgstr "Profil d'alimentation"
 
-msgid "Volume channels"
+msgid "Output Volume"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Device"
+msgstr "À propos de l'appareil"
+
+#, fuzzy
+msgid "No Input Devices"
+msgstr "À propos de l'appareil"
+
+msgid "Default input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Volume"
+msgstr "Son et volume"
+
+#, fuzzy
+msgid "Sounds"
+msgstr "Arrondi"
+
+#, fuzzy
+msgid "Volume Levels"
 msgstr "Canaux de volume"
 
-msgid "Media volume"
-msgstr "Volume multimédia"
+msgid "Per-application volume controls"
+msgstr ""
 
-msgid "Call volume"
-msgstr "Volume d'appel"
+msgid "Alert Sound"
+msgstr ""
 
-msgid "Ring & notifications"
-msgstr "Sonnerie et notifications"
+msgid "String"
+msgstr ""
 
-msgid "Microphone input"
-msgstr "Entrée microphone"
+msgid "Swing"
+msgstr ""
 
-msgid "Modes & feedback"
-msgstr "Modes et retours"
+msgid "Hum"
+msgstr ""
+
+msgid "Click"
+msgstr ""
 
 msgid "Do Not Disturb"
 msgstr "Ne pas déranger"
@@ -665,6 +715,32 @@ msgstr "Toujours vibrer"
 
 msgid "Never vibrate"
 msgstr "Ne jamais vibrer"
+
+msgid "No Sound Playing"
+msgstr ""
+
+msgid "Active application audio streams appear here"
+msgstr ""
+
+#, fuzzy
+msgid "Outputs"
+msgstr "À propos de l'appareil"
+
+msgid "Inputs"
+msgstr ""
+
+#, fuzzy
+msgid "Test Speakers"
+msgstr "Haut-parleur"
+
+msgid "Front Left"
+msgstr ""
+
+msgid "Front Right"
+msgstr ""
+
+msgid "Test Both"
+msgstr ""
 
 msgid "Use Wi-Fi"
 msgstr "Utiliser le Wi-Fi"
@@ -786,3 +862,36 @@ msgstr "À propos de l'appareil"
 msgid "Display Arrangement (Drag / Select to configure)"
 msgstr "Disposition des écrans (Glisser / Sélectionner pour configurer)"
 
+#, fuzzy
+#~ msgid "Active output device"
+#~ msgstr "À propos de l'appareil"
+
+#~ msgid "Sound output & routing"
+#~ msgstr "Sortie audio et routage"
+
+#~ msgid "Headset"
+#~ msgstr "Casque"
+
+#~ msgid "HDMI / TV"
+#~ msgstr "HDMI / TV"
+
+#~ msgid "Audio muted"
+#~ msgstr "Son coupé"
+
+#~ msgid "Playing audio normally"
+#~ msgstr "Lecture audio normale"
+
+#~ msgid "Media volume"
+#~ msgstr "Volume multimédia"
+
+#~ msgid "Call volume"
+#~ msgstr "Volume d'appel"
+
+#~ msgid "Ring & notifications"
+#~ msgstr "Sonnerie et notifications"
+
+#~ msgid "Microphone input"
+#~ msgstr "Entrée microphone"
+
+#~ msgid "Modes & feedback"
+#~ msgstr "Modes et retours"

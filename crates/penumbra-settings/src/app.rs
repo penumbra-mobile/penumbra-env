@@ -19,9 +19,10 @@ use tokio::runtime::Handle;
 use tracing::{info, warn};
 
 use penumbra_services::{
-    apply_backlight_ratio, apply_volume_ratio, read_backlight_ratio, read_volume_ratio,
+    apply_backlight_ratio, audio, read_backlight_ratio,
     DisplayConfig, DisplaysConfig, FingerprintManager, LockType, PowerProfile, SecurityConfig, SoundConfig,
 };
+use crate::{AudioDeviceData, AudioProfileData, AudioStreamData};
 
 use crate::dbus::{BluetoothBackend, NetworkBackend, PowerBackend, WwanBackend};
 use crate::{
@@ -137,18 +138,59 @@ pub fn setup_app(
         let temp_norm = (multi_disp_cfg.night_light.temperature_k.clamp(2700, 6500) as f32 - 2700.0) / (6500.0 - 2700.0);
         window.set_night_light_temp(temp_norm);
 
-        // Populate sound channels & preferences
+        // Populate real PipeWire/PulseAudio sound state (GNOME 1:1)
         let snd_cfg = SoundConfig::load();
-        let init_v = read_volume_ratio();
-        window.set_media_volume(init_v as f32);
-        window.set_call_volume(snd_cfg.call_volume as f32);
-        window.set_ring_volume(snd_cfg.ring_volume as f32);
-        window.set_mic_volume(snd_cfg.mic_volume as f32);
-        window.set_output_muted(snd_cfg.output_muted);
-        window.set_mic_muted(snd_cfg.mic_muted);
-        window.set_output_device(snd_cfg.output_device.into());
+        window.set_alert_sound(snd_cfg.alert_sound.into());
         window.set_dnd_enabled(snd_cfg.dnd_enabled);
         window.set_vibrate_for_calls(snd_cfg.vibrate_for_calls);
+        sync_audio_state(&window);
+
+        // Live-sync PipeWire/PulseAudio device, profile, volume, and stream changes.
+        let audio_weak = window.as_weak();
+        std::thread::spawn(move || {
+            use std::io::{BufRead, BufReader};
+            use std::process::{Command, Stdio};
+            use std::time::{Duration, Instant};
+
+            let Ok(mut child) = Command::new("pactl")
+                .arg("subscribe")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+            else {
+                return;
+            };
+            let Some(stdout) = child.stdout.take() else {
+                let _ = child.kill();
+                return;
+            };
+            let reader = BufReader::new(stdout);
+            let mut last_sync = Instant::now() - Duration::from_secs(1);
+            for line in reader.lines().map_while(Result::ok) {
+                let relevant = line.contains(" on sink")
+                    || line.contains(" on source")
+                    || line.contains(" on card")
+                    || line.contains(" on server");
+                if !relevant {
+                    continue;
+                }
+                if last_sync.elapsed() < Duration::from_millis(150) {
+                    continue;
+                }
+                last_sync = Instant::now();
+                let weak = audio_weak.clone();
+                if slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() {
+                        sync_audio_state(&w);
+                    }
+                })
+                .is_err()
+                {
+                    break;
+                }
+            }
+            let _ = child.kill();
+        });
 
         // Pre-populate search catalog
         window.set_search_results(crate::search::filter_search(""));
@@ -681,25 +723,100 @@ pub fn setup_app(
         let _ = cfg.save();
     });
 
-    window.on_media_volume_changed(|v| {
-        info!("Settings: Media volume changed -> {:.2}", v);
-        apply_volume_ratio(v as f64);
+    // Real PipeWire / PulseAudio Sound Settings (GNOME Control Center 1:1)
+    {
+        let weak = window.as_weak();
+        window.on_refresh_audio(move || {
+            if let Some(w) = weak.upgrade() {
+                sync_audio_state(&w);
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        window.on_select_output_device(move |node, port| {
+            audio::set_default_sink(&node, &port);
+            if let Some(w) = weak.upgrade() {
+                sync_audio_state(&w);
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        window.on_select_input_device(move |node, port| {
+            audio::set_default_source(&node, &port);
+            if let Some(w) = weak.upgrade() {
+                sync_audio_state(&w);
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        window.on_select_card_profile(move |card, profile| {
+            audio::set_card_profile(&card, &profile);
+            if let Some(w) = weak.upgrade() {
+                sync_audio_state(&w);
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        window.on_output_volume_changed(move |pct| {
+            if let Some(w) = weak.upgrade() {
+                let bal = w.get_output_balance() as f64;
+                audio::set_sink_volume_balance("", pct, bal);
+            }
+        });
+    }
+
+    {
+        let weak = window.as_weak();
+        window.on_output_balance_changed(move |bal| {
+            if let Some(w) = weak.upgrade() {
+                let pct = w.get_output_volume();
+                audio::set_sink_volume_balance("", pct, bal as f64);
+            }
+        });
+    }
+
+    window.on_toggle_output_muted(|muted| {
+        audio::set_sink_mute("", muted);
         let mut cfg = SoundConfig::load();
-        cfg.media_volume = v as f64;
+        cfg.output_muted = muted;
         let _ = cfg.save();
     });
 
-    window.on_call_volume_changed(|v| {
-        info!("Settings: Call volume changed -> {:.2}", v);
+    window.on_input_volume_changed(|pct| {
+        audio::set_source_volume("", pct);
+    });
+
+    window.on_toggle_input_muted(|muted| {
+        audio::set_source_mute("", muted);
         let mut cfg = SoundConfig::load();
-        cfg.call_volume = v as f64;
+        cfg.mic_muted = muted;
         let _ = cfg.save();
     });
 
-    window.on_ring_volume_changed(|v| {
-        info!("Settings: Ring volume changed -> {:.2}", v);
+    window.on_stream_volume_changed(|idx, is_input, pct| {
+        audio::set_stream_volume(idx as u32, is_input, pct);
+    });
+
+    window.on_stream_mute_toggled(|idx, is_input, muted| {
+        audio::set_stream_mute(idx as u32, is_input, muted);
+    });
+
+    window.on_test_speaker(|ch| {
+        audio::play_test_tone(&ch);
+    });
+
+    window.on_select_alert_sound(|name| {
+        audio::play_alert_sound(&name);
         let mut cfg = SoundConfig::load();
-        cfg.ring_volume = v as f64;
+        cfg.alert_sound = name.into();
         let _ = cfg.save();
     });
 
@@ -714,35 +831,6 @@ pub fn setup_app(
         info!("Settings: Toggle vibrate for calls -> {val}");
         let mut cfg = SoundConfig::load();
         cfg.vibrate_for_calls = val;
-        let _ = cfg.save();
-    });
-
-    // COSMIC Sound Routing & Microphone
-    window.on_output_device_changed(|dev| {
-        info!("Settings: Audio output device changed -> {dev}");
-        let mut cfg = SoundConfig::load();
-        cfg.output_device = dev.into();
-        let _ = cfg.save();
-    });
-
-    window.on_toggle_output_muted(|muted| {
-        info!("Settings: Audio master output mute -> {muted}");
-        let mut cfg = SoundConfig::load();
-        cfg.output_muted = muted;
-        let _ = cfg.save();
-    });
-
-    window.on_mic_volume_changed(|v| {
-        info!("Settings: Microphone input volume -> {:.2}", v);
-        let mut cfg = SoundConfig::load();
-        cfg.mic_volume = v as f64;
-        let _ = cfg.save();
-    });
-
-    window.on_toggle_mic_muted(|muted| {
-        info!("Settings: Microphone mute -> {muted}");
-        let mut cfg = SoundConfig::load();
-        cfg.mic_muted = muted;
         let _ = cfg.save();
     });
 
@@ -1435,4 +1523,94 @@ fn reload_keyboards(window: &SettingsWindow) {
         })
         .collect();
     window.set_physical_keyboards(ModelRc::from(Rc::new(VecModel::from(pk_models))));
+}
+
+/// Refreshes live PipeWire/PulseAudio devices, profiles, and per-app streams into Slint UI models.
+fn sync_audio_state(window: &SettingsWindow) {
+    let snap = audio::snapshot();
+
+    if let Some(def_out) = snap.outputs.iter().find(|d| d.is_default).or_else(|| snap.outputs.first()) {
+        window.set_active_output_label(def_out.label.clone().into());
+        window.set_output_volume(def_out.volume_pct);
+        window.set_output_balance(def_out.balance as f32);
+        window.set_output_muted(def_out.muted);
+    } else {
+        window.set_active_output_label("".into());
+    }
+    if let Some(def_in) = snap.inputs.iter().find(|d| d.is_default).or_else(|| snap.inputs.first()) {
+        window.set_active_input_label(def_in.label.clone().into());
+        window.set_input_volume(def_in.volume_pct);
+        window.set_input_muted(def_in.muted);
+    } else {
+        window.set_active_input_label("".into());
+    }
+    window.set_active_output_profile_label(
+        snap.output_profiles
+            .iter()
+            .find(|p| p.active)
+            .map(|p| p.description.clone())
+            .unwrap_or_default()
+            .into(),
+    );
+    window.set_active_input_profile_label(
+        snap.input_profiles
+            .iter()
+            .find(|p| p.active)
+            .map(|p| p.description.clone())
+            .unwrap_or_default()
+            .into(),
+    );
+
+    let to_device_model = |list: Vec<audio::AudioDevice>| -> ModelRc<AudioDeviceData> {
+        let items: Vec<AudioDeviceData> = list
+            .into_iter()
+            .map(|d| AudioDeviceData {
+                id: d.id.into(),
+                node_name: d.node_name.into(),
+                port_name: d.port_name.into(),
+                label: d.label.into(),
+                card_name: d.card_name.into(),
+                is_default: d.is_default,
+                volume_pct: d.volume_pct,
+                balance: d.balance as f32,
+                muted: d.muted,
+            })
+            .collect();
+        ModelRc::from(Rc::new(VecModel::from(items)))
+    };
+
+    let to_profile_model = |list: Vec<audio::AudioProfile>| -> ModelRc<AudioProfileData> {
+        let items: Vec<AudioProfileData> = list
+            .into_iter()
+            .map(|p| AudioProfileData {
+                card_name: p.card_name.into(),
+                name: p.name.into(),
+                description: p.description.into(),
+                active: p.active,
+            })
+            .collect();
+        ModelRc::from(Rc::new(VecModel::from(items)))
+    };
+
+    let to_stream_model = |list: Vec<audio::AudioStream>| -> ModelRc<AudioStreamData> {
+        let items: Vec<AudioStreamData> = list
+            .into_iter()
+            .map(|s| AudioStreamData {
+                index: s.index as i32,
+                app_name: s.app_name.into(),
+                media_name: s.media_name.into(),
+                volume_pct: s.volume_pct,
+                muted: s.muted,
+                is_input: s.is_input,
+            })
+            .collect();
+        ModelRc::from(Rc::new(VecModel::from(items)))
+    };
+
+    window.set_audio_output_devices(to_device_model(snap.outputs));
+    window.set_audio_input_devices(to_device_model(snap.inputs));
+    window.set_audio_output_profiles(to_profile_model(snap.output_profiles));
+    window.set_audio_input_profiles(to_profile_model(snap.input_profiles));
+    window.set_audio_output_streams(to_stream_model(snap.output_streams));
+    window.set_audio_input_streams(to_stream_model(snap.input_streams));
 }

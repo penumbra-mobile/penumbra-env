@@ -14,6 +14,7 @@ pub struct SoundConfig {
     pub output_muted: bool,
     pub mic_muted: bool,
     pub output_device: String, // "speaker", "headset", "hdmi"
+    pub alert_sound: String,   // "none", "click", "string", "swing", "hum"
     pub dnd_enabled: bool,
     pub vibrate_for_calls: bool,
 }
@@ -28,6 +29,7 @@ impl Default for SoundConfig {
             output_muted: false,
             mic_muted: false,
             output_device: "speaker".into(),
+            alert_sound: "click".into(),
             dnd_enabled: false,
             vibrate_for_calls: true,
         }

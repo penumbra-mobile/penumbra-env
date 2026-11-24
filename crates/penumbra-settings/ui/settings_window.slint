@@ -9,12 +9,12 @@ import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
 import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
 import { PageAppearance, WallpaperEntry } from "pages/page_appearance.slint";
 import { PageBattery } from "pages/page_battery.slint";
-import { PageSound } from "pages/page_sound.slint";
+import { PageSound, AudioDeviceData, AudioProfileData, AudioStreamData } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
 import { PageSecurity } from "pages/page_security.slint";
 
-export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData, WallpaperEntry }
+export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData, WallpaperEntry, AudioDeviceData, AudioProfileData, AudioStreamData }
 
 // ==============================================================================
 // Component: SettingsWindow
@@ -195,23 +195,41 @@ export component SettingsWindow inherits Window {
     callback power-profile-changed(string);
 
     // --------------------------------------------------------------------------
-    // Reactive Hardware Properties - Audio & Sound (PipeWire / COSMIC Audio Routing)
+    // Reactive Hardware Properties - Audio & Sound (GNOME 1:1 PipeWire/PulseAudio)
     // --------------------------------------------------------------------------
-    in-out property <float> media-volume: 0.65;
-    in-out property <float> call-volume: 0.80;
-    in-out property <float> ring-volume: 0.70;
-    in-out property <float> mic-volume: 0.85;
+    in property <[AudioDeviceData]> audio-output-devices: [];
+    in property <[AudioDeviceData]> audio-input-devices: [];
+    in property <[AudioProfileData]> audio-output-profiles: [];
+    in property <[AudioProfileData]> audio-input-profiles: [];
+    in property <[AudioStreamData]> audio-output-streams: [];
+    in property <[AudioStreamData]> audio-input-streams: [];
+    in-out property <string> active-output-label: "";
+    in-out property <string> active-output-profile-label: "";
+    in-out property <string> active-input-label: "";
+    in-out property <string> active-input-profile-label: "";
+    in-out property <int> output-volume: 65;
+    in-out property <float> output-balance: 0.0;
     in-out property <bool> output-muted: false;
-    in-out property <bool> mic-muted: false;
-    in-out property <string> output-device: "speaker"; // "speaker", "headset", "hdmi"
+    in-out property <int> input-volume: 80;
+    in-out property <bool> input-muted: false;
+    in-out property <string> alert-sound: "click";
     in-out property <bool> dnd-enabled: false;
     in-out property <bool> vibrate-for-calls: true;
 
     callback close-window();
-    callback mic-volume-changed(float);
+    callback select-output-device(string, string);
+    callback select-input-device(string, string);
+    callback select-card-profile(string, string);
+    callback output-volume-changed(int);
+    callback output-balance-changed(float);
     callback toggle-output-muted(bool);
-    callback toggle-mic-muted(bool);
-    callback output-device-changed(string);
+    callback input-volume-changed(int);
+    callback toggle-input-muted(bool);
+    callback stream-volume-changed(int, bool, int);
+    callback stream-mute-toggled(int, bool, bool);
+    callback test-speaker(string);
+    callback select-alert-sound(string);
+    callback refresh-audio();
 
     // --------------------------------------------------------------------------
     // Search State & Query Callbacks
@@ -533,20 +551,37 @@ export component SettingsWindow inherits Window {
 
                 if root.active-page == "sound": PageSound {
                     width: 100%; height: 100%;
-                    media-volume <=> root.media-volume;
-                    call-volume <=> root.call-volume;
-                    ring-volume <=> root.ring-volume;
-                    mic-volume <=> root.mic-volume;
+                    output-devices: root.audio-output-devices;
+                    input-devices: root.audio-input-devices;
+                    output-profiles: root.audio-output-profiles;
+                    input-profiles: root.audio-input-profiles;
+                    output-streams: root.audio-output-streams;
+                    input-streams: root.audio-input-streams;
+                    active-output-label: root.active-output-label;
+                    active-output-profile-label: root.active-output-profile-label;
+                    active-input-label: root.active-input-label;
+                    active-input-profile-label: root.active-input-profile-label;
+                    output-volume <=> root.output-volume;
+                    output-balance <=> root.output-balance;
                     output-muted <=> root.output-muted;
-                    output-device <=> root.output-device;
+                    input-volume <=> root.input-volume;
+                    input-muted <=> root.input-muted;
+                    alert-sound <=> root.alert-sound;
                     dnd-enabled <=> root.dnd-enabled;
                     vibrate-for-calls <=> root.vibrate-for-calls;
-                    media-volume-changed(v) => { root.media-volume-changed(v); }
-                    call-volume-changed(v) => { root.call-volume-changed(v); }
-                    ring-volume-changed(v) => { root.ring-volume-changed(v); }
-                    mic-volume-changed(v) => { root.mic-volume-changed(v); }
+                    select-output-device(n, p) => { root.select-output-device(n, p); }
+                    select-input-device(n, p) => { root.select-input-device(n, p); }
+                    select-card-profile(c, p) => { root.select-card-profile(c, p); }
+                    output-volume-changed(v) => { root.output-volume-changed(v); }
+                    output-balance-changed(b) => { root.output-balance-changed(b); }
                     toggle-output-muted(v) => { root.toggle-output-muted(v); }
-                    output-device-changed(d) => { root.output-device-changed(d); }
+                    input-volume-changed(v) => { root.input-volume-changed(v); }
+                    toggle-input-muted(v) => { root.toggle-input-muted(v); }
+                    stream-volume-changed(i, inp, v) => { root.stream-volume-changed(i, inp, v); }
+                    stream-mute-toggled(i, inp, m) => { root.stream-mute-toggled(i, inp, m); }
+                    test-speaker(ch) => { root.test-speaker(ch); }
+                    select-alert-sound(s) => { root.select-alert-sound(s); }
+                    refresh-audio => { root.refresh-audio(); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
                     toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
                 }
@@ -801,20 +836,37 @@ export component SettingsWindow inherits Window {
                 if root.active-page == "sound": PageSound {
                     width: 100%;
                     height: 100%;
-                    media-volume <=> root.media-volume;
-                    call-volume <=> root.call-volume;
-                    ring-volume <=> root.ring-volume;
-                    mic-volume <=> root.mic-volume;
+                    output-devices: root.audio-output-devices;
+                    input-devices: root.audio-input-devices;
+                    output-profiles: root.audio-output-profiles;
+                    input-profiles: root.audio-input-profiles;
+                    output-streams: root.audio-output-streams;
+                    input-streams: root.audio-input-streams;
+                    active-output-label: root.active-output-label;
+                    active-output-profile-label: root.active-output-profile-label;
+                    active-input-label: root.active-input-label;
+                    active-input-profile-label: root.active-input-profile-label;
+                    output-volume <=> root.output-volume;
+                    output-balance <=> root.output-balance;
                     output-muted <=> root.output-muted;
-                    output-device <=> root.output-device;
+                    input-volume <=> root.input-volume;
+                    input-muted <=> root.input-muted;
+                    alert-sound <=> root.alert-sound;
                     dnd-enabled <=> root.dnd-enabled;
                     vibrate-for-calls <=> root.vibrate-for-calls;
-                    media-volume-changed(v) => { root.media-volume-changed(v); }
-                    call-volume-changed(v) => { root.call-volume-changed(v); }
-                    ring-volume-changed(v) => { root.ring-volume-changed(v); }
-                    mic-volume-changed(v) => { root.mic-volume-changed(v); }
+                    select-output-device(n, p) => { root.select-output-device(n, p); }
+                    select-input-device(n, p) => { root.select-input-device(n, p); }
+                    select-card-profile(c, p) => { root.select-card-profile(c, p); }
+                    output-volume-changed(v) => { root.output-volume-changed(v); }
+                    output-balance-changed(b) => { root.output-balance-changed(b); }
                     toggle-output-muted(v) => { root.toggle-output-muted(v); }
-                    output-device-changed(d) => { root.output-device-changed(d); }
+                    input-volume-changed(v) => { root.input-volume-changed(v); }
+                    toggle-input-muted(v) => { root.toggle-input-muted(v); }
+                    stream-volume-changed(i, inp, v) => { root.stream-volume-changed(i, inp, v); }
+                    stream-mute-toggled(i, inp, m) => { root.stream-mute-toggled(i, inp, m); }
+                    test-speaker(ch) => { root.test-speaker(ch); }
+                    select-alert-sound(s) => { root.select-alert-sound(s); }
+                    refresh-audio => { root.refresh-audio(); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
                     toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
                 }

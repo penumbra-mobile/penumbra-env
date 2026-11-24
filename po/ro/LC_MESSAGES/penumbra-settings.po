@@ -365,8 +365,8 @@ msgid ""
 "entry files)."
 msgstr ""
 "Setări Penumbra detectează automat tastaturile virtuale Wayland conform "
-"specificației KDE Plasma (X-KDE-Wayland-VirtualKeyboard=true în fișierele ."
-"desktop)."
+"specificației KDE Plasma (X-KDE-Wayland-VirtualKeyboard=true în "
+"fișierele .desktop)."
 
 msgid "Search settings..."
 msgstr "Caută setări..."
@@ -477,7 +477,8 @@ msgid "+ Add APN"
 msgstr "+ Adaugă APN"
 
 msgid "No GSM APN profiles configured. Tap + Add APN to create one."
-msgstr "Niciun profil APN GSM configurat. Atingeți + Adaugă APN pentru a crea unul."
+msgstr ""
+"Niciun profil APN GSM configurat. Atingeți + Adaugă APN pentru a crea unul."
 
 msgid "No APN set"
 msgstr "Niciun APN setat"
@@ -612,44 +613,94 @@ msgstr "Confirmați parola:"
 msgid "Save Password"
 msgstr "Salvează parola"
 
-msgid "Sound output & routing"
-msgstr "Ieșire audio și rutare"
+msgid "Muted"
+msgstr ""
 
-msgid "Speaker"
-msgstr "Difuzor"
+#, fuzzy
+msgid "Balance"
+msgstr "Echilibrat"
 
-msgid "Headset"
-msgstr "Căști"
+msgid "Center"
+msgstr ""
 
-msgid "HDMI / TV"
-msgstr "HDMI / TV"
+msgid "Left"
+msgstr ""
 
-msgid "Mute output"
+msgid "Right"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Test..."
+msgstr ""
+
+#, fuzzy
+msgid "Output Device"
+msgstr "Despre dispozitiv"
+
+#, fuzzy
+msgid "No Output Devices"
+msgstr "Despre dispozitiv"
+
+#, fuzzy
+msgid "Default output"
 msgstr "Dezactivează sunetul"
 
-msgid "Audio muted"
-msgstr "Sunet dezactivat"
+#, fuzzy
+msgid "Configuration"
+msgstr "Notificări"
 
-msgid "Playing audio normally"
-msgstr "Redare audio normală"
+#, fuzzy
+msgid "Default profile"
+msgstr "Profil de alimentare"
 
-msgid "Volume channels"
+msgid "Output Volume"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Device"
+msgstr "Despre dispozitiv"
+
+#, fuzzy
+msgid "No Input Devices"
+msgstr "Despre dispozitiv"
+
+msgid "Default input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Volume"
+msgstr "Sunet și volum"
+
+#, fuzzy
+msgid "Sounds"
+msgstr "Rotunjit"
+
+#, fuzzy
+msgid "Volume Levels"
 msgstr "Canale de volum"
 
-msgid "Media volume"
-msgstr "Volum media"
+msgid "Per-application volume controls"
+msgstr ""
 
-msgid "Call volume"
-msgstr "Volum apel"
+msgid "Alert Sound"
+msgstr ""
 
-msgid "Ring & notifications"
-msgstr "Sonerie și notificări"
+msgid "String"
+msgstr ""
 
-msgid "Microphone input"
-msgstr "Intrare microfon"
+msgid "Swing"
+msgstr ""
 
-msgid "Modes & feedback"
-msgstr "Moduri și feedback"
+msgid "Hum"
+msgstr ""
+
+msgid "Click"
+msgstr ""
 
 msgid "Do Not Disturb"
 msgstr "Nu deranjați"
@@ -665,6 +716,32 @@ msgstr "Vibrează întotdeauna"
 
 msgid "Never vibrate"
 msgstr "Nu vibra niciodată"
+
+msgid "No Sound Playing"
+msgstr ""
+
+msgid "Active application audio streams appear here"
+msgstr ""
+
+#, fuzzy
+msgid "Outputs"
+msgstr "Despre dispozitiv"
+
+msgid "Inputs"
+msgstr ""
+
+#, fuzzy
+msgid "Test Speakers"
+msgstr "Difuzor"
+
+msgid "Front Left"
+msgstr ""
+
+msgid "Front Right"
+msgstr ""
+
+msgid "Test Both"
+msgstr ""
 
 msgid "Use Wi-Fi"
 msgstr "Folosește Wi-Fi"
@@ -785,3 +862,37 @@ msgstr "Despre dispozitiv"
 
 msgid "Display Arrangement (Drag / Select to configure)"
 msgstr "Aranjament ecrane (Trageți / Selectați pentru configurare)"
+
+#, fuzzy
+#~ msgid "Active output device"
+#~ msgstr "Despre dispozitiv"
+
+#~ msgid "Sound output & routing"
+#~ msgstr "Ieșire audio și rutare"
+
+#~ msgid "Headset"
+#~ msgstr "Căști"
+
+#~ msgid "HDMI / TV"
+#~ msgstr "HDMI / TV"
+
+#~ msgid "Audio muted"
+#~ msgstr "Sunet dezactivat"
+
+#~ msgid "Playing audio normally"
+#~ msgstr "Redare audio normală"
+
+#~ msgid "Media volume"
+#~ msgstr "Volum media"
+
+#~ msgid "Call volume"
+#~ msgstr "Volum apel"
+
+#~ msgid "Ring & notifications"
+#~ msgstr "Sonerie și notificări"
+
+#~ msgid "Microphone input"
+#~ msgstr "Intrare microfon"
+
+#~ msgid "Modes & feedback"
+#~ msgstr "Moduri și feedback"

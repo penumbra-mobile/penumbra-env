@@ -590,43 +590,82 @@ msgstr ""
 msgid "Save Password"
 msgstr ""
 
-msgid "Sound output & routing"
+msgid "Muted"
 msgstr ""
 
-msgid "Speaker"
+msgid "Balance"
 msgstr ""
 
-msgid "Headset"
+msgid "Center"
 msgstr ""
 
-msgid "HDMI / TV"
+msgid "Left"
 msgstr ""
 
-msgid "Mute output"
+msgid "Right"
 msgstr ""
 
-msgid "Audio muted"
+msgid "Output"
 msgstr ""
 
-msgid "Playing audio normally"
+msgid "Test..."
 msgstr ""
 
-msgid "Volume channels"
+msgid "Output Device"
 msgstr ""
 
-msgid "Media volume"
+msgid "No Output Devices"
 msgstr ""
 
-msgid "Call volume"
+msgid "Default output"
 msgstr ""
 
-msgid "Ring & notifications"
+msgid "Configuration"
 msgstr ""
 
-msgid "Microphone input"
+msgid "Default profile"
 msgstr ""
 
-msgid "Modes & feedback"
+msgid "Output Volume"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+msgid "Input Device"
+msgstr ""
+
+msgid "No Input Devices"
+msgstr ""
+
+msgid "Default input"
+msgstr ""
+
+msgid "Input Volume"
+msgstr ""
+
+msgid "Sounds"
+msgstr ""
+
+msgid "Volume Levels"
+msgstr ""
+
+msgid "Per-application volume controls"
+msgstr ""
+
+msgid "Alert Sound"
+msgstr ""
+
+msgid "String"
+msgstr ""
+
+msgid "Swing"
+msgstr ""
+
+msgid "Hum"
+msgstr ""
+
+msgid "Click"
 msgstr ""
 
 msgid "Do Not Disturb"
@@ -642,6 +681,30 @@ msgid "Always vibrate"
 msgstr ""
 
 msgid "Never vibrate"
+msgstr ""
+
+msgid "No Sound Playing"
+msgstr ""
+
+msgid "Active application audio streams appear here"
+msgstr ""
+
+msgid "Outputs"
+msgstr ""
+
+msgid "Inputs"
+msgstr ""
+
+msgid "Test Speakers"
+msgstr ""
+
+msgid "Front Left"
+msgstr ""
+
+msgid "Front Right"
+msgstr ""
+
+msgid "Test Both"
 msgstr ""
 
 msgid "Use Wi-Fi"

@@ -477,7 +477,8 @@ msgid "+ Add APN"
 msgstr "+ Aggiungi APN"
 
 msgid "No GSM APN profiles configured. Tap + Add APN to create one."
-msgstr "Nessun profilo APN GSM configurato. Tocca + Aggiungi APN per crearne uno."
+msgstr ""
+"Nessun profilo APN GSM configurato. Tocca + Aggiungi APN per crearne uno."
 
 msgid "No APN set"
 msgstr "Nessun APN impostato"
@@ -612,44 +613,94 @@ msgstr "Conferma la password:"
 msgid "Save Password"
 msgstr "Salva password"
 
-msgid "Sound output & routing"
-msgstr "Uscita audio e instradamento"
+msgid "Muted"
+msgstr ""
 
-msgid "Speaker"
-msgstr "Altoparlante"
+#, fuzzy
+msgid "Balance"
+msgstr "Bilanciato"
 
-msgid "Headset"
-msgstr "Cuffie"
+msgid "Center"
+msgstr ""
 
-msgid "HDMI / TV"
-msgstr "HDMI / TV"
+msgid "Left"
+msgstr ""
 
-msgid "Mute output"
+msgid "Right"
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Test..."
+msgstr ""
+
+#, fuzzy
+msgid "Output Device"
+msgstr "Informazioni dispositivo"
+
+#, fuzzy
+msgid "No Output Devices"
+msgstr "Informazioni dispositivo"
+
+#, fuzzy
+msgid "Default output"
 msgstr "Disattiva audio"
 
-msgid "Audio muted"
-msgstr "Audio disattivato"
+#, fuzzy
+msgid "Configuration"
+msgstr "Notifiche"
 
-msgid "Playing audio normally"
-msgstr "Riproduzione audio normale"
+#, fuzzy
+msgid "Default profile"
+msgstr "Profilo energetico"
 
-msgid "Volume channels"
+msgid "Output Volume"
+msgstr ""
+
+msgid "Input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Device"
+msgstr "Informazioni dispositivo"
+
+#, fuzzy
+msgid "No Input Devices"
+msgstr "Informazioni dispositivo"
+
+msgid "Default input"
+msgstr ""
+
+#, fuzzy
+msgid "Input Volume"
+msgstr "Suono e volume"
+
+#, fuzzy
+msgid "Sounds"
+msgstr "Arrotondato"
+
+#, fuzzy
+msgid "Volume Levels"
 msgstr "Canali volume"
 
-msgid "Media volume"
-msgstr "Volume multimediale"
+msgid "Per-application volume controls"
+msgstr ""
 
-msgid "Call volume"
-msgstr "Volume chiamate"
+msgid "Alert Sound"
+msgstr ""
 
-msgid "Ring & notifications"
-msgstr "Suoneria e notifiche"
+msgid "String"
+msgstr ""
 
-msgid "Microphone input"
-msgstr "Ingresso microfono"
+msgid "Swing"
+msgstr ""
 
-msgid "Modes & feedback"
-msgstr "Modalità e feedback"
+msgid "Hum"
+msgstr ""
+
+msgid "Click"
+msgstr ""
 
 msgid "Do Not Disturb"
 msgstr "Non disturbare"
@@ -665,6 +716,32 @@ msgstr "Vibra sempre"
 
 msgid "Never vibrate"
 msgstr "Non vibrare mai"
+
+msgid "No Sound Playing"
+msgstr ""
+
+msgid "Active application audio streams appear here"
+msgstr ""
+
+#, fuzzy
+msgid "Outputs"
+msgstr "Informazioni dispositivo"
+
+msgid "Inputs"
+msgstr ""
+
+#, fuzzy
+msgid "Test Speakers"
+msgstr "Altoparlante"
+
+msgid "Front Left"
+msgstr ""
+
+msgid "Front Right"
+msgstr ""
+
+msgid "Test Both"
+msgstr ""
 
 msgid "Use Wi-Fi"
 msgstr "Usa Wi-Fi"
@@ -786,3 +863,36 @@ msgstr "Informazioni dispositivo"
 msgid "Display Arrangement (Drag / Select to configure)"
 msgstr "Disposizione schermi (Trascina / Seleziona per configurare)"
 
+#, fuzzy
+#~ msgid "Active output device"
+#~ msgstr "Informazioni dispositivo"
+
+#~ msgid "Sound output & routing"
+#~ msgstr "Uscita audio e instradamento"
+
+#~ msgid "Headset"
+#~ msgstr "Cuffie"
+
+#~ msgid "HDMI / TV"
+#~ msgstr "HDMI / TV"
+
+#~ msgid "Audio muted"
+#~ msgstr "Audio disattivato"
+
+#~ msgid "Playing audio normally"
+#~ msgstr "Riproduzione audio normale"
+
+#~ msgid "Media volume"
+#~ msgstr "Volume multimediale"
+
+#~ msgid "Call volume"
+#~ msgstr "Volume chiamate"
+
+#~ msgid "Ring & notifications"
+#~ msgstr "Suoneria e notifiche"
+
+#~ msgid "Microphone input"
+#~ msgstr "Ingresso microfono"
+
+#~ msgid "Modes & feedback"
+#~ msgstr "Modalità e feedback"

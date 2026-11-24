@@ -3,371 +3,768 @@ import { Icon } from "../icon.slint";
 import { SettingsTile } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
 
-// ==============================================================================
-// Component: VolumeSliderCard
-// ==============================================================================
-// Touch-scrubbing volume level controller for mobile audio output channels.
-component VolumeSliderCard inherits Rectangle {
-    // Channel descriptor label (e.g. "Media volume", "Call volume").
-    in property <string> label: "Media volume";
-    // Semantic icon rendered on the left badge (e.g. "sound").
-    in property <string> icon: "sound";
-    // Current normalized volume level (0.0 to 1.0).
-    in-out property <float> value: 0.65;
-    // Emitted continuously as the volume slider is scrubbed.
-    callback changed(float);
+export struct AudioDeviceData {
+    id: string,
+    node-name: string,
+    port-name: string,
+    label: string,
+    card-name: string,
+    is-default: bool,
+    volume-pct: int,
+    balance: float,
+    muted: bool,
+}
 
-    height: 72px;
+export struct AudioProfileData {
+    card-name: string,
+    name: string,
+    description: string,
+    active: bool,
+}
+
+export struct AudioStreamData {
+    index: int,
+    app-name: string,
+    media-name: string,
+    volume-pct: int,
+    muted: bool,
+    is-input: bool,
+}
+
+component GnomeVolumeSlider inherits Rectangle {
+    in property <string> label: "";
+    in property <string> icon: "sound";
+    in-out property <int> value-pct: 65;
+    in-out property <bool> muted: false;
+    callback volume-changed(int);
+    callback mute-toggled(bool);
+
+    height: 68px;
     border-radius: Theme.radius-card;
     background: Theme.surface-low;
     clip: true;
 
-    // Fill track
     Rectangle {
         x: 0px;
         y: 0px;
-        width: parent.width * Math.clamp(root.value, 0.0, 1.0);
+        width: root.muted ? 0px : parent.width * Math.clamp(root.value-pct / 100.0, 0.0, 1.0);
         height: parent.height;
-        background: #ffb3ba.with-alpha(0.32);
-
+        background: Theme.primary.with-alpha(0.24);
         animate width { duration: 60ms; easing: ease-out; }
     }
 
-    touch := TouchArea {
-        pointer-event(event) => {
-            if (event.kind == PointerEventKind.down) {
-                root.value = Math.clamp(touch.mouse-x / root.width, 0.0, 1.0);
-                root.changed(root.value);
-            }
-        }
-        moved => {
-            if (touch.pressed) {
-                root.value = Math.clamp(touch.mouse-x / root.width, 0.0, 1.0);
-                root.changed(root.value);
-            }
-        }
-    }
-
     HorizontalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        spacing: 16px;
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 12px;
 
-        // Visual Icon Badge (40px Circle)
         Rectangle {
             width: 40px;
             height: 40px;
             border-radius: 20px;
-            background: #ffb3ba;
+            background: root.muted ? #93000a : Theme.primary-container;
             y: (parent.height - self.height) / 2;
 
             Icon {
                 name: root.icon;
-                icon-size: 22px;
-                icon-color: #551422;
+                icon-size: 20px;
+                icon-color: root.muted ? #ffdad6 : Theme.on-primary-container;
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
             }
+
+            TouchArea {
+                clicked => {
+                    root.muted = !root.muted;
+                    root.mute-toggled(root.muted);
+                }
+            }
         }
 
-        VerticalLayout {
+        Rectangle {
             horizontal-stretch: 1;
-            alignment: center;
-            spacing: 2px;
+            height: parent.height;
+            background: transparent;
 
-            Text {
-                text: root.label;
-                font-size: 16px;
-                font-weight: 500;
-                color: Theme.on-surface;
-                horizontal-alignment: left;
+            touch := TouchArea {
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.down) {
+                        root.value-pct = Math.round(Math.clamp(touch.mouse-x / self.width, 0.0, 1.0) * 100.0);
+                        root.volume-changed(root.value-pct);
+                    }
+                }
+                moved => {
+                    if (touch.pressed) {
+                        root.value-pct = Math.round(Math.clamp(touch.mouse-x / self.width, 0.0, 1.0) * 100.0);
+                        root.volume-changed(root.value-pct);
+                    }
+                }
             }
 
-            Text {
-                text: Math.round(root.value * 100.0) + "%";
-                font-size: 13px;
-                color: Theme.on-surface-variant;
-                horizontal-alignment: left;
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: root.label;
+                    font-size: 15px;
+                    font-weight: 500;
+                    color: Theme.on-surface;
+                }
+                Text {
+                    text: root.muted ? @tr("Muted") : "\{root.value-pct}%";
+                    font-size: 12px;
+                    color: root.muted ? #ffb4a9 : Theme.on-surface-variant;
+                }
             }
         }
     }
 }
 
-// ==============================================================================
-// Component: PageSound
-// ==============================================================================
-// Audio mixer, notification preferences, and haptic feedback subpage.
-export component PageSound inherits Flickable {
-    // Current normalized media playback volume (0.0 to 1.0).
-    in-out property <float> media-volume: 0.65;
-    // Current normalized voice call volume (0.0 to 1.0).
-    in-out property <float> call-volume: 0.80;
-    // Current normalized ringer and notification volume (0.0 to 1.0).
-    in-out property <float> ring-volume: 0.70;
-    // Current normalized microphone input volume (0.0 to 1.0).
-    in-out property <float> mic-volume: 0.85;
-    // Master mute state.
-    in-out property <bool> output-muted: false;
-    // Microphone mute state.
-    in-out property <bool> mic-muted: false;
-    // Active audio output device ("speaker", "headset", "hdmi").
-    in-out property <string> output-device: "speaker";
-    // Whether Do Not Disturb mode is actively suppressing notifications.
-    in-out property <bool> dnd-enabled: false;
-    // Whether haptic vibration is enabled for incoming voice calls.
-    in-out property <bool> vibrate-for-calls: true;
+component GnomeBalanceSlider inherits Rectangle {
+    in-out property <float> balance: 0.0;
+    callback balance-changed(float);
 
-    // Emitted when the media volume slider is scrubbed.
-    callback media-volume-changed(float);
-    // Emitted when the voice call volume slider is scrubbed.
-    callback call-volume-changed(float);
-    // Emitted when the ringer volume slider is scrubbed.
-    callback ring-volume-changed(float);
-    // Emitted when the microphone volume slider is scrubbed.
-    callback mic-volume-changed(float);
-    // Emitted when master output mute is toggled.
-    callback toggle-output-muted(bool);
-    // Emitted when mic mute is toggled.
-    callback toggle-mic-muted(bool);
-    // Emitted when audio output device is changed.
-    callback output-device-changed(string);
-    // Emitted when the user toggles Do Not Disturb mode.
-    callback toggle-dnd(bool);
-    // Emitted when the user toggles call vibration.
-    callback toggle-vibrate-calls(bool);
+    height: 64px;
+    border-radius: Theme.radius-card;
+    background: Theme.surface-low;
 
-    content := VerticalLayout {
+    VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
-        padding-top: 12px;
-        padding-bottom: 96px;
-        spacing: 12px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 6px;
 
-        // Audio Output Routing & Mute (Adapted from COSMIC Settings)
-        VerticalLayout {
-            spacing: 8px;
-            SettingsSectionHeader { title: @tr("Sound output & routing"); }
-            SettingsSectionCard {
-                VerticalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 12px;
-                    padding-bottom: 12px;
-                    spacing: 10px;
+        HorizontalLayout {
+            alignment: space-between;
+            Text {
+                text: @tr("Balance");
+                font-size: 14px;
+                font-weight: 500;
+                color: Theme.on-surface;
+            }
+            Text {
+                text: Math.abs(root.balance) < 0.06 ? @tr("Center")
+                    : (root.balance < 0.0 ? @tr("Left") : @tr("Right"));
+                font-size: 12px;
+                color: Theme.primary;
+            }
+        }
 
-                    // Output device selection pills
-                    HorizontalLayout {
-                        spacing: 8px;
+        Rectangle {
+            height: 18px;
+            border-radius: 9px;
+            background: Theme.surface-high;
 
-                        // Speaker
-                        Rectangle {
-                            property <bool> is-active: root.output-device == "speaker";
-                            height: 48px;
-                            horizontal-stretch: 1;
-                            border-radius: 12px;
-                            background: is-active ? Theme.primary : (spk-touch.pressed ? #282a30 : Theme.surface-high);
-                            border-width: is-active ? 0px : 1px;
-                            border-color: Theme.outline-variant;
+            Rectangle {
+                x: (parent.width - 2px) / 2;
+                y: 2px;
+                width: 2px;
+                height: parent.height - 4px;
+                background: Theme.outline-variant;
+            }
 
-                            animate background { duration: 120ms; easing: ease-out; }
+            Rectangle {
+                x: Math.clamp((root.balance + 1.0) / 2.0, 0.0, 1.0) * (parent.width - 18px);
+                y: 0px;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                background: Theme.primary;
+            }
 
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 6px;
-                                Icon {
-                                    name: "sound";
-                                    icon-size: 16px;
-                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                                Text {
-                                    text: @tr("Speaker");
-                                    font-size: 13px;
-                                    font-weight: is-active ? 700 : 500;
-                                    color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    vertical-alignment: center;
-                                }
-                            }
-
-                            spk-touch := TouchArea {
-                                clicked => {
-                                    root.output-device = "speaker";
-                                    root.output-device-changed("speaker");
-                                }
-                            }
-                        }
-
-                        // Headset
-                        Rectangle {
-                            property <bool> is-active: root.output-device == "headset";
-                            height: 48px;
-                            horizontal-stretch: 1;
-                            border-radius: 12px;
-                            background: is-active ? Theme.primary : (head-touch.pressed ? #282a30 : Theme.surface-high);
-                            border-width: is-active ? 0px : 1px;
-                            border-color: Theme.outline-variant;
-
-                            animate background { duration: 120ms; easing: ease-out; }
-
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 6px;
-                                Icon {
-                                    name: "devices";
-                                    icon-size: 16px;
-                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                                Text {
-                                    text: @tr("Headset");
-                                    font-size: 13px;
-                                    font-weight: is-active ? 700 : 500;
-                                    color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    vertical-alignment: center;
-                                }
-                            }
-
-                            head-touch := TouchArea {
-                                clicked => {
-                                    root.output-device = "headset";
-                                    root.output-device-changed("headset");
-                                }
-                            }
-                        }
-
-                        // HDMI / External
-                        Rectangle {
-                            property <bool> is-active: root.output-device == "hdmi";
-                            height: 48px;
-                            horizontal-stretch: 1;
-                            border-radius: 12px;
-                            background: is-active ? Theme.primary : (hdmi-touch.pressed ? #282a30 : Theme.surface-high);
-                            border-width: is-active ? 0px : 1px;
-                            border-color: Theme.outline-variant;
-
-                            animate background { duration: 120ms; easing: ease-out; }
-
-                            HorizontalLayout {
-                                alignment: center;
-                                spacing: 6px;
-                                Icon {
-                                    name: "display";
-                                    icon-size: 16px;
-                                    icon-color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    y: (parent.height - self.height) / 2;
-                                }
-                                Text {
-                                    text: @tr("HDMI / TV");
-                                    font-size: 13px;
-                                    font-weight: is-active ? 700 : 500;
-                                    color: is-active ? Theme.on-primary : Theme.on-surface;
-                                    vertical-alignment: center;
-                                }
-                            }
-
-                            hdmi-touch := TouchArea {
-                                clicked => {
-                                    root.output-device = "hdmi";
-                                    root.output-device-changed("hdmi");
-                                }
-                            }
-                        }
+            btouch := TouchArea {
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.down) {
+                        let norm = Math.clamp(btouch.mouse-x / self.width, 0.0, 1.0);
+                        let raw = norm * 2.0 - 1.0;
+                        root.balance = Math.abs(raw) < 0.08 ? 0.0 : raw;
+                        root.balance-changed(root.balance);
                     }
-
-                    Rectangle {
-                        height: 1px;
-                        background: Theme.outline-variant;
-                    }
-
-                    // Master Mute Switch
-                    SettingsTile {
-                        icon-name: "sound";
-                        icon-bg: root.output-muted ? #ffb4a9 : #a8c7fa;
-                        icon-tint: root.output-muted ? #680003 : #042b59;
-                        title: @tr("Mute output");
-                        subtitle: root.output-muted ? @tr("Audio muted") : @tr("Playing audio normally");
-                        is-switch: true;
-                        switch-checked: root.output-muted;
-                        show-divider: false;
-                        is-first: false;
-                        is-last: true;
-                        toggled(v) => {
-                            root.output-muted = v;
-                            root.toggle-output-muted(v);
-                        }
+                }
+                moved => {
+                    if (btouch.pressed) {
+                        let norm = Math.clamp(btouch.mouse-x / self.width, 0.0, 1.0);
+                        let raw = norm * 2.0 - 1.0;
+                        root.balance = Math.abs(raw) < 0.08 ? 0.0 : raw;
+                        root.balance-changed(root.balance);
                     }
                 }
             }
         }
+    }
+}
 
-        // Volume Sliders
-        VerticalLayout {
-            spacing: 8px;
-            SettingsSectionHeader { title: @tr("Volume channels"); }
+export component PageSound inherits Rectangle {
+    in property <[AudioDeviceData]> output-devices: [];
+    in property <[AudioDeviceData]> input-devices: [];
+    in property <[AudioProfileData]> output-profiles: [];
+    in property <[AudioProfileData]> input-profiles: [];
+    in property <[AudioStreamData]> output-streams: [];
+    in property <[AudioStreamData]> input-streams: [];
+
+    in-out property <string> active-output-label: "";
+    in-out property <string> active-output-profile-label: "";
+    in-out property <string> active-input-label: "";
+    in-out property <string> active-input-profile-label: "";
+
+    in-out property <int> output-volume: 65;
+    in-out property <float> output-balance: 0.0;
+    in-out property <bool> output-muted: false;
+
+    in-out property <int> input-volume: 80;
+    in-out property <bool> input-muted: false;
+
+    in-out property <string> alert-sound: "click";
+    in-out property <bool> dnd-enabled: false;
+    in-out property <bool> vibrate-for-calls: true;
+
+    // GNOME Control Center Navigation & Modals
+    in-out property <string> subpage: "main"; // "main", "volume-levels", "alert-sound"
+    in-out property <string> modal: "";       // "", "test-speakers", "out-dev", "out-prof", "in-dev", "in-prof"
+
+    callback select-output-device(string, string);
+    callback select-input-device(string, string);
+    callback select-card-profile(string, string);
+    callback output-volume-changed(int);
+    callback output-balance-changed(float);
+    callback toggle-output-muted(bool);
+    callback input-volume-changed(int);
+    callback toggle-input-muted(bool);
+    callback stream-volume-changed(int, bool, int);
+    callback stream-mute-toggled(int, bool, bool);
+    callback test-speaker(string);
+    callback select-alert-sound(string);
+    callback refresh-audio();
+    callback toggle-dnd(bool);
+    callback toggle-vibrate-calls(bool);
+
+    // =========================================================================
+    // SUBPAGE 0: MAIN SOUND PANEL (cc-sound-panel.blp 1:1)
+    // =========================================================================
+    if root.subpage == "main": Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: main-col.min-height + 32px;
+
+        main-col := VerticalLayout {
+            width: parent.width;
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 8px;
+            padding-bottom: 32px;
+            spacing: 20px;
+
+            // --- OUTPUT GROUP ---
             VerticalLayout {
                 spacing: 8px;
-                VolumeSliderCard {
-                    label: @tr("Media volume");
-                    icon: "sound";
-                    value <=> root.media-volume;
-                    changed(v) => { root.media-volume-changed(v); }
+                HorizontalLayout {
+                    alignment: space-between;
+                    SettingsSectionHeader { title: @tr("Output"); }
+                    Rectangle {
+                        height: 30px;
+                        border-radius: 15px;
+                        background: Theme.surface-high;
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            Text {
+                                text: @tr("Test...");
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: Theme.primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        TouchArea { clicked => { root.modal = "test-speakers"; } }
+                    }
                 }
-                VolumeSliderCard {
-                    label: @tr("Call volume");
-                    icon: "sound";
-                    value <=> root.call-volume;
-                    changed(v) => { root.call-volume-changed(v); }
+
+                if root.output-devices.length == 0: SettingsSectionCard {
+                    SettingsTile {
+                        icon-name: "sound";
+                        icon-bg: Theme.surface-high;
+                        icon-tint: Theme.on-surface-variant;
+                        title: @tr("Output Device");
+                        subtitle: @tr("No Output Devices");
+                        is-first: true;
+                        is-last: true;
+                        show-divider: false;
+                    }
                 }
-                VolumeSliderCard {
-                    label: @tr("Ring & notifications");
-                    icon: "sound";
-                    value <=> root.ring-volume;
-                    changed(v) => { root.ring-volume-changed(v); }
+
+                if root.output-devices.length > 0: VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 4px;
+                            SettingsTile {
+                                icon-name: "sound";
+                                icon-bg: Theme.primary-container;
+                                icon-tint: Theme.on-primary-container;
+                                title: @tr("Output Device");
+                                subtitle: root.active-output-label != "" ? root.active-output-label : @tr("Default output");
+                                trailing-text: "▾";
+                                is-first: true;
+                                is-last: root.output-profiles.length == 0;
+                                show-divider: root.output-profiles.length > 0;
+                                clicked => { root.modal = "out-dev"; }
+                            }
+                            if root.output-profiles.length > 0: SettingsTile {
+                                icon-name: "settings";
+                                icon-bg: Theme.surface-high;
+                                icon-tint: Theme.on-surface-variant;
+                                title: @tr("Configuration");
+                                subtitle: root.active-output-profile-label != "" ? root.active-output-profile-label : @tr("Default profile");
+                                trailing-text: "▾";
+                                is-first: false;
+                                is-last: true;
+                                show-divider: false;
+                                clicked => { root.modal = "out-prof"; }
+                            }
+                        }
+                    }
+
+                    GnomeVolumeSlider {
+                        label: @tr("Output Volume");
+                        icon: "sound";
+                        value-pct <=> root.output-volume;
+                        muted <=> root.output-muted;
+                        volume-changed(v) => { root.output-volume-changed(v); }
+                        mute-toggled(m) => { root.toggle-output-muted(m); }
+                    }
+
+                    GnomeBalanceSlider {
+                        balance <=> root.output-balance;
+                        balance-changed(b) => { root.output-balance-changed(b); }
+                    }
                 }
-                VolumeSliderCard {
-                    label: @tr("Microphone input");
-                    icon: "notifications";
-                    value <=> root.mic-volume;
-                    changed(v) => { root.mic-volume-changed(v); }
+            }
+
+            // --- INPUT GROUP ---
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: @tr("Input"); }
+
+                if root.input-devices.length == 0: SettingsSectionCard {
+                    SettingsTile {
+                        icon-name: "notifications";
+                        icon-bg: Theme.surface-high;
+                        icon-tint: Theme.on-surface-variant;
+                        title: @tr("Input Device");
+                        subtitle: @tr("No Input Devices");
+                        is-first: true;
+                        is-last: true;
+                        show-divider: false;
+                    }
+                }
+
+                if root.input-devices.length > 0: VerticalLayout {
+                    spacing: 8px;
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: 4px;
+                            SettingsTile {
+                                icon-name: "notifications";
+                                icon-bg: Theme.primary-container;
+                                icon-tint: Theme.on-primary-container;
+                                title: @tr("Input Device");
+                                subtitle: root.active-input-label != "" ? root.active-input-label : @tr("Default input");
+                                trailing-text: "▾";
+                                is-first: true;
+                                is-last: root.input-profiles.length == 0;
+                                show-divider: root.input-profiles.length > 0;
+                                clicked => { root.modal = "in-dev"; }
+                            }
+                            if root.input-profiles.length > 0: SettingsTile {
+                                icon-name: "settings";
+                                icon-bg: Theme.surface-high;
+                                icon-tint: Theme.on-surface-variant;
+                                title: @tr("Configuration");
+                                subtitle: root.active-input-profile-label != "" ? root.active-input-profile-label : @tr("Default profile");
+                                trailing-text: "▾";
+                                is-first: false;
+                                is-last: true;
+                                show-divider: false;
+                                clicked => { root.modal = "in-prof"; }
+                            }
+                        }
+                    }
+
+                    GnomeVolumeSlider {
+                        label: @tr("Input Volume");
+                        icon: "notifications";
+                        value-pct <=> root.input-volume;
+                        muted <=> root.input-muted;
+                        volume-changed(v) => { root.input-volume-changed(v); }
+                        mute-toggled(m) => { root.toggle-input-muted(m); }
+                    }
+                }
+            }
+
+            // --- SOUNDS GROUP (Navigation rows to Volume Levels & Alert Sound subpages) ---
+            VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: @tr("Sounds"); }
+                SettingsSectionCard {
+                    VerticalLayout {
+                        padding-top: 4px;
+                        padding-bottom: 4px;
+                        SettingsTile {
+                            icon-name: "sound";
+                            icon-bg: #a8c7fa;
+                            icon-tint: #042b59;
+                            title: @tr("Volume Levels");
+                            subtitle: @tr("Per-application volume controls");
+                            trailing-text: "›";
+                            is-first: true;
+                            is-last: false;
+                            show-divider: true;
+                            clicked => {
+                                root.refresh-audio();
+                                root.subpage = "volume-levels";
+                            }
+                        }
+                        SettingsTile {
+                            icon-name: "notifications";
+                            icon-bg: #a3e8b0;
+                            icon-tint: #073919;
+                            title: @tr("Alert Sound");
+                            subtitle: root.alert-sound == "none" ? @tr("None")
+                                    : root.alert-sound == "string" ? @tr("String")
+                                    : root.alert-sound == "swing" ? @tr("Swing")
+                                    : root.alert-sound == "hum" ? @tr("Hum")
+                                    : @tr("Click");
+                            trailing-text: "›";
+                            is-first: false;
+                            is-last: false;
+                            show-divider: true;
+                            clicked => { root.subpage = "alert-sound"; }
+                        }
+                        SettingsTile {
+                            icon-name: "dnd";
+                            icon-bg: #e8b4cb;
+                            icon-tint: #3b1424;
+                            title: @tr("Do Not Disturb");
+                            subtitle: root.dnd-enabled ? @tr("On") : @tr("Off");
+                            is-switch: true;
+                            switch-checked: root.dnd-enabled;
+                            is-first: false;
+                            is-last: false;
+                            show-divider: true;
+                            toggled(v) => { root.toggle-dnd(v); }
+                        }
+                        SettingsTile {
+                            icon-name: "sound";
+                            icon-bg: #ffcc80;
+                            icon-tint: #4e2600;
+                            title: @tr("Vibrate for calls");
+                            subtitle: root.vibrate-for-calls ? @tr("Always vibrate") : @tr("Never vibrate");
+                            is-switch: true;
+                            switch-checked: root.vibrate-for-calls;
+                            is-first: false;
+                            is-last: true;
+                            show-divider: false;
+                            toggled(v) => { root.toggle-vibrate-calls(v); }
+                        }
+                    }
                 }
             }
         }
+    }
 
-        // Do Not Disturb & Vibration
-        VerticalLayout {
-            spacing: 8px;
-            SettingsSectionHeader { title: @tr("Modes & feedback"); }
+    // =========================================================================
+    // SUBPAGE 1: VOLUME LEVELS (cc-volume-levels-page.blp 1:1)
+    // =========================================================================
+    if root.subpage == "volume-levels": Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: vl-col.min-height + 32px;
+
+        vl-col := VerticalLayout {
+            width: parent.width;
+            padding: 16px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 12px;
+                height: 44px;
+                Rectangle {
+                    width: 40px; height: 40px; border-radius: 20px; background: Theme.surface-high;
+                    Text { text: "←"; font-size: 18px; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { root.subpage = "main"; } }
+                }
+                Text {
+                    text: @tr("Volume Levels");
+                    font-size: 20px; font-weight: 700; color: Theme.on-surface;
+                    vertical-alignment: center;
+                    horizontal-stretch: 1;
+                }
+                Rectangle {
+                    height: 32px; border-radius: 16px; background: Theme.surface-high;
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px;
+                        Text { text: @tr("Refresh"); font-size: 12px; font-weight: 600; color: Theme.primary; vertical-alignment: center; }
+                    }
+                    TouchArea { clicked => { root.refresh-audio(); } }
+                }
+            }
+
+            if root.output-streams.length == 0 && root.input-streams.length == 0: SettingsSectionCard {
+                SettingsTile {
+                    icon-name: "sound";
+                    icon-bg: Theme.surface-high;
+                    icon-tint: Theme.on-surface-variant;
+                    title: @tr("No Sound Playing");
+                    subtitle: @tr("Active application audio streams appear here");
+                    is-first: true;
+                    is-last: true;
+                    show-divider: false;
+                }
+            }
+
+            if root.output-streams.length > 0: VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: @tr("Outputs"); }
+                for st in root.output-streams: GnomeVolumeSlider {
+                    label: st.media-name != "" ? "\{st.app-name} — \{st.media-name}" : st.app-name;
+                    icon: "sound";
+                    value-pct: st.volume-pct;
+                    muted: st.muted;
+                    volume-changed(v) => { root.stream-volume-changed(st.index, false, v); }
+                    mute-toggled(m) => { root.stream-mute-toggled(st.index, false, m); }
+                }
+            }
+
+            if root.input-streams.length > 0: VerticalLayout {
+                spacing: 8px;
+                SettingsSectionHeader { title: @tr("Inputs"); }
+                for st in root.input-streams: GnomeVolumeSlider {
+                    label: st.media-name != "" ? "\{st.app-name} — \{st.media-name}" : st.app-name;
+                    icon: "notifications";
+                    value-pct: st.volume-pct;
+                    muted: st.muted;
+                    volume-changed(v) => { root.stream-volume-changed(st.index, true, v); }
+                    mute-toggled(m) => { root.stream-mute-toggled(st.index, true, m); }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // SUBPAGE 2: ALERT SOUND CHOOSER (cc-alert-chooser-page.blp 1:1)
+    // =========================================================================
+    if root.subpage == "alert-sound": Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: alert-col.min-height + 32px;
+
+        alert-col := VerticalLayout {
+            width: parent.width;
+            padding: 16px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 12px;
+                height: 44px;
+                Rectangle {
+                    width: 40px; height: 40px; border-radius: 20px; background: Theme.surface-high;
+                    Text { text: "←"; font-size: 18px; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { root.subpage = "main"; } }
+                }
+                Text {
+                    text: @tr("Alert Sound");
+                    font-size: 20px; font-weight: 700; color: Theme.on-surface;
+                    vertical-alignment: center;
+                }
+            }
+
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
                     padding-bottom: 4px;
+                    for opt[idx] in [
+                        { id: "none", label: @tr("None") },
+                        { id: "click", label: @tr("Click") },
+                        { id: "string", label: @tr("String") },
+                        { id: "swing", label: @tr("Swing") },
+                        { id: "hum", label: @tr("Hum") },
+                    ]: SettingsTile {
+                        icon-name: "notifications";
+                        icon-bg: root.alert-sound == opt.id ? Theme.primary-container : Theme.surface-high;
+                        icon-tint: root.alert-sound == opt.id ? Theme.on-primary-container : Theme.on-surface-variant;
+                        title: opt.label;
+                        trailing-text: root.alert-sound == opt.id ? "✓" : "";
+                        is-first: idx == 0;
+                        is-last: idx == 4;
+                        show-divider: idx < 4;
+                        clicked => {
+                            root.alert-sound = opt.id;
+                            root.select-alert-sound(opt.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-                    SettingsTile {
-                        icon-name: "dnd";
-                        icon-bg: #e8b4cb;
-                        icon-tint: #3b1424;
-                        title: @tr("Do Not Disturb");
-                        subtitle: root.dnd-enabled ? @tr("On") : @tr("Off");
-                        is-switch: true;
-                        switch-checked: root.dnd-enabled;
-                        is-first: true;
-                        is-last: false;
-                        show-divider: true;
-                        toggled(v) => { root.toggle-dnd(v); }
+    // =========================================================================
+    // MODALS (Test Speakers, Output/Input Device & Configuration Pickers)
+    // =========================================================================
+    if root.modal != "": Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: #000000aa;
+
+        TouchArea { clicked => { root.modal = ""; } }
+
+        Rectangle {
+            width: Math.min(360px, parent.width - 32px);
+            height: modal-box.min-height + 32px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 28px;
+            background: Theme.surface-low;
+            border-width: 1px;
+            border-color: #ffffff1f;
+
+            TouchArea {} // absorb background taps
+
+            modal-box := VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                // --- MODAL: TEST SPEAKERS (cc-output-test-window.blp 1:1) ---
+                if root.modal == "test-speakers": VerticalLayout {
+                    spacing: 14px;
+                    Text {
+                        text: @tr("Test Speakers");
+                        font-size: 18px; font-weight: 700; color: Theme.on-surface;
+                        horizontal-alignment: center;
                     }
-                    SettingsTile {
-                        icon-name: "sound";
-                        icon-bg: #ffcc80;
-                        icon-tint: #4e2600;
-                        title: @tr("Vibrate for calls");
-                        subtitle: root.vibrate-for-calls ? @tr("Always vibrate") : @tr("Never vibrate");
-                        is-switch: true;
-                        switch-checked: root.vibrate-for-calls;
-                        is-first: false;
-                        is-last: true;
-                        show-divider: false;
-                        toggled(v) => { root.toggle-vibrate-calls(v); }
+                    Text {
+                        text: root.active-output-label != "" ? root.active-output-label : @tr("Output Device");
+                        font-size: 13px; color: Theme.on-surface-variant;
+                        horizontal-alignment: center;
                     }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Rectangle {
+                            horizontal-stretch: 1; height: 72px; border-radius: 24px; background: Theme.primary-container;
+                            VerticalLayout {
+                                alignment: center; spacing: 4px;
+                                Text { text: "🔊"; font-size: 20px; horizontal-alignment: center; }
+                                Text { text: @tr("Front Left"); font-size: 13px; font-weight: 600; color: Theme.on-primary-container; horizontal-alignment: center; }
+                            }
+                            TouchArea { clicked => { root.test-speaker("left"); } }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1; height: 72px; border-radius: 24px; background: Theme.primary-container;
+                            VerticalLayout {
+                                alignment: center; spacing: 4px;
+                                Text { text: "🔊"; font-size: 20px; horizontal-alignment: center; }
+                                Text { text: @tr("Front Right"); font-size: 13px; font-weight: 600; color: Theme.on-primary-container; horizontal-alignment: center; }
+                            }
+                            TouchArea { clicked => { root.test-speaker("right"); } }
+                        }
+                    }
+                    Rectangle {
+                        height: 44px; border-radius: 22px; background: Theme.surface-high;
+                        Text { text: @tr("Test Both"); font-size: 13px; font-weight: 600; color: Theme.primary; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea { clicked => { root.test-speaker("both"); } }
+                    }
+                }
+
+                // --- MODAL: OUTPUT DEVICE PICKER ---
+                if root.modal == "out-dev": VerticalLayout {
+                    spacing: 8px;
+                    Text { text: @tr("Output Device"); font-size: 18px; font-weight: 700; color: Theme.on-surface; }
+                    for dev in root.output-devices: Rectangle {
+                        height: 48px; border-radius: 16px;
+                        background: dev.is-default ? Theme.primary-container : Theme.surface-high;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: space-between;
+                            Text { text: dev.label; font-size: 14px; color: dev.is-default ? Theme.on-primary-container : Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                            if dev.is-default: Text { text: "✓"; font-size: 14px; font-weight: 700; color: Theme.on-primary-container; vertical-alignment: center; }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.select-output-device(dev.node-name, dev.port-name);
+                                root.modal = "";
+                            }
+                        }
+                    }
+                }
+
+                // --- MODAL: OUTPUT PROFILE PICKER ---
+                if root.modal == "out-prof": VerticalLayout {
+                    spacing: 8px;
+                    Text { text: @tr("Configuration"); font-size: 18px; font-weight: 700; color: Theme.on-surface; }
+                    for prof in root.output-profiles: Rectangle {
+                        height: 48px; border-radius: 16px;
+                        background: prof.active ? Theme.primary-container : Theme.surface-high;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: space-between;
+                            Text { text: prof.description; font-size: 14px; color: prof.active ? Theme.on-primary-container : Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                            if prof.active: Text { text: "✓"; font-size: 14px; font-weight: 700; color: Theme.on-primary-container; vertical-alignment: center; }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.select-card-profile(prof.card-name, prof.name);
+                                root.modal = "";
+                            }
+                        }
+                    }
+                }
+
+                // --- MODAL: INPUT DEVICE PICKER ---
+                if root.modal == "in-dev": VerticalLayout {
+                    spacing: 8px;
+                    Text { text: @tr("Input Device"); font-size: 18px; font-weight: 700; color: Theme.on-surface; }
+                    for dev in root.input-devices: Rectangle {
+                        height: 48px; border-radius: 16px;
+                        background: dev.is-default ? Theme.primary-container : Theme.surface-high;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: space-between;
+                            Text { text: dev.label; font-size: 14px; color: dev.is-default ? Theme.on-primary-container : Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                            if dev.is-default: Text { text: "✓"; font-size: 14px; font-weight: 700; color: Theme.on-primary-container; vertical-alignment: center; }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.select-input-device(dev.node-name, dev.port-name);
+                                root.modal = "";
+                            }
+                        }
+                    }
+                }
+
+                // --- MODAL: INPUT PROFILE PICKER ---
+                if root.modal == "in-prof": VerticalLayout {
+                    spacing: 8px;
+                    Text { text: @tr("Configuration"); font-size: 18px; font-weight: 700; color: Theme.on-surface; }
+                    for prof in root.input-profiles: Rectangle {
+                        height: 48px; border-radius: 16px;
+                        background: prof.active ? Theme.primary-container : Theme.surface-high;
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 14px; alignment: space-between;
+                            Text { text: prof.description; font-size: 14px; color: prof.active ? Theme.on-primary-container : Theme.on-surface; vertical-alignment: center; overflow: elide; }
+                            if prof.active: Text { text: "✓"; font-size: 14px; font-weight: 700; color: Theme.on-primary-container; vertical-alignment: center; }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.select-card-profile(prof.card-name, prof.name);
+                                root.modal = "";
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 40px; border-radius: 20px; background: Theme.surface-high;
+                    Text { text: @tr("Close"); font-size: 13px; font-weight: 600; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { root.modal = ""; } }
                 }
             }
         }
