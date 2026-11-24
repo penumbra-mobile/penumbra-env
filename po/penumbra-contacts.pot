@@ -8,16 +8,19 @@ msgstr ""
 msgid "Contacts"
 msgstr ""
 
-msgid "+ Add"
+msgid "Add"
+msgstr ""
+
+msgid "Search contacts or numbers"
+msgstr ""
+
+msgid "No matching contacts"
 msgstr ""
 
 msgid "No contacts yet"
 msgstr ""
 
 msgid "Edit"
-msgstr ""
-
-msgid "Delete"
 msgstr ""
 
 msgid "Call"
@@ -48,5 +51,17 @@ msgid "Save"
 msgstr ""
 
 msgid "Name"
+msgstr ""
+
+msgid "Full name"
+msgstr ""
+
+msgid "Phone number"
+msgstr ""
+
+msgid "Email address"
+msgstr ""
+
+msgid "Optional notes"
 msgstr ""
 

@@ -11,7 +11,7 @@ msgstr ""
 msgid "Contacts"
 msgstr ""
 
-msgid "+ New"
+msgid "New"
 msgstr ""
 
 msgid "No conversations yet"
@@ -20,9 +20,15 @@ msgstr ""
 msgid "New conversation"
 msgstr ""
 
-msgid "Start chat"
+msgid "Enter name or phone number"
 msgstr ""
 
-msgid "Send"
+msgid "Start chat with "
+msgstr ""
+
+msgid "No messages yet"
+msgstr ""
+
+msgid "Text message"
 msgstr ""
 

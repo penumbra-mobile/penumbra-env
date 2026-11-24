@@ -1,28 +1,35 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: penumbra-messaging 0.1.0\n"
-"Language: it\n"
 "MIME-Version: 1.0\n"
+"Language: it\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Messages"
-msgstr ""
+msgstr "Messaggi"
 
 msgid "Contacts"
-msgstr ""
+msgstr "Contatti"
 
-msgid "+ New"
-msgstr ""
+msgid "New"
+msgstr "Nuovo"
 
 msgid "No conversations yet"
-msgstr ""
+msgstr "Nessuna conversazione"
 
 msgid "New conversation"
-msgstr ""
+msgstr "Nuova conversazione"
 
-msgid "Start chat"
-msgstr ""
+msgid "Enter name or phone number"
+msgstr "Inserisci nome o numero"
 
-msgid "Send"
-msgstr ""
+msgid "Start chat with "
+msgstr "Avvia chat con "
+
+msgid "No messages yet"
+msgstr "Nessun messaggio"
+
+msgid "Text message"
+msgstr "Messaggio di testo"
+

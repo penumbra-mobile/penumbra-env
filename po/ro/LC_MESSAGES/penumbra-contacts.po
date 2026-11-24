@@ -1,52 +1,68 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: penumbra-contacts 0.1.0\n"
-"Language: ro\n"
 "MIME-Version: 1.0\n"
+"Language: ro\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Contacts"
-msgstr ""
+msgstr "Contacte"
 
-msgid "+ Add"
-msgstr ""
+msgid "Add"
+msgstr "Adaugă"
+
+msgid "Search contacts or numbers"
+msgstr "Caută contacte sau numere"
+
+msgid "No matching contacts"
+msgstr "Niciun contact găsit"
 
 msgid "No contacts yet"
-msgstr ""
+msgstr "Niciun contact încă"
 
 msgid "Edit"
-msgstr ""
-
-msgid "Delete"
-msgstr ""
+msgstr "Editează"
 
 msgid "Call"
-msgstr ""
+msgstr "Apelează"
 
 msgid "Message"
-msgstr ""
+msgstr "Mesaj"
 
 msgid "Phone"
-msgstr ""
+msgstr "Telefon"
 
 msgid "Email"
-msgstr ""
+msgstr "Email"
 
 msgid "Notes"
-msgstr ""
+msgstr "Notițe"
 
 msgid "Cancel"
-msgstr ""
+msgstr "Anulează"
 
 msgid "New contact"
-msgstr ""
+msgstr "Contact nou"
 
 msgid "Edit contact"
-msgstr ""
+msgstr "Editează contact"
 
 msgid "Save"
-msgstr ""
+msgstr "Salvează"
 
 msgid "Name"
-msgstr ""
+msgstr "Nume"
+
+msgid "Full name"
+msgstr "Nume complet"
+
+msgid "Phone number"
+msgstr "Număr de telefon"
+
+msgid "Email address"
+msgstr "Adresă de email"
+
+msgid "Optional notes"
+msgstr "Notițe opționale"
+

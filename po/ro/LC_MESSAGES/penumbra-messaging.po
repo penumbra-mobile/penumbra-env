@@ -1,28 +1,35 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: penumbra-messaging 0.1.0\n"
-"Language: ro\n"
 "MIME-Version: 1.0\n"
+"Language: ro\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Messages"
-msgstr ""
+msgstr "Mesaje"
 
 msgid "Contacts"
-msgstr ""
+msgstr "Contacte"
 
-msgid "+ New"
-msgstr ""
+msgid "New"
+msgstr "Nou"
 
 msgid "No conversations yet"
-msgstr ""
+msgstr "Nicio conversație încă"
 
 msgid "New conversation"
-msgstr ""
+msgstr "Conversație nouă"
 
-msgid "Start chat"
-msgstr ""
+msgid "Enter name or phone number"
+msgstr "Introduceți nume sau număr"
 
-msgid "Send"
-msgstr ""
+msgid "Start chat with "
+msgstr "Începe chat cu "
+
+msgid "No messages yet"
+msgstr "Niciun mesaj încă"
+
+msgid "Text message"
+msgstr "Mesaj text"
+

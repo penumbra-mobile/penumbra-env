@@ -1,52 +1,68 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: penumbra-contacts 0.1.0\n"
-"Language: es\n"
 "MIME-Version: 1.0\n"
+"Language: es\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Contacts"
-msgstr ""
+msgstr "Contactos"
 
-msgid "+ Add"
-msgstr ""
+msgid "Add"
+msgstr "Añadir"
+
+msgid "Search contacts or numbers"
+msgstr "Buscar contactos o números"
+
+msgid "No matching contacts"
+msgstr "No hay contactos que coincidan"
 
 msgid "No contacts yet"
-msgstr ""
+msgstr "Aún no hay contactos"
 
 msgid "Edit"
-msgstr ""
-
-msgid "Delete"
-msgstr ""
+msgstr "Editar"
 
 msgid "Call"
-msgstr ""
+msgstr "Llamar"
 
 msgid "Message"
-msgstr ""
+msgstr "Mensaje"
 
 msgid "Phone"
-msgstr ""
+msgstr "Teléfono"
 
 msgid "Email"
-msgstr ""
+msgstr "Correo electrónico"
 
 msgid "Notes"
-msgstr ""
+msgstr "Notas"
 
 msgid "Cancel"
-msgstr ""
+msgstr "Cancelar"
 
 msgid "New contact"
-msgstr ""
+msgstr "Nuevo contacto"
 
 msgid "Edit contact"
-msgstr ""
+msgstr "Editar contacto"
 
 msgid "Save"
-msgstr ""
+msgstr "Guardar"
 
 msgid "Name"
-msgstr ""
+msgstr "Nombre"
+
+msgid "Full name"
+msgstr "Nombre completo"
+
+msgid "Phone number"
+msgstr "Número de teléfono"
+
+msgid "Email address"
+msgstr "Dirección de correo"
+
+msgid "Optional notes"
+msgstr "Notas opcionales"
+

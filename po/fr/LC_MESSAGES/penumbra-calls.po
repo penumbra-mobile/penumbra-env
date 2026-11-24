@@ -1,58 +1,59 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: penumbra-calls 0.1.0\n"
-"Language: fr\n"
 "MIME-Version: 1.0\n"
+"Language: fr\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
 msgid "Phone"
-msgstr ""
+msgstr "Téléphone"
 
 msgid "Contacts"
-msgstr ""
+msgstr "Contacts"
 
 msgid "Enter number"
-msgstr ""
+msgstr "Saisir un numéro"
 
 msgid "Message"
-msgstr ""
+msgstr "Message"
 
 msgid "Save contact"
-msgstr ""
+msgstr "Enregistrer le contact"
 
 msgid "Call"
-msgstr ""
+msgstr "Appeler"
 
 msgid "No recent calls"
-msgstr ""
+msgstr "Aucun appel récent"
 
 msgid "Keypad"
-msgstr ""
+msgstr "Clavier"
 
 msgid "Recents"
-msgstr ""
+msgstr "Récents"
 
 msgid "Incoming call..."
-msgstr ""
+msgstr "Appel entrant..."
 
 msgid "Call volume"
-msgstr ""
+msgstr "Volume d'appel"
 
 msgid "Unmute"
-msgstr ""
+msgstr "Réactiver"
 
 msgid "Mute"
-msgstr ""
+msgstr "Muet"
 
 msgid "Speaker"
-msgstr ""
+msgstr "Haut-parleur"
 
 msgid "Decline"
-msgstr ""
+msgstr "Refuser"
 
 msgid "Answer"
-msgstr ""
+msgstr "Répondre"
 
 msgid "End call"
-msgstr ""
+msgstr "Raccrocher"
+
