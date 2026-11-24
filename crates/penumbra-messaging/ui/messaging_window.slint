@@ -436,14 +436,18 @@ export component MessagingWindow inherits Window {
             background: start-ta.pressed ? root.primary : root.primary-container;
             border-width: 1px;
             border-color: #ffffff1f;
-            Text {
-                text: @tr("Start chat with ") + root.new-recipient;
-                font-size: 14px;
-                font-weight: 700;
-                color: root.on-primary-container;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                overflow: elide;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                Text {
+                    text: @tr("Start chat with ") + root.new-recipient;
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: root.on-primary-container;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
             }
             start-ta := TouchArea {
                 clicked => {
@@ -656,6 +660,7 @@ export component MessagingWindow inherits Window {
                 for msg in root.messages: HorizontalLayout {
                     alignment: msg.outgoing ? end : start;
                     Rectangle {
+                        min-width: 68px;
                         max-width: 292px;
                         border-top-left-radius: 20px;
                         border-top-right-radius: 20px;
