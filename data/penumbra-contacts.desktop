@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Contacts
+Comment=Manage contacts and phone numbers
+Exec=/usr/local/bin/penumbra-contacts
+Icon=penumbra-contacts
+Terminal=false
+Type=Application
+Categories=Office;ContactManagement;
+StartupNotify=true
+

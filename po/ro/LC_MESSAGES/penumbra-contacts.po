@@ -1,0 +1,52 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: penumbra-contacts 0.1.0\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Contacts"
+msgstr ""
+
+msgid "+ Add"
+msgstr ""
+
+msgid "No contacts yet"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Call"
+msgstr ""
+
+msgid "Message"
+msgstr ""
+
+msgid "Phone"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Notes"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "New contact"
+msgstr ""
+
+msgid "Edit contact"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Name"
+msgstr ""

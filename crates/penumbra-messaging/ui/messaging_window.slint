@@ -1,0 +1,425 @@
+export struct ThreadRow {
+    peer-number: string,
+    display-name: string,
+    last-message: string,
+    time-label: string,
+}
+
+export struct ChatBubble {
+    text: string,
+    outgoing: bool,
+    time-label: string,
+}
+
+export component MessagingWindow inherits Window {
+    title: @tr("Messages");
+    preferred-width: 412px;
+    preferred-height: 841px;
+    background: root.bg-color;
+
+    in-out property <color> bg-color: #0b0a0e;
+    in-out property <color> surface-low: #17151d;
+    in-out property <color> surface-high: #27232e;
+    in-out property <color> primary: #d0bcff;
+    in-out property <color> primary-container: #4f378b;
+    in-out property <color> on-primary-container: #eaddff;
+    in-out property <color> on-surface: #e6e1e5;
+    in-out property <color> on-surface-variant: #cac4d0;
+
+    in property <[ThreadRow]> threads: [];
+    in property <[ChatBubble]> messages: [];
+    in-out property <string> active-peer: "";
+    in-out property <string> active-peer-name: "";
+    in-out property <bool> composing-new: false;
+    in-out property <string> new-recipient: "";
+    in-out property <string> draft-text: "";
+    in-out property <string> status-banner: "";
+
+    callback open-thread(string);
+    callback back-to-threads();
+    callback send-message(string, string);
+    callback call-number(string);
+    callback add-contact-number(string);
+    callback open-contacts();
+
+    // =========================================================================
+    // 1. THREADS LIST
+    // =========================================================================
+    if root.active-peer == "" && !root.composing-new: VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            height: 44px;
+            Text {
+                text: @tr("Messages");
+                font-size: 24px;
+                font-weight: 700;
+                color: root.on-surface;
+                vertical-alignment: center;
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: root.surface-high;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        Text {
+                            text: @tr("Contacts");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea { clicked => { root.open-contacts(); } }
+                }
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: root.primary-container;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        Text {
+                            text: @tr("+ New");
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: root.on-primary-container;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.new-recipient = "";
+                            root.composing-new = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        Flickable {
+            vertical-stretch: 1;
+            content-height: threads-col.min-height + 24px;
+            threads-col := VerticalLayout {
+                width: parent.width;
+                spacing: 8px;
+
+                if root.threads.length == 0: Rectangle {
+                    height: 120px;
+                    border-radius: 24px;
+                    background: root.surface-low;
+                    Text {
+                        text: @tr("No conversations yet");
+                        font-size: 15px;
+                        color: root.on-surface-variant;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                for th in root.threads: Rectangle {
+                    height: 76px;
+                    border-radius: 24px;
+                    background: root.surface-low;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+
+                        Rectangle {
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 22px;
+                            background: root.primary-container;
+                            y: (parent.height - self.height) / 2;
+                            Text {
+                                text: "💬";
+                                font-size: 18px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text {
+                                    text: th.display-name != "" ? th.display-name : th.peer-number;
+                                    font-size: 16px;
+                                    font-weight: 600;
+                                    color: root.on-surface;
+                                }
+                                Text {
+                                    text: th.time-label;
+                                    font-size: 11px;
+                                    color: root.on-surface-variant;
+                                }
+                            }
+                            Text {
+                                text: th.last-message;
+                                font-size: 13px;
+                                color: root.on-surface-variant;
+                                overflow: elide;
+                            }
+                        }
+                    }
+                    TouchArea {
+                        clicked => { root.open-thread(th.peer-number); }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 2. NEW CONVERSATION RECIPIENT ENTRY
+    // =========================================================================
+    if root.composing-new && root.active-peer == "": VerticalLayout {
+        padding: 16px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            height: 44px;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                background: root.surface-high;
+                Text {
+                    text: "←";
+                    font-size: 18px;
+                    color: root.on-surface;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.composing-new = false; } }
+            }
+            Text {
+                text: @tr("New conversation");
+                font-size: 20px;
+                font-weight: 700;
+                color: root.on-surface;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            height: 52px;
+            border-radius: 26px;
+            background: root.surface-low;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                TextInput {
+                    text <=> root.new-recipient;
+                    font-size: 15px;
+                    color: root.on-surface;
+                    vertical-alignment: center;
+                    single-line: true;
+                }
+            }
+        }
+
+        Rectangle {
+            height: 44px;
+            border-radius: 22px;
+            background: root.primary-container;
+            Text {
+                text: @tr("Start chat");
+                font-size: 14px;
+                font-weight: 700;
+                color: root.on-primary-container;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            TouchArea {
+                clicked => {
+                    if (root.new-recipient != "") {
+                        root.composing-new = false;
+                        root.open-thread(root.new-recipient);
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 3. CHAT THREAD VIEW
+    // =========================================================================
+    if root.active-peer != "": VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        // Top Bar with Back, Name, Call, Save Contact
+        HorizontalLayout {
+            spacing: 10px;
+            height: 44px;
+
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                background: root.surface-high;
+                Text {
+                    text: "←";
+                    font-size: 18px;
+                    color: root.on-surface;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.back-to-threads(); } }
+            }
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: root.active-peer-name != "" ? root.active-peer-name : root.active-peer;
+                    font-size: 17px;
+                    font-weight: 700;
+                    color: root.on-surface;
+                    overflow: elide;
+                }
+                if root.active-peer-name != "": Text {
+                    text: root.active-peer;
+                    font-size: 12px;
+                    color: root.on-surface-variant;
+                }
+            }
+
+            if root.active-peer-name == "": Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                background: root.surface-high;
+                Text {
+                    text: "👤+";
+                    font-size: 14px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.add-contact-number(root.active-peer); } }
+            }
+
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                background: #2e7d32;
+                Text {
+                    text: "📞";
+                    font-size: 16px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.call-number(root.active-peer); } }
+            }
+        }
+
+        if root.status-banner != "": Rectangle {
+            height: 34px;
+            border-radius: 14px;
+            background: #93000a;
+            Text {
+                text: root.status-banner;
+                font-size: 12px;
+                color: #ffdad6;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Messages List
+        Flickable {
+            vertical-stretch: 1;
+            content-height: msgs-col.min-height + 16px;
+            msgs-col := VerticalLayout {
+                width: parent.width;
+                spacing: 8px;
+
+                for msg in root.messages: HorizontalLayout {
+                    alignment: msg.outgoing ? end : start;
+                    Rectangle {
+                        max-width: 290px;
+                        border-radius: 20px;
+                        background: msg.outgoing ? root.primary-container : root.surface-low;
+                        VerticalLayout {
+                            padding: 12px;
+                            spacing: 4px;
+                            Text {
+                                text: msg.text;
+                                font-size: 14px;
+                                color: msg.outgoing ? root.on-primary-container : root.on-surface;
+                                wrap: word-wrap;
+                            }
+                            Text {
+                                text: msg.time-label;
+                                font-size: 10px;
+                                color: root.on-surface-variant;
+                                horizontal-alignment: right;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Composer Bar
+        HorizontalLayout {
+            spacing: 8px;
+            height: 48px;
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 24px;
+                background: root.surface-low;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    TextInput {
+                        text <=> root.draft-text;
+                        font-size: 14px;
+                        color: root.on-surface;
+                        vertical-alignment: center;
+                        single-line: true;
+                        accepted => {
+                            if (root.draft-text != "") {
+                                root.send-message(root.active-peer, root.draft-text);
+                            }
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                width: 64px;
+                border-radius: 24px;
+                background: root.primary-container;
+                Text {
+                    text: @tr("Send");
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: root.on-primary-container;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => {
+                        if (root.draft-text != "") {
+                            root.send-message(root.active-peer, root.draft-text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

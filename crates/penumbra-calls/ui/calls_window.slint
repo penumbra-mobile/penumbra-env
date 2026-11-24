@@ -1,0 +1,990 @@
+export struct CallHistoryRow {
+    id: string,
+    number: string,
+    display-name: string,
+    direction: string,
+    time-label: string,
+}
+
+component PhoneIcon inherits Rectangle {
+    in property <string> name: "phone";
+    in property <length> icon-size: 20px;
+    in property <color> icon-color: #ffffff;
+
+    width: root.icon-size;
+    height: root.icon-size;
+    background: transparent;
+
+    if root.name == "phone": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z";
+    }
+    if root.name == "hangup": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z";
+    }
+    if root.name == "message": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z";
+    }
+    if root.name == "contacts": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z";
+    }
+    if root.name == "person-add": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z";
+    }
+    if root.name == "keypad": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 19c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM6 1c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-6 8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z";
+    }
+    if root.name == "history": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z";
+    }
+    if root.name == "mic": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z";
+    }
+    if root.name == "mic-off": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z";
+    }
+    if root.name == "speaker": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z";
+    }
+    if root.name == "backspace": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z";
+    }
+    if root.name == "call-out": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z";
+    }
+    if root.name == "call-in": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M20 5.41L18.59 4 7 15.59V9H5v10h10v-2H8.41L20 5.41z";
+    }
+}
+
+export component CallsWindow inherits Window {
+    title: @tr("Phone");
+    preferred-width: 412px;
+    preferred-height: 841px;
+    background: root.bg-color;
+
+    in-out property <color> bg-color: #0b0a0e;
+    in-out property <color> surface-low: #17151d;
+    in-out property <color> surface-high: #27232e;
+    in-out property <color> primary: #d0bcff;
+    in-out property <color> on-primary: #381e72;
+    in-out property <color> primary-container: #4f378b;
+    in-out property <color> on-primary-container: #eaddff;
+    in-out property <color> on-surface: #e6e1e5;
+    in-out property <color> on-surface-variant: #cac4d0;
+
+    in-out property <int> active-tab: 0; // 0: Keypad, 1: Recents
+    in-out property <string> dial-number: "";
+    in-out property <string> matched-contact-name: "";
+    in-out property <string> status-banner: "";
+    in property <[CallHistoryRow]> history: [];
+
+    in-out property <bool> has-call: false;
+    in-out property <string> call-path: "";
+    in-out property <string> call-number: "";
+    in-out property <string> call-contact-name: "";
+    in-out property <string> call-state-label: "";
+    in-out property <bool> is-incoming-ringing: false;
+    in-out property <bool> speaker-on: false;
+    in-out property <bool> mic-muted: false;
+    in-out property <int> call-volume-pct: 100;
+    in-out property <string> call-duration-text: "00:00";
+    in-out property <bool> show-dtmf-pad: false;
+
+    callback dial-number-edited(string);
+    callback dial-pressed(string);
+    callback accept-call(string);
+    callback hangup-call(string);
+    callback toggle-speaker(bool);
+    callback toggle-mic(bool);
+    callback call-volume-changed(int);
+    callback send-dtmf(string, string);
+    callback open-contacts();
+    callback message-number(string);
+    callback add-contact-number(string);
+
+    // =========================================================================
+    // 1. MAIN DIALER & RECENTS VIEW
+    // =========================================================================
+    if !root.has-call: VerticalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        padding-top: 12px;
+        padding-bottom: 14px;
+        spacing: 12px;
+
+        // Header Bar
+        HorizontalLayout {
+            alignment: space-between;
+            height: 44px;
+            Text {
+                text: @tr("Phone");
+                font-size: 26px;
+                font-weight: 700;
+                color: root.on-surface;
+                vertical-alignment: center;
+            }
+            VerticalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 38px;
+                    border-radius: 19px;
+                    background: contacts-pill-ta.pressed ? root.primary-container : root.surface-high;
+                    border-width: 1px;
+                    border-color: contacts-pill-ta.pressed ? #ffffff33 : #ffffff14;
+                    animate background { duration: 100ms; }
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon {
+                                name: "contacts";
+                                icon-size: 16px;
+                                icon-color: root.primary;
+                            }
+                        }
+                        Text {
+                            text: @tr("Contacts");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    contacts-pill-ta := TouchArea { clicked => { root.open-contacts(); } }
+                }
+            }
+        }
+
+        if root.status-banner != "": Rectangle {
+            height: 38px;
+            border-radius: 16px;
+            background: #93000a;
+            border-width: 1px;
+            border-color: #ffb4a933;
+            Text {
+                text: root.status-banner;
+                font-size: 13px;
+                font-weight: 500;
+                color: #ffdad6;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // TAB 0: KEYPAD
+        if root.active-tab == 0: VerticalLayout {
+            vertical-stretch: 1;
+            spacing: 10px;
+
+            // Centered Number Display Card with Live Contact Match
+            Rectangle {
+                height: 92px;
+                border-radius: 28px;
+                background: root.surface-low;
+                border-width: 1px;
+                border-color: #ffffff14;
+
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 8px;
+
+                    // Left balance spacer keeps number dead-center
+                    Rectangle { width: 44px; background: transparent; }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 3px;
+
+                        Text {
+                            text: root.dial-number == "" ? @tr("Enter number") : root.dial-number;
+                            font-size: root.dial-number.character-count > 12 ? 22px : 30px;
+                            font-weight: 600;
+                            letter-spacing: 0.8px;
+                            color: root.dial-number == "" ? root.on-surface-variant.with-alpha(0.5) : root.on-surface;
+                            horizontal-alignment: center;
+                            overflow: elide;
+                        }
+
+                        if root.matched-contact-name != "": Text {
+                            text: root.matched-contact-name;
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            horizontal-alignment: center;
+                            overflow: elide;
+                        }
+                    }
+
+                    VerticalLayout {
+                        width: 44px;
+                        alignment: center;
+                        if root.dial-number != "": Rectangle {
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 22px;
+                            background: bk-ta.pressed ? root.primary-container : root.surface-high;
+                            border-width: 1px;
+                            border-color: bk-ta.pressed ? #ffffff33 : #ffffff14;
+                            animate background { duration: 100ms; }
+                            HorizontalLayout {
+                                alignment: center;
+                                VerticalLayout {
+                                    alignment: center;
+                                    PhoneIcon {
+                                        name: "backspace";
+                                        icon-size: 20px;
+                                        icon-color: root.on-surface;
+                                    }
+                                }
+                            }
+                            bk-ta := TouchArea {
+                                clicked => { root.send-dtmf("__BACKSPACE__", ""); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fixed-height Quick Actions slot (prevents dialpad jump on first digit)
+            HorizontalLayout {
+                spacing: 10px;
+                height: 36px;
+                if root.dial-number != "": Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 18px;
+                    background: msg-pill-ta.pressed ? root.primary-container : root.surface-high;
+                    border-width: 1px;
+                    border-color: msg-pill-ta.pressed ? #ffffff33 : #ffffff14;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon { name: "message"; icon-size: 15px; icon-color: root.primary; }
+                        }
+                        Text { text: @tr("Message"); font-size: 13px; font-weight: 600; color: root.primary; vertical-alignment: center; }
+                    }
+                    msg-pill-ta := TouchArea { clicked => { root.message-number(root.dial-number); } }
+                }
+                if root.dial-number != "" && root.matched-contact-name == "": Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 18px;
+                    background: add-pill-ta.pressed ? root.primary-container : root.surface-high;
+                    border-width: 1px;
+                    border-color: add-pill-ta.pressed ? #ffffff33 : #ffffff14;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon { name: "person-add"; icon-size: 15px; icon-color: root.primary; }
+                        }
+                        Text { text: @tr("Save contact"); font-size: 13px; font-weight: 600; color: root.primary; vertical-alignment: center; }
+                    }
+                    add-pill-ta := TouchArea { clicked => { root.add-contact-number(root.dial-number); } }
+                }
+            }
+
+            // 3x4 Tactile M3E Dialpad
+            VerticalLayout {
+                vertical-stretch: 1;
+                spacing: 10px;
+                alignment: center;
+
+                for row in [
+                    [{ d: "1", sub: "" }, { d: "2", sub: "ABC" }, { d: "3", sub: "DEF" }],
+                    [{ d: "4", sub: "GHI" }, { d: "5", sub: "JKL" }, { d: "6", sub: "MNO" }],
+                    [{ d: "7", sub: "PQRS" }, { d: "8", sub: "TUV" }, { d: "9", sub: "WXYZ" }],
+                    [{ d: "*", sub: "" }, { d: "0", sub: "+" }, { d: "#", sub: "" }],
+                ]: HorizontalLayout {
+                    spacing: 12px;
+                    alignment: center;
+                    for key in row: Rectangle {
+                        width: 104px;
+                        height: 66px;
+                        border-radius: ktouch.pressed ? 22px : 28px;
+                        background: ktouch.pressed ? root.primary-container : root.surface-low;
+                        border-width: 1px;
+                        border-color: ktouch.pressed ? #ffffff33 : #ffffff14;
+                        animate background { duration: 100ms; }
+                        animate border-radius { duration: 100ms; }
+
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 0px;
+                            Text {
+                                text: key.d;
+                                font-size: 28px;
+                                font-weight: 600;
+                                color: ktouch.pressed ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                            }
+                            if key.sub != "": Text {
+                                text: key.sub;
+                                font-size: 10px;
+                                font-weight: 700;
+                                letter-spacing: 1.2px;
+                                color: ktouch.pressed ? root.on-primary-container.with-alpha(0.8) : root.on-surface-variant;
+                                horizontal-alignment: center;
+                            }
+                        }
+
+                        ktouch := TouchArea {
+                            clicked => {
+                                root.dial-number += key.d;
+                                root.dial-number-edited(root.dial-number);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Green M3E Call FAB
+            HorizontalLayout {
+                alignment: center;
+                padding-bottom: 4px;
+                Rectangle {
+                    width: 196px;
+                    height: 60px;
+                    border-radius: call-fab-ta.pressed ? 24px : 30px;
+                    background: root.dial-number == "" ? #2e7d32.with-alpha(0.45) : (call-fab-ta.pressed ? #1b5e20 : #2e7d32);
+                    border-width: 1px;
+                    border-color: root.dial-number == "" ? #ffffff14 : #a3e8b044;
+                    animate background { duration: 100ms; }
+                    animate border-radius { duration: 100ms; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon {
+                                name: "phone";
+                                icon-size: 22px;
+                                icon-color: #ffffff;
+                            }
+                        }
+                        Text {
+                            text: @tr("Call");
+                            font-size: 18px;
+                            font-weight: 700;
+                            color: #ffffff;
+                            vertical-alignment: center;
+                        }
+                    }
+                    call-fab-ta := TouchArea {
+                        clicked => {
+                            if (root.dial-number != "") {
+                                root.dial-pressed(root.dial-number);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // TAB 1: RECENTS
+        if root.active-tab == 1: Flickable {
+            vertical-stretch: 1;
+            content-height: recents-list.min-height + 24px;
+            recents-list := VerticalLayout {
+                width: parent.width;
+                spacing: 8px;
+
+                if root.history.length == 0: Rectangle {
+                    height: 140px;
+                    border-radius: 28px;
+                    background: root.surface-low;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        HorizontalLayout {
+                            alignment: center;
+                            PhoneIcon {
+                                name: "history";
+                                icon-size: 28px;
+                                icon-color: root.on-surface-variant;
+                            }
+                        }
+                        Text {
+                            text: @tr("No recent calls");
+                            font-size: 15px;
+                            font-weight: 500;
+                            color: root.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                for item in root.history: Rectangle {
+                    height: 74px;
+                    border-radius: 24px;
+                    background: root.surface-low;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 12px;
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 42px;
+                                height: 42px;
+                                border-radius: 21px;
+                                background: item.direction == "missed" ? #93000a : root.surface-high;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        PhoneIcon {
+                                            name: item.direction == "outgoing" ? "call-out" : "call-in";
+                                            icon-size: 18px;
+                                            icon-color: item.direction == "missed" ? #ffdad6 : root.primary;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: item.display-name != "" ? item.display-name : item.number;
+                                font-size: 16px;
+                                font-weight: 600;
+                                color: item.direction == "missed" ? #ffb4a9 : root.on-surface;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: item.display-name != "" ? "\{item.number} • \{item.time-label}" : item.time-label;
+                                font-size: 12px;
+                                color: root.on-surface-variant;
+                                overflow: elide;
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 20px;
+                                background: rec-msg-ta.pressed ? root.primary-container : root.surface-high;
+                                border-width: 1px;
+                                border-color: #ffffff14;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        PhoneIcon {
+                                            name: "message";
+                                            icon-size: 17px;
+                                            icon-color: root.primary;
+                                        }
+                                    }
+                                }
+                                rec-msg-ta := TouchArea { clicked => { root.message-number(item.number); } }
+                            }
+                        }
+
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 20px;
+                                background: rec-call-ta.pressed ? #1b5e20 : #2e7d32;
+                                border-width: 1px;
+                                border-color: #a3e8b033;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        PhoneIcon {
+                                            name: "phone";
+                                            icon-size: 17px;
+                                            icon-color: #ffffff;
+                                        }
+                                    }
+                                }
+                                rec-call-ta := TouchArea { clicked => { root.dial-pressed(item.number); } }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bottom M3E Pill Navigation Bar
+        HorizontalLayout {
+            height: 56px;
+            spacing: 10px;
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 28px;
+                background: root.active-tab == 0 ? root.primary-container : root.surface-low;
+                border-width: 1px;
+                border-color: root.active-tab == 0 ? #ffffff22 : #ffffff10;
+                animate background { duration: 150ms; }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        PhoneIcon {
+                            name: "keypad";
+                            icon-size: 18px;
+                            icon-color: root.active-tab == 0 ? root.on-primary-container : root.on-surface-variant;
+                        }
+                    }
+                    Text {
+                        text: @tr("Keypad");
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: root.active-tab == 0 ? root.on-primary-container : root.on-surface-variant;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea { clicked => { root.active-tab = 0; } }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 28px;
+                background: root.active-tab == 1 ? root.primary-container : root.surface-low;
+                border-width: 1px;
+                border-color: root.active-tab == 1 ? #ffffff22 : #ffffff10;
+                animate background { duration: 150ms; }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        PhoneIcon {
+                            name: "history";
+                            icon-size: 18px;
+                            icon-color: root.active-tab == 1 ? root.on-primary-container : root.on-surface-variant;
+                        }
+                    }
+                    Text {
+                        text: @tr("Recents");
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: root.active-tab == 1 ? root.on-primary-container : root.on-surface-variant;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea { clicked => { root.active-tab = 1; } }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 2. ACTIVE / INCOMING VOICE CALL OVERLAY
+    // =========================================================================
+    if root.has-call: VerticalLayout {
+        padding-left: 20px;
+        padding-right: 20px;
+        padding-top: 20px;
+        padding-bottom: 24px;
+        spacing: 14px;
+
+        // Caller Header (flexes vertically so DTMF pad never overflows 841px)
+        VerticalLayout {
+            vertical-stretch: 1;
+            alignment: center;
+            spacing: 10px;
+
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: root.show-dtmf-pad ? 72px : 96px;
+                    height: root.show-dtmf-pad ? 72px : 96px;
+                    border-radius: root.show-dtmf-pad ? 36px : 48px;
+                    background: root.primary-container;
+                    border-width: 2px;
+                    border-color: root.primary.with-alpha(0.45);
+                    animate width { duration: 150ms; }
+                    animate height { duration: 150ms; }
+
+                    HorizontalLayout {
+                        alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon {
+                                name: "phone";
+                                icon-size: root.show-dtmf-pad ? 30px : 38px;
+                                icon-color: root.on-primary-container;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: root.call-contact-name != "" ? root.call-contact-name : root.call-number;
+                font-size: root.show-dtmf-pad ? 24px : 28px;
+                font-weight: 700;
+                color: root.on-surface;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+
+            if root.call-contact-name != "": Text {
+                text: root.call-number;
+                font-size: 14px;
+                color: root.on-surface-variant;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    height: 30px;
+                    border-radius: 15px;
+                    background: root.surface-low;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        Text {
+                            text: root.is-incoming-ringing ? @tr("Incoming call...") : "\{root.call-state-label} • \{root.call-duration-text}";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // In-Call DTMF Keypad
+        if root.show-dtmf-pad && !root.is-incoming-ringing: VerticalLayout {
+            spacing: 8px;
+            for row in [["1","2","3"], ["4","5","6"], ["7","8","9"], ["*","0","#"]]: HorizontalLayout {
+                spacing: 10px;
+                alignment: center;
+                for d in row: Rectangle {
+                    width: 84px;
+                    height: 46px;
+                    border-radius: dtmf-ta.pressed ? 16px : 23px;
+                    background: dtmf-ta.pressed ? root.primary-container : root.surface-low;
+                    border-width: 1px;
+                    border-color: dtmf-ta.pressed ? #ffffff33 : #ffffff14;
+                    animate background { duration: 100ms; }
+                    Text {
+                        text: d;
+                        font-size: 19px;
+                        font-weight: 600;
+                        color: dtmf-ta.pressed ? root.on-primary-container : root.on-surface;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    dtmf-ta := TouchArea { clicked => { root.send-dtmf(root.call-path, d); } }
+                }
+            }
+        }
+
+        // Call Control Dock
+        VerticalLayout {
+            spacing: 12px;
+
+            // In-Call Volume Slider
+            if !root.is-incoming-ringing: Rectangle {
+                height: 52px;
+                border-radius: 26px;
+                background: root.surface-low;
+                border-width: 1px;
+                border-color: #ffffff14;
+                clip: true;
+
+                Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width * Math.clamp(root.call-volume-pct / 100.0, 0.0, 1.0);
+                    height: parent.height;
+                    background: root.primary.with-alpha(0.24);
+                    animate width { duration: 60ms; easing: ease-out; }
+                }
+
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    spacing: 10px;
+                    VerticalLayout {
+                        alignment: center;
+                        PhoneIcon {
+                            name: "speaker";
+                            icon-size: 18px;
+                            icon-color: root.primary;
+                        }
+                    }
+                    Text {
+                        text: @tr("Call volume");
+                        font-size: 14px;
+                        font-weight: 600;
+                        color: root.on-surface;
+                        vertical-alignment: center;
+                        horizontal-stretch: 1;
+                    }
+                    Text {
+                        width: 44px;
+                        text: "\{root.call-volume-pct}%";
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.primary;
+                        horizontal-alignment: right;
+                        vertical-alignment: center;
+                    }
+                }
+
+                vol-touch := TouchArea {
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down) {
+                            root.call-volume-pct = Math.round(Math.clamp(vol-touch.mouse-x / self.width, 0.0, 1.0) * 100.0);
+                            root.call-volume-changed(root.call-volume-pct);
+                        }
+                    }
+                    moved => {
+                        if (vol-touch.pressed) {
+                            root.call-volume-pct = Math.round(Math.clamp(vol-touch.mouse-x / self.width, 0.0, 1.0) * 100.0);
+                            root.call-volume-changed(root.call-volume-pct);
+                        }
+                    }
+                }
+            }
+
+            if !root.is-incoming-ringing: Rectangle {
+                height: 78px;
+                border-radius: 30px;
+                background: root.surface-low;
+                border-width: 1px;
+                border-color: #ffffff14;
+
+                HorizontalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        border-radius: 22px;
+                        background: root.mic-muted ? root.primary-container : (mute-ta.pressed ? root.surface-low : root.surface-high);
+                        border-width: 1px;
+                        border-color: root.mic-muted ? #ffffff33 : #ffffff14;
+                        animate background { duration: 100ms; }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: center;
+                                PhoneIcon {
+                                    name: root.mic-muted ? "mic-off" : "mic";
+                                    icon-size: 20px;
+                                    icon-color: root.mic-muted ? root.on-primary-container : root.on-surface;
+                                }
+                            }
+                            Text {
+                                text: root.mic-muted ? @tr("Unmute") : @tr("Mute");
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: root.mic-muted ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        mute-ta := TouchArea {
+                            clicked => {
+                                root.mic-muted = !root.mic-muted;
+                                root.toggle-mic(root.mic-muted);
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        border-radius: 22px;
+                        background: root.show-dtmf-pad ? root.primary-container : (dtmf-btn-ta.pressed ? root.surface-low : root.surface-high);
+                        border-width: 1px;
+                        border-color: root.show-dtmf-pad ? #ffffff33 : #ffffff14;
+                        animate background { duration: 100ms; }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: center;
+                                PhoneIcon {
+                                    name: "keypad";
+                                    icon-size: 20px;
+                                    icon-color: root.show-dtmf-pad ? root.on-primary-container : root.on-surface;
+                                }
+                            }
+                            Text {
+                                text: @tr("Keypad");
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: root.show-dtmf-pad ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        dtmf-btn-ta := TouchArea { clicked => { root.show-dtmf-pad = !root.show-dtmf-pad; } }
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        border-radius: 22px;
+                        background: root.speaker-on ? root.primary-container : (spk-ta.pressed ? root.surface-low : root.surface-high);
+                        border-width: 1px;
+                        border-color: root.speaker-on ? #ffffff33 : #ffffff14;
+                        animate background { duration: 100ms; }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 4px;
+                            HorizontalLayout {
+                                alignment: center;
+                                PhoneIcon {
+                                    name: "speaker";
+                                    icon-size: 20px;
+                                    icon-color: root.speaker-on ? root.on-primary-container : root.on-surface;
+                                }
+                            }
+                            Text {
+                                text: @tr("Speaker");
+                                font-size: 12px;
+                                font-weight: 600;
+                                color: root.speaker-on ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        spk-ta := TouchArea {
+                            clicked => {
+                                root.speaker-on = !root.speaker-on;
+                                root.toggle-speaker(root.speaker-on);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.is-incoming-ringing: HorizontalLayout {
+                spacing: 14px;
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 62px;
+                    border-radius: decline-ta.pressed ? 24px : 31px;
+                    background: decline-ta.pressed ? #8c1d18 : #b3261e;
+                    border-width: 1px;
+                    border-color: #ffb4a944;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon { name: "hangup"; icon-size: 20px; icon-color: #ffffff; }
+                        }
+                        Text { text: @tr("Decline"); font-size: 16px; font-weight: 700; color: #ffffff; vertical-alignment: center; }
+                    }
+                    decline-ta := TouchArea { clicked => { root.hangup-call(root.call-path); } }
+                }
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    height: 62px;
+                    border-radius: answer-ta.pressed ? 24px : 31px;
+                    background: answer-ta.pressed ? #1b5e20 : #2e7d32;
+                    border-width: 1px;
+                    border-color: #a3e8b044;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon { name: "phone"; icon-size: 20px; icon-color: #ffffff; }
+                        }
+                        Text { text: @tr("Answer"); font-size: 16px; font-weight: 700; color: #ffffff; vertical-alignment: center; }
+                    }
+                    answer-ta := TouchArea { clicked => { root.accept-call(root.call-path); } }
+                }
+            }
+
+            if !root.is-incoming-ringing: HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 208px;
+                    height: 62px;
+                    border-radius: hangup-ta.pressed ? 24px : 31px;
+                    background: hangup-ta.pressed ? #8c1d18 : #b3261e;
+                    border-width: 1px;
+                    border-color: #ffb4a944;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            PhoneIcon { name: "hangup"; icon-size: 22px; icon-color: #ffffff; }
+                        }
+                        Text { text: @tr("End call"); font-size: 16px; font-weight: 700; color: #ffffff; vertical-alignment: center; }
+                    }
+                    hangup-ta := TouchArea { clicked => { root.hangup-call(root.call-path); } }
+                }
+            }
+        }
+    }
+}

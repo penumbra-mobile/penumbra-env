@@ -1,0 +1,479 @@
+export struct ContactRow {
+    id: string,
+    name: string,
+    phone: string,
+    email: string,
+    notes: string,
+    initials: string,
+    favorite: bool,
+}
+
+export component ContactsWindow inherits Window {
+    title: @tr("Contacts");
+    preferred-width: 412px;
+    preferred-height: 841px;
+    background: root.bg-color;
+
+    in-out property <color> bg-color: #0b0a0e;
+    in-out property <color> surface-low: #17151d;
+    in-out property <color> surface-high: #27232e;
+    in-out property <color> primary: #d0bcff;
+    in-out property <color> primary-container: #4f378b;
+    in-out property <color> on-primary-container: #eaddff;
+    in-out property <color> on-surface: #e6e1e5;
+    in-out property <color> on-surface-variant: #cac4d0;
+
+    in property <[ContactRow]> contacts: [];
+    in-out property <string> search-query: "";
+    in-out property <string> mode: "list"; // "list", "detail", "edit"
+
+    // Selected / Edited Contact Fields
+    in-out property <string> sel-id: "";
+    in-out property <string> sel-name: "";
+    in-out property <string> sel-phone: "";
+    in-out property <string> sel-email: "";
+    in-out property <string> sel-notes: "";
+    in-out property <string> sel-initials: "?";
+
+    callback search-changed(string);
+    callback save-contact(string, string, string, string, string);
+    callback delete-contact(string);
+    callback call-number(string);
+    callback message-number(string);
+
+    // =========================================================================
+    // 1. CONTACTS LIST
+    // =========================================================================
+    if root.mode == "list": VerticalLayout {
+        padding: 16px;
+        spacing: 12px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            height: 44px;
+            Text {
+                text: @tr("Contacts");
+                font-size: 24px;
+                font-weight: 700;
+                color: root.on-surface;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                height: 36px;
+                border-radius: 18px;
+                background: root.primary-container;
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    Text {
+                        text: @tr("+ Add");
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea {
+                    clicked => {
+                        root.sel-id = "";
+                        root.sel-name = "";
+                        root.sel-phone = "";
+                        root.sel-email = "";
+                        root.sel-notes = "";
+                        root.mode = "edit";
+                    }
+                }
+            }
+        }
+
+        // Search Pill
+        Rectangle {
+            height: 46px;
+            border-radius: 23px;
+            background: root.surface-low;
+            HorizontalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                spacing: 8px;
+                Text {
+                    text: "🔍";
+                    font-size: 14px;
+                    vertical-alignment: center;
+                }
+                TextInput {
+                    text <=> root.search-query;
+                    font-size: 14px;
+                    color: root.on-surface;
+                    vertical-alignment: center;
+                    single-line: true;
+                    edited => { root.search-changed(self.text); }
+                }
+            }
+        }
+
+        Flickable {
+            vertical-stretch: 1;
+            content-height: list-col.min-height + 24px;
+            list-col := VerticalLayout {
+                width: parent.width;
+                spacing: 8px;
+
+                if root.contacts.length == 0: Rectangle {
+                    height: 120px;
+                    border-radius: 24px;
+                    background: root.surface-low;
+                    Text {
+                        text: @tr("No contacts yet");
+                        font-size: 15px;
+                        color: root.on-surface-variant;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                for c in root.contacts: Rectangle {
+                    height: 70px;
+                    border-radius: 24px;
+                    background: root.surface-low;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        Rectangle {
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 22px;
+                            background: root.primary-container;
+                            y: (parent.height - self.height) / 2;
+                            Text {
+                                text: c.initials;
+                                font-size: 16px;
+                                font-weight: 700;
+                                color: root.on-primary-container;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            alignment: center;
+                            spacing: 2px;
+                            Text {
+                                text: c.name;
+                                font-size: 16px;
+                                font-weight: 600;
+                                color: root.on-surface;
+                            }
+                            Text {
+                                text: c.phone;
+                                font-size: 13px;
+                                color: root.on-surface-variant;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 19px;
+                            background: root.surface-high;
+                            y: (parent.height - self.height) / 2;
+                            Text {
+                                text: "💬";
+                                font-size: 14px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea { clicked => { root.message-number(c.phone); } }
+                        }
+
+                        Rectangle {
+                            width: 38px;
+                            height: 38px;
+                            border-radius: 19px;
+                            background: #2e7d32;
+                            y: (parent.height - self.height) / 2;
+                            Text {
+                                text: "📞";
+                                font-size: 14px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea { clicked => { root.call-number(c.phone); } }
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            root.sel-id = c.id;
+                            root.sel-name = c.name;
+                            root.sel-phone = c.phone;
+                            root.sel-email = c.email;
+                            root.sel-notes = c.notes;
+                            root.sel-initials = c.initials;
+                            root.mode = "detail";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 2. CONTACT DETAIL VIEW
+    // =========================================================================
+    if root.mode == "detail": VerticalLayout {
+        padding: 16px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            height: 44px;
+            Rectangle {
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                background: root.surface-high;
+                Text {
+                    text: "←";
+                    font-size: 18px;
+                    color: root.on-surface;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.mode = "list"; } }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: root.surface-high;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        Text {
+                            text: @tr("Edit");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea { clicked => { root.mode = "edit"; } }
+                }
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: #93000a;
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        Text {
+                            text: @tr("Delete");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #ffdad6;
+                            vertical-alignment: center;
+                        }
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.delete-contact(root.sel-id);
+                            root.mode = "list";
+                        }
+                    }
+                }
+            }
+        }
+
+        // Avatar & Name
+        VerticalLayout {
+            padding-top: 12px;
+            spacing: 10px;
+            alignment: center;
+            Rectangle {
+                width: 88px;
+                height: 88px;
+                border-radius: 44px;
+                background: root.primary-container;
+                x: (parent.width - self.width) / 2;
+                Text {
+                    text: root.sel-initials;
+                    font-size: 32px;
+                    font-weight: 700;
+                    color: root.on-primary-container;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+            Text {
+                text: root.sel-name;
+                font-size: 24px;
+                font-weight: 700;
+                color: root.on-surface;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Cross-App Action Pills (Call & Message)
+        HorizontalLayout {
+            spacing: 12px;
+            height: 52px;
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 26px;
+                background: #2e7d32;
+                Text {
+                    text: @tr("Call");
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: #ffffff;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.call-number(root.sel-phone); } }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 26px;
+                background: root.primary-container;
+                Text {
+                    text: @tr("Message");
+                    font-size: 15px;
+                    font-weight: 700;
+                    color: root.on-primary-container;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea { clicked => { root.message-number(root.sel-phone); } }
+            }
+        }
+
+        // Info Card
+        Rectangle {
+            border-radius: 24px;
+            background: root.surface-low;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+                VerticalLayout {
+                    spacing: 2px;
+                    Text { text: @tr("Phone"); font-size: 12px; color: root.on-surface-variant; }
+                    Text { text: root.sel-phone; font-size: 16px; color: root.on-surface; }
+                }
+                if root.sel-email != "": VerticalLayout {
+                    spacing: 2px;
+                    Text { text: @tr("Email"); font-size: 12px; color: root.on-surface-variant; }
+                    Text { text: root.sel-email; font-size: 15px; color: root.on-surface; }
+                }
+                if root.sel-notes != "": VerticalLayout {
+                    spacing: 2px;
+                    Text { text: @tr("Notes"); font-size: 12px; color: root.on-surface-variant; }
+                    Text { text: root.sel-notes; font-size: 14px; color: root.on-surface; wrap: word-wrap; }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // 3. ADD / EDIT CONTACT
+    // =========================================================================
+    if root.mode == "edit": VerticalLayout {
+        padding: 16px;
+        spacing: 14px;
+
+        HorizontalLayout {
+            alignment: space-between;
+            height: 44px;
+            Rectangle {
+                height: 36px;
+                border-radius: 18px;
+                background: root.surface-high;
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    Text {
+                        text: @tr("Cancel");
+                        font-size: 13px;
+                        color: root.on-surface;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea { clicked => { root.mode = "list"; } }
+            }
+            Text {
+                text: root.sel-id == "" ? @tr("New contact") : @tr("Edit contact");
+                font-size: 18px;
+                font-weight: 700;
+                color: root.on-surface;
+                vertical-alignment: center;
+            }
+            Rectangle {
+                height: 36px;
+                border-radius: 18px;
+                background: root.primary-container;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    Text {
+                        text: @tr("Save");
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        vertical-alignment: center;
+                    }
+                }
+                TouchArea {
+                    clicked => {
+                        if (root.sel-name != "" || root.sel-phone != "") {
+                            root.save-contact(root.sel-id, root.sel-name, root.sel-phone, root.sel-email, root.sel-notes);
+                            root.mode = "list";
+                        }
+                    }
+                }
+            }
+        }
+
+        VerticalLayout {
+            spacing: 10px;
+            Text { text: @tr("Name"); font-size: 12px; color: root.on-surface-variant; }
+            Rectangle {
+                height: 48px; border-radius: 16px; background: root.surface-low;
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 14px;
+                    TextInput { text <=> root.sel-name; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                }
+            }
+
+            Text { text: @tr("Phone"); font-size: 12px; color: root.on-surface-variant; }
+            Rectangle {
+                height: 48px; border-radius: 16px; background: root.surface-low;
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 14px;
+                    TextInput { text <=> root.sel-phone; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                }
+            }
+
+            Text { text: @tr("Email"); font-size: 12px; color: root.on-surface-variant; }
+            Rectangle {
+                height: 48px; border-radius: 16px; background: root.surface-low;
+                HorizontalLayout {
+                    padding-left: 14px; padding-right: 14px;
+                    TextInput { text <=> root.sel-email; font-size: 15px; color: root.on-surface; vertical-alignment: center; single-line: true; }
+                }
+            }
+
+            Text { text: @tr("Notes"); font-size: 12px; color: root.on-surface-variant; }
+            Rectangle {
+                height: 80px; border-radius: 16px; background: root.surface-low;
+                HorizontalLayout {
+                    padding: 14px;
+                    TextInput { text <=> root.sel-notes; font-size: 14px; color: root.on-surface; wrap: word-wrap; }
+                }
+            }
+        }
+    }
+}
+

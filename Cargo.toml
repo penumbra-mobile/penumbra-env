@@ -11,6 +11,9 @@ members = [
     "crates/penumbra-keyboard",
     "crates/penumbra-desktop-shell",
     "crates/penumbra-applets",
+    "crates/penumbra-calls",
+    "crates/penumbra-messaging",
+    "crates/penumbra-contacts",
 ]
 
 [workspace.package]

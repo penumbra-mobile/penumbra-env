@@ -3826,6 +3826,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "penumbra-calls"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "i-slint-common",
+ "penumbra-services",
+ "slint",
+ "slint-build",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "penumbra-comp"
 version = "0.1.0"
 dependencies = [
@@ -3834,6 +3847,19 @@ dependencies = [
  "image",
  "penumbra-gestures",
  "smithay",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "penumbra-contacts"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "i-slint-common",
+ "penumbra-services",
+ "slint",
+ "slint-build",
  "tracing",
  "tracing-subscriber",
 ]
@@ -3895,6 +3921,19 @@ dependencies = [
  "slint",
  "slint-build",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "penumbra-messaging"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "i-slint-common",
+ "penumbra-services",
+ "slint",
+ "slint-build",
  "tracing",
  "tracing-subscriber",
 ]
