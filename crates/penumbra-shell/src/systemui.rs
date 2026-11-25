@@ -1326,7 +1326,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                                     let _ = child.wait();
                                 });
                             }
+                        } else {
+                            info!("Incoming call from {} ({}): raising existing penumbra-calls", c.number, c.path);
                         }
+                        let _ = penumbra_shell::ipc::send_command("focus-app penumbra-calls");
                     }
                 }
                 seen_ringing.retain(|p| current_paths.contains(p));

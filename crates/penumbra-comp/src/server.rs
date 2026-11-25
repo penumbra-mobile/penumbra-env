@@ -1607,6 +1607,20 @@ impl PenumbraServerState {
             ShellCommand::Focus(id) => {
                 self.focus_task_by_id(id);
             }
+            ShellCommand::FocusApp(app) => {
+                if self.screen_blanked {
+                    self.toggle_screen_blanking();
+                }
+                let needle = app.to_lowercase();
+                if let Some(id) = self
+                    .phone_tasks
+                    .iter()
+                    .find(|t| t.app_id().to_lowercase().contains(&needle))
+                    .map(|t| t.id)
+                {
+                    self.focus_task_by_id(id);
+                }
+            }
             ShellCommand::Close(id) => {
                 self.close_task_by_id(id);
             }

@@ -366,9 +366,10 @@ impl StateSocket {
 }
 
 /// One-shot task command issued by the shell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ShellCommand {
     Focus(u32),
+    FocusApp(String),
     Close(u32),
     CloseAll,
     Back,
@@ -382,6 +383,7 @@ pub fn parse_commands(text: &str) -> Vec<ShellCommand> {
             let mut parts = line.split_whitespace();
             match (parts.next()?, parts.next()) {
                 ("focus", Some(id)) => id.parse().ok().map(ShellCommand::Focus),
+                ("focus-app", Some(app)) => Some(ShellCommand::FocusApp(app.to_string())),
                 ("close", Some(id)) => id.parse().ok().map(ShellCommand::Close),
                 ("close-all", _) => Some(ShellCommand::CloseAll),
                 ("back", _) => Some(ShellCommand::Back),
