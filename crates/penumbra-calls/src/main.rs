@@ -80,6 +80,13 @@ fn apply_calls_to_ui(
     calls: &[telephony::ActiveCall],
     active_start: &mut Option<(String, u64)>,
 ) {
+    let is_ringing_in = calls.iter().any(|c| c.state == telephony::CallState::RingingIn);
+    if is_ringing_in {
+        penumbra_services::audio::start_ringtone_loop();
+    } else {
+        penumbra_services::audio::stop_ringtone_loop();
+    }
+
     if let Some(call) = calls.first() {
         if !ui.get_has_call() {
             ui.set_speaker_on(false);
@@ -181,6 +188,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 match cmd {
                     TelephonyCmd::Dial(num) => {
+                        penumbra_services::audio::stop_ringtone_loop();
                         let res = telephony::dial(&num);
                         if let Err(e) = res {
                             let w2 = weak.clone();
@@ -193,6 +201,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         sync_and_push(&weak, &mut was_in_call);
                     }
                     TelephonyCmd::Accept(path) => {
+                        penumbra_services::audio::stop_ringtone_loop();
                         if let Err(e) = telephony::accept_call(&path) {
                             let w2 = weak.clone();
                             let _ = slint::invoke_from_event_loop(move || {
@@ -204,6 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         sync_and_push(&weak, &mut was_in_call);
                     }
                     TelephonyCmd::Hangup(path) => {
+                        penumbra_services::audio::stop_ringtone_loop();
                         if let Err(e) = telephony::hangup_call(&path) {
                             let w2 = weak.clone();
                             let _ = slint::invoke_from_event_loop(move || {
@@ -387,5 +397,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     ui.run()?;
+    penumbra_services::audio::stop_ringtone_loop();
     Ok(())
 }

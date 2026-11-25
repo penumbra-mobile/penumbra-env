@@ -231,6 +231,10 @@ install -m 0644 "$stage"/penumbra-settings.svg "$stage"/penumbra-calls.svg "$sta
 gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 pkill -x gnome-calls 2>/dev/null || true
 cp -a "$stage"/assets/. /usr/share/penumbra/assets/
+if [ -d "$stage/assets/sounds/penumbra" ]; then
+    install -d /usr/share/sounds/penumbra
+    cp -a "$stage"/assets/sounds/penumbra/. /usr/share/sounds/penumbra/
+fi
 
 install -d /etc/udev/rules.d
 cat > /etc/udev/rules.d/90-backlight.rules <<'UDEV_RULE'

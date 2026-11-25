@@ -1297,11 +1297,28 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                         && !seen_ringing.contains(&c.path)
                     {
                         seen_ringing.insert(c.path.clone());
-                        let already_open = std::process::Command::new("pgrep")
-                            .args(["-x", "penumbra-calls"])
-                            .status()
-                            .map(|s| s.success())
-                            .unwrap_or(false);
+                        let already_open = std::fs::read_dir("/proc")
+                            .ok()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|e| e.ok())
+                            .any(|entry| {
+                                let p = entry.path();
+                                let Ok(comm) = std::fs::read_to_string(p.join("comm")) else {
+                                    return false;
+                                };
+                                if comm.trim() != "penumbra-calls" {
+                                    return false;
+                                }
+                                // Ignore zombie (<defunct>) entries so a dead child never blocks launching.
+                                let Ok(stat) = std::fs::read_to_string(p.join("stat")) else {
+                                    return false;
+                                };
+                                stat.rsplit(')')
+                                    .next()
+                                    .and_then(|rest| rest.split_whitespace().next())
+                                    .is_some_and(|state| state != "Z")
+                            });
                         if !already_open {
                             info!("Incoming call from {} ({}): launching penumbra-calls", c.number, c.path);
                             if let Ok(mut child) = std::process::Command::new("penumbra-calls").spawn() {

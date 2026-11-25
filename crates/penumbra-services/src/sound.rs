@@ -15,6 +15,8 @@ pub struct SoundConfig {
     pub mic_muted: bool,
     pub output_device: String, // "speaker", "headset", "hdmi"
     pub alert_sound: String,   // "none", "click", "string", "swing", "hum"
+    pub ringtone: String,      // path or "none" (empty = default Penumbra/XDG ringtone)
+    pub notification_sound: String, // path or "none" (empty = default Penumbra/XDG notification)
     pub dnd_enabled: bool,
     pub vibrate_for_calls: bool,
 }
@@ -30,6 +32,8 @@ impl Default for SoundConfig {
             mic_muted: false,
             output_device: "speaker".into(),
             alert_sound: "click".into(),
+            ringtone: String::new(),
+            notification_sound: String::new(),
             dnd_enabled: false,
             vibrate_for_calls: true,
         }

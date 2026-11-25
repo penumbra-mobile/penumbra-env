@@ -618,6 +618,274 @@ pub fn play_alert_sound(name: &str) {
     });
 }
 
+#[derive(Debug, Clone)]
+pub struct SoundEntry {
+    pub id: String,
+    pub label: String,
+    pub path: String,
+}
+
+fn sound_search_dirs(subdir: &str) -> Vec<std::path::PathBuf> {
+    let mut dirs = Vec::new();
+    if let Ok(xdg_data) = std::env::var("XDG_DATA_HOME") {
+        dirs.push(std::path::PathBuf::from(&xdg_data).join("sounds").join(subdir));
+        dirs.push(std::path::PathBuf::from(xdg_data).join("sounds"));
+    } else if let Ok(home) = std::env::var("HOME") {
+        let base = std::path::PathBuf::from(home).join(".local/share/sounds");
+        dirs.push(base.join(subdir));
+        dirs.push(base);
+    }
+    // Standard system XDG sound theme locations across Linux mobile distros
+    dirs.push(std::path::PathBuf::from("/usr/share/sounds/penumbra").join(subdir));
+    dirs.push(std::path::PathBuf::from("/usr/share/sounds").join(subdir));
+    dirs.push(std::path::PathBuf::from("/usr/share/sounds/freedesktop/stereo"));
+    dirs
+}
+
+fn format_sound_label(stem: &str) -> String {
+    stem.replace(['_', '-'], " ")
+        .split_whitespace()
+        .map(|w| {
+            let mut ch = w.chars();
+            match ch.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + ch.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn collect_sounds(subdir: &str, freedesktop_allow: &[&str]) -> Vec<SoundEntry> {
+    let mut entries = vec![SoundEntry {
+        id: "none".to_string(),
+        label: "Silent".to_string(),
+        path: "none".to_string(),
+    }];
+    let mut seen_labels = std::collections::HashSet::new();
+
+    for dir in sound_search_dirs(subdir) {
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        let is_freedesktop = dir.ends_with("freedesktop/stereo");
+        let mut files: Vec<std::path::PathBuf> = rd
+            .filter_map(|e| e.ok().map(|x| x.path()))
+            .filter(|p| {
+                p.is_file()
+                    && p.extension()
+                        .and_then(|e| e.to_str())
+                        .is_some_and(|ext| {
+                            matches!(
+                                ext.to_lowercase().as_str(),
+                                "ogg" | "oga" | "wav" | "flac" | "mp3" | "opus"
+                            )
+                        })
+            })
+            .collect();
+        files.sort();
+
+        for path in files {
+            let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if is_freedesktop && !freedesktop_allow.contains(&stem) {
+                continue;
+            }
+            let label = format_sound_label(stem);
+            if seen_labels.insert(label.to_lowercase()) {
+                let path_str = path.to_string_lossy().to_string();
+                entries.push(SoundEntry {
+                    id: path_str.clone(),
+                    label,
+                    path: path_str,
+                });
+            }
+        }
+    }
+    entries
+}
+
+/// Lists available ringtones from standard XDG user and system sound directories.
+pub fn list_ringtones() -> Vec<SoundEntry> {
+    collect_sounds(
+        "ringtones",
+        &["phone-incoming-call", "alarm-clock-elapsed", "bell"],
+    )
+}
+
+/// Lists available notification sounds from standard XDG user and system sound directories.
+pub fn list_notification_sounds() -> Vec<SoundEntry> {
+    collect_sounds(
+        "notifications",
+        &[
+            "message-new-instant",
+            "bell",
+            "complete",
+            "dialog-information",
+        ],
+    )
+}
+
+/// Resolves the configured ringtone path, falling back to Penumbra or freedesktop defaults.
+pub fn resolve_ringtone_path(configured: &str) -> Option<String> {
+    if configured == "none" {
+        return None;
+    }
+    if !configured.is_empty() && std::path::Path::new(configured).is_file() {
+        return Some(configured.to_string());
+    }
+    for candidate in [
+        "/usr/share/sounds/penumbra/ringtones/Penumbra.ogg",
+        "/usr/share/sounds/penumbra/stereo/phone-incoming-call.ogg",
+        "/usr/share/sounds/freedesktop/stereo/phone-incoming-call.oga",
+    ] {
+        if std::path::Path::new(candidate).is_file() {
+            return Some(candidate.to_string());
+        }
+    }
+    list_ringtones()
+        .into_iter()
+        .find(|e| e.id != "none")
+        .map(|e| e.path)
+}
+
+/// Resolves the configured notification sound path, falling back to Penumbra or freedesktop defaults.
+pub fn resolve_notification_path(configured: &str) -> Option<String> {
+    if configured == "none" {
+        return None;
+    }
+    if !configured.is_empty() && std::path::Path::new(configured).is_file() {
+        return Some(configured.to_string());
+    }
+    for candidate in [
+        "/usr/share/sounds/penumbra/notifications/Penumbra_Chime.ogg",
+        "/usr/share/sounds/penumbra/stereo/message-new-instant.ogg",
+        "/usr/share/sounds/freedesktop/stereo/message-new-instant.oga",
+    ] {
+        if std::path::Path::new(candidate).is_file() {
+            return Some(candidate.to_string());
+        }
+    }
+    list_notification_sounds()
+        .into_iter()
+        .find(|e| e.id != "none")
+        .map(|e| e.path)
+}
+
+static ACTIVE_SOUND_CHILD: std::sync::Mutex<Option<std::process::Child>> =
+    std::sync::Mutex::new(None);
+static RINGTONE_LOOP_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+fn kill_active_sound_child() {
+    if let Ok(mut guard) = ACTIVE_SOUND_CHILD.lock() {
+        if let Some(mut child) = guard.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
+fn spawn_audio_player(path: &str) -> Option<std::process::Child> {
+    Command::new("pw-play")
+        .arg(path)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .or_else(|_| {
+            Command::new("paplay")
+                .arg(path)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+        })
+        .ok()
+}
+
+/// Plays a one-shot sound file preview (stops any previous preview).
+pub fn play_sound_file(path: &str) {
+    if path.is_empty() || path == "none" {
+        stop_sound_preview();
+        return;
+    }
+    let path_owned = path.to_string();
+    std::thread::spawn(move || {
+        kill_active_sound_child();
+        if let Some(child) = spawn_audio_player(&path_owned) {
+            if let Ok(mut guard) = ACTIVE_SOUND_CHILD.lock() {
+                *guard = Some(child);
+            }
+        }
+    });
+}
+
+/// Stops any active sound preview.
+pub fn stop_sound_preview() {
+    kill_active_sound_child();
+}
+
+/// Starts looping the configured incoming call ringtone unless Do Not Disturb is active.
+pub fn start_ringtone_loop() {
+    if RINGTONE_LOOP_ACTIVE.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        return;
+    }
+    let cfg = crate::sound::SoundConfig::load();
+    if cfg.dnd_enabled {
+        RINGTONE_LOOP_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+        return;
+    }
+    let Some(path) = resolve_ringtone_path(&cfg.ringtone) else {
+        RINGTONE_LOOP_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+        return;
+    };
+    std::thread::spawn(move || {
+        while RINGTONE_LOOP_ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
+            let Some(mut child) = spawn_audio_player(&path) else {
+                break;
+            };
+            if let Ok(mut guard) = ACTIVE_SOUND_CHILD.lock() {
+                *guard = Some(child);
+            } else {
+                let _ = child.kill();
+                break;
+            }
+            loop {
+                if !RINGTONE_LOOP_ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
+                    kill_active_sound_child();
+                    return;
+                }
+                let finished = if let Ok(mut guard) = ACTIVE_SOUND_CHILD.lock() {
+                    match guard.as_mut() {
+                        Some(ch) => ch.try_wait().ok().flatten().is_some(),
+                        None => true,
+                    }
+                } else {
+                    true
+                };
+                if finished {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(60));
+            }
+            for _ in 0..8 {
+                if !RINGTONE_LOOP_ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(60));
+            }
+        }
+    });
+}
+
+/// Immediately stops any active incoming call ringtone loop.
+pub fn stop_ringtone_loop() {
+    RINGTONE_LOOP_ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
+    kill_active_sound_child();
+}
+
 /// Reads the current default sink volume as a ratio in `0.0..=1.0`.
 pub fn read_volume_ratio() -> f64 {
     let output = Command::new("pactl")

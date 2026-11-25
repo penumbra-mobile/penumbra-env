@@ -9,7 +9,7 @@ import { PageBluetooth, BtDeviceData } from "pages/page_bluetooth.slint";
 import { PageDisplay, DisplayItemData } from "pages/page_display.slint";
 import { PageAppearance, WallpaperEntry } from "pages/page_appearance.slint";
 import { PageBattery } from "pages/page_battery.slint";
-import { PageSound, AudioDeviceData, AudioProfileData, AudioStreamData } from "pages/page_sound.slint";
+import { PageSound, AudioDeviceData, AudioProfileData, AudioStreamData, SoundOptionData } from "pages/page_sound.slint";
 import { PageAbout } from "pages/page_about.slint";
 import { PageKeyboard, VirtualKeyboardData, PhysicalKeyboardData } from "pages/page_keyboard.slint";
 import { PageSecurity } from "pages/page_security.slint";
@@ -213,6 +213,12 @@ export component SettingsWindow inherits Window {
     in-out property <int> input-volume: 80;
     in-out property <bool> input-muted: false;
     in-out property <string> alert-sound: "click";
+    in property <[SoundOptionData]> ringtones: [];
+    in property <[SoundOptionData]> notification-sounds: [];
+    in-out property <string> selected-ringtone: "";
+    in-out property <string> selected-ringtone-label: "Penumbra";
+    in-out property <string> selected-notification-sound: "";
+    in-out property <string> selected-notification-label: "Penumbra Chime";
     in-out property <bool> dnd-enabled: false;
     in-out property <bool> vibrate-for-calls: true;
 
@@ -229,6 +235,9 @@ export component SettingsWindow inherits Window {
     callback stream-mute-toggled(int, bool, bool);
     callback test-speaker(string);
     callback select-alert-sound(string);
+    callback select-ringtone(string);
+    callback select-notification-sound(string);
+    callback stop-sound-preview();
     callback refresh-audio();
 
     // --------------------------------------------------------------------------
@@ -567,6 +576,12 @@ export component SettingsWindow inherits Window {
                     input-volume <=> root.input-volume;
                     input-muted <=> root.input-muted;
                     alert-sound <=> root.alert-sound;
+                    ringtones: root.ringtones;
+                    notification-sounds: root.notification-sounds;
+                    selected-ringtone <=> root.selected-ringtone;
+                    selected-ringtone-label <=> root.selected-ringtone-label;
+                    selected-notification-sound <=> root.selected-notification-sound;
+                    selected-notification-label <=> root.selected-notification-label;
                     dnd-enabled <=> root.dnd-enabled;
                     vibrate-for-calls <=> root.vibrate-for-calls;
                     select-output-device(n, p) => { root.select-output-device(n, p); }
@@ -581,6 +596,9 @@ export component SettingsWindow inherits Window {
                     stream-mute-toggled(i, inp, m) => { root.stream-mute-toggled(i, inp, m); }
                     test-speaker(ch) => { root.test-speaker(ch); }
                     select-alert-sound(s) => { root.select-alert-sound(s); }
+                    select-ringtone(s) => { root.select-ringtone(s); }
+                    select-notification-sound(s) => { root.select-notification-sound(s); }
+                    stop-sound-preview => { root.stop-sound-preview(); }
                     refresh-audio => { root.refresh-audio(); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
                     toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }
@@ -852,6 +870,12 @@ export component SettingsWindow inherits Window {
                     input-volume <=> root.input-volume;
                     input-muted <=> root.input-muted;
                     alert-sound <=> root.alert-sound;
+                    ringtones: root.ringtones;
+                    notification-sounds: root.notification-sounds;
+                    selected-ringtone <=> root.selected-ringtone;
+                    selected-ringtone-label <=> root.selected-ringtone-label;
+                    selected-notification-sound <=> root.selected-notification-sound;
+                    selected-notification-label <=> root.selected-notification-label;
                     dnd-enabled <=> root.dnd-enabled;
                     vibrate-for-calls <=> root.vibrate-for-calls;
                     select-output-device(n, p) => { root.select-output-device(n, p); }
@@ -866,6 +890,9 @@ export component SettingsWindow inherits Window {
                     stream-mute-toggled(i, inp, m) => { root.stream-mute-toggled(i, inp, m); }
                     test-speaker(ch) => { root.test-speaker(ch); }
                     select-alert-sound(s) => { root.select-alert-sound(s); }
+                    select-ringtone(s) => { root.select-ringtone(s); }
+                    select-notification-sound(s) => { root.select-notification-sound(s); }
+                    stop-sound-preview => { root.stop-sound-preview(); }
                     refresh-audio => { root.refresh-audio(); }
                     toggle-dnd(v) => { root.toggle-dnd(v); }
                     toggle-vibrate-calls(v) => { root.toggle-vibrate-calls(v); }

@@ -1,0 +1,14 @@
+[Sound Theme]
+Name=Penumbra
+Comment=Penumbra Material 3 Expressive Sound Theme
+Inherits=freedesktop
+Directories=stereo ringtones notifications
+
+[stereo]
+OutputProfile=stereo
+
+[ringtones]
+OutputProfile=stereo
+
+[notifications]
+OutputProfile=stereo

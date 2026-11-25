@@ -143,6 +143,47 @@ pub fn setup_app(
         window.set_alert_sound(snd_cfg.alert_sound.into());
         window.set_dnd_enabled(snd_cfg.dnd_enabled);
         window.set_vibrate_for_calls(snd_cfg.vibrate_for_calls);
+
+        let ringtones = audio::list_ringtones();
+        let active_ring_path = audio::resolve_ringtone_path(&snd_cfg.ringtone)
+            .unwrap_or_else(|| "none".to_string());
+        let active_ring_label = ringtones
+            .iter()
+            .find(|r| r.id == active_ring_path)
+            .map(|r| r.label.clone())
+            .unwrap_or_else(|| "Silent".to_string());
+        let ring_model: Vec<crate::SoundOptionData> = ringtones
+            .into_iter()
+            .map(|r| crate::SoundOptionData {
+                id: r.id.into(),
+                label: r.label.into(),
+                path: r.path.into(),
+            })
+            .collect();
+        window.set_ringtones(ModelRc::from(Rc::new(VecModel::from(ring_model))));
+        window.set_selected_ringtone(active_ring_path.into());
+        window.set_selected_ringtone_label(active_ring_label.into());
+
+        let notifs = audio::list_notification_sounds();
+        let active_notif_path = audio::resolve_notification_path(&snd_cfg.notification_sound)
+            .unwrap_or_else(|| "none".to_string());
+        let active_notif_label = notifs
+            .iter()
+            .find(|n| n.id == active_notif_path)
+            .map(|n| n.label.clone())
+            .unwrap_or_else(|| "Silent".to_string());
+        let notif_model: Vec<crate::SoundOptionData> = notifs
+            .into_iter()
+            .map(|n| crate::SoundOptionData {
+                id: n.id.into(),
+                label: n.label.into(),
+                path: n.path.into(),
+            })
+            .collect();
+        window.set_notification_sounds(ModelRc::from(Rc::new(VecModel::from(notif_model))));
+        window.set_selected_notification_sound(active_notif_path.into());
+        window.set_selected_notification_label(active_notif_label.into());
+
         sync_audio_state(&window);
 
         // Live-sync PipeWire/PulseAudio device, profile, volume, and stream changes.
@@ -818,6 +859,24 @@ pub fn setup_app(
         let mut cfg = SoundConfig::load();
         cfg.alert_sound = name.into();
         let _ = cfg.save();
+    });
+
+    window.on_select_ringtone(|path| {
+        audio::play_sound_file(&path);
+        let mut cfg = SoundConfig::load();
+        cfg.ringtone = path.into();
+        let _ = cfg.save();
+    });
+
+    window.on_select_notification_sound(|path| {
+        audio::play_sound_file(&path);
+        let mut cfg = SoundConfig::load();
+        cfg.notification_sound = path.into();
+        let _ = cfg.save();
+    });
+
+    window.on_stop_sound_preview(|| {
+        audio::stop_sound_preview();
     });
 
     window.on_toggle_dnd(|val| {

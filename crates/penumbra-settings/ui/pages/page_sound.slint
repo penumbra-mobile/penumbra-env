@@ -31,6 +31,12 @@ export struct AudioStreamData {
     is-input: bool,
 }
 
+export struct SoundOptionData {
+    id: string,
+    label: string,
+    path: string,
+}
+
 component GnomeVolumeSlider inherits Rectangle {
     in property <string> label: "";
     in property <string> icon: "sound";
@@ -216,11 +222,17 @@ export component PageSound inherits Rectangle {
     in-out property <bool> input-muted: false;
 
     in-out property <string> alert-sound: "click";
+    in property <[SoundOptionData]> ringtones: [];
+    in property <[SoundOptionData]> notification-sounds: [];
+    in-out property <string> selected-ringtone: "";
+    in-out property <string> selected-ringtone-label: "Penumbra";
+    in-out property <string> selected-notification-sound: "";
+    in-out property <string> selected-notification-label: "Penumbra Chime";
     in-out property <bool> dnd-enabled: false;
     in-out property <bool> vibrate-for-calls: true;
 
     // GNOME Control Center Navigation & Modals
-    in-out property <string> subpage: "main"; // "main", "volume-levels", "alert-sound"
+    in-out property <string> subpage: "main"; // "main", "volume-levels", "alert-sound", "ringtone", "notification-sound"
     in-out property <string> modal: "";       // "", "test-speakers", "out-dev", "out-prof", "in-dev", "in-prof"
 
     callback select-output-device(string, string);
@@ -235,6 +247,9 @@ export component PageSound inherits Rectangle {
     callback stream-mute-toggled(int, bool, bool);
     callback test-speaker(string);
     callback select-alert-sound(string);
+    callback select-ringtone(string);
+    callback select-notification-sound(string);
+    callback stop-sound-preview();
     callback refresh-audio();
     callback toggle-dnd(bool);
     callback toggle-vibrate-calls(bool);
@@ -428,6 +443,30 @@ export component PageSound inherits Rectangle {
                             }
                         }
                         SettingsTile {
+                            icon-name: "sound";
+                            icon-bg: #a8c7fa;
+                            icon-tint: #042b59;
+                            title: @tr("Phone Ringtone");
+                            subtitle: root.selected-ringtone-label;
+                            trailing-text: "›";
+                            is-first: false;
+                            is-last: false;
+                            show-divider: true;
+                            clicked => { root.subpage = "ringtone"; }
+                        }
+                        SettingsTile {
+                            icon-name: "notifications";
+                            icon-bg: #c2e7ff;
+                            icon-tint: #001d35;
+                            title: @tr("Notification Sound");
+                            subtitle: root.selected-notification-label;
+                            trailing-text: "›";
+                            is-first: false;
+                            is-last: false;
+                            show-divider: true;
+                            clicked => { root.subpage = "notification-sound"; }
+                        }
+                        SettingsTile {
                             icon-name: "notifications";
                             icon-bg: #a3e8b0;
                             icon-tint: #073919;
@@ -603,6 +642,120 @@ export component PageSound inherits Rectangle {
                         clicked => {
                             root.alert-sound = opt.id;
                             root.select-alert-sound(opt.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // SUBPAGE 3: PHONE RINGTONE CHOOSER
+    // =========================================================================
+    if root.subpage == "ringtone": Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: ringtone-col.min-height + 32px;
+
+        ringtone-col := VerticalLayout {
+            width: parent.width;
+            padding: 16px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 12px;
+                height: 44px;
+                Rectangle {
+                    width: 40px; height: 40px; border-radius: 20px; background: Theme.surface-high;
+                    Text { text: "←"; font-size: 18px; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea {
+                        clicked => {
+                            root.stop-sound-preview();
+                            root.subpage = "main";
+                        }
+                    }
+                }
+                Text {
+                    text: @tr("Phone Ringtone");
+                    font-size: 20px; font-weight: 700; color: Theme.on-surface;
+                    vertical-alignment: center;
+                }
+            }
+
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+                    for opt[idx] in root.ringtones: SettingsTile {
+                        icon-name: "sound";
+                        icon-bg: root.selected-ringtone == opt.id ? Theme.primary-container : Theme.surface-high;
+                        icon-tint: root.selected-ringtone == opt.id ? Theme.on-primary-container : Theme.on-surface-variant;
+                        title: opt.label;
+                        trailing-text: root.selected-ringtone == opt.id ? "✓" : "";
+                        is-first: idx == 0;
+                        is-last: idx == root.ringtones.length - 1;
+                        show-divider: idx < root.ringtones.length - 1;
+                        clicked => {
+                            root.selected-ringtone = opt.id;
+                            root.selected-ringtone-label = opt.label;
+                            root.select-ringtone(opt.id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // SUBPAGE 4: NOTIFICATION SOUND CHOOSER
+    // =========================================================================
+    if root.subpage == "notification-sound": Flickable {
+        width: parent.width;
+        height: parent.height;
+        content-height: notif-col.min-height + 32px;
+
+        notif-col := VerticalLayout {
+            width: parent.width;
+            padding: 16px;
+            spacing: 16px;
+
+            HorizontalLayout {
+                spacing: 12px;
+                height: 44px;
+                Rectangle {
+                    width: 40px; height: 40px; border-radius: 20px; background: Theme.surface-high;
+                    Text { text: "←"; font-size: 18px; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea {
+                        clicked => {
+                            root.stop-sound-preview();
+                            root.subpage = "main";
+                        }
+                    }
+                }
+                Text {
+                    text: @tr("Notification Sound");
+                    font-size: 20px; font-weight: 700; color: Theme.on-surface;
+                    vertical-alignment: center;
+                }
+            }
+
+            SettingsSectionCard {
+                VerticalLayout {
+                    padding-top: 4px;
+                    padding-bottom: 4px;
+                    for opt[idx] in root.notification-sounds: SettingsTile {
+                        icon-name: "notifications";
+                        icon-bg: root.selected-notification-sound == opt.id ? Theme.primary-container : Theme.surface-high;
+                        icon-tint: root.selected-notification-sound == opt.id ? Theme.on-primary-container : Theme.on-surface-variant;
+                        title: opt.label;
+                        trailing-text: root.selected-notification-sound == opt.id ? "✓" : "";
+                        is-first: idx == 0;
+                        is-last: idx == root.notification-sounds.length - 1;
+                        show-divider: idx < root.notification-sounds.length - 1;
+                        clicked => {
+                            root.selected-notification-sound = opt.id;
+                            root.selected-notification-label = opt.label;
+                            root.select-notification-sound(opt.id);
                         }
                     }
                 }
