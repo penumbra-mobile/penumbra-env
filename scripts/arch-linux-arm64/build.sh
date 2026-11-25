@@ -23,6 +23,7 @@ required_bins=(
     penumbra-calls
     penumbra-messaging
     penumbra-contacts
+    penumbra-clock
 )
 
 BLUE='\033[0;34m'

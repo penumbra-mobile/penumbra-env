@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Clock
+Comment=Alarms, World Clock, Timer and Stopwatch
+Exec=/usr/local/bin/penumbra-clock
+Icon=penumbra-clock
+Terminal=false
+Type=Application
+Categories=Utility;Clock;
+StartupNotify=true
+

@@ -4,6 +4,7 @@
 pub mod audio;
 pub mod backlight;
 pub mod battery;
+pub mod clock;
 pub mod contacts;
 pub mod display;
 pub mod i18n;

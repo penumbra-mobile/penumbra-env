@@ -244,10 +244,24 @@ export component NotificationEmptyState inherits Rectangle {
 // =========================================================================
 export component NotificationStack inherits Rectangle {
     in property <[NotificationData]> notifications;
+    in property <bool> clock-alarm-active: false;
+    in property <bool> clock-alarm-ringing: false;
+    in property <string> clock-alarm-text: "";
+    in property <bool> clock-timer-active: false;
+    in property <bool> clock-timer-running: false;
+    in property <bool> clock-timer-ringing: false;
+    in property <string> clock-timer-text: "";
     callback dismiss-notification(int);
     callback clear-all();
     callback open-settings();
     callback swipe-up();
+    callback clock-alarm-snooze();
+    callback clock-alarm-dismiss();
+    callback clock-alarm-disable();
+    callback clock-timer-toggle();
+    callback clock-timer-add-min();
+    callback clock-timer-cancel();
+    callback clock-open-app();
 
     border-radius: Theme.radius-tile;
     background: Theme.glass-card;
@@ -329,9 +343,150 @@ export component NotificationStack inherits Rectangle {
             }
 
             // Empty state
-            if root.notifications.length == 0: NotificationEmptyState {
+            if root.notifications.length == 0 && !root.clock-alarm-active && !root.clock-alarm-ringing && !root.clock-timer-active && !root.clock-timer-ringing: NotificationEmptyState {
                 height: 200px;
                 swipe-up => { root.swipe-up(); }
+            }
+
+            // Live Alarm Notification Card
+            if root.clock-alarm-active || root.clock-alarm-ringing: Rectangle {
+                border-radius: Theme.radius-item;
+                background: root.clock-alarm-ringing ? Theme.primary-container : Theme.surface-container;
+                border-width: 1px;
+                border-color: root.clock-alarm-ringing ? Theme.specular-rim-active : Theme.specular-rim;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        TouchArea { clicked => { root.clock-open-app(); } }
+                        Rectangle {
+                            width: 34px; height: 34px; border-radius: 17px;
+                            background: root.clock-alarm-ringing ? Theme.primary : Theme.primary-container;
+                            Path {
+                                width: 18px; height: 18px;
+                                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                                viewbox-width: 24; viewbox-height: 24;
+                                commands: "M12 5 A 8 8 0 1 1 11.99 5 Z M12 9 V13 L15 15 M5 3 L2 6 M19 3 L22 6";
+                                stroke: root.clock-alarm-ringing ? Theme.on-primary : Theme.on-primary-container;
+                                stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Text {
+                                text: root.clock-alarm-ringing ? @tr("Alarm Ringing") : @tr("Upcoming Alarm");
+                                font-size: Theme.font-caption;
+                                font-weight: 700;
+                                color: root.clock-alarm-ringing ? Theme.on-primary-container : Theme.primary;
+                            }
+                            Text {
+                                text: root.clock-alarm-text;
+                                font-size: Theme.font-body;
+                                font-weight: 600;
+                                color: root.clock-alarm-ringing ? Theme.on-primary-container : Theme.on-surface;
+                                overflow: elide;
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        if root.clock-alarm-ringing: Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.surface-container-highest;
+                            Text { text: @tr("Snooze 10m"); font-size: 12px; font-weight: 600; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-alarm-snooze(); } }
+                        }
+                        if root.clock-alarm-ringing: Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.primary;
+                            Text { text: @tr("Dismiss"); font-size: 12px; font-weight: 700; color: Theme.on-primary; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-alarm-dismiss(); } }
+                        }
+                        if !root.clock-alarm-ringing: Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.surface-container-highest;
+                            Text { text: @tr("Open Clock"); font-size: 12px; font-weight: 600; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-open-app(); } }
+                        }
+                        if !root.clock-alarm-ringing: Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.surface-container-high;
+                            Text { text: @tr("Turn Off"); font-size: 12px; font-weight: 600; color: Theme.on-surface-variant; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-alarm-disable(); } }
+                        }
+                    }
+                }
+            }
+
+            // Live Timer Notification Card with Interactive Controls
+            if root.clock-timer-active || root.clock-timer-ringing: Rectangle {
+                border-radius: Theme.radius-item;
+                background: root.clock-timer-ringing ? Theme.primary-container : Theme.surface-container;
+                border-width: 1px;
+                border-color: root.clock-timer-ringing ? Theme.specular-rim-active : Theme.specular-rim;
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        TouchArea { clicked => { root.clock-open-app(); } }
+                        Rectangle {
+                            width: 34px; height: 34px; border-radius: 17px;
+                            background: root.clock-timer-ringing ? Theme.primary : Theme.primary-container;
+                            Path {
+                                width: 18px; height: 18px;
+                                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                                viewbox-width: 24; viewbox-height: 24;
+                                commands: "M9 3 H15 M12 6 A 8 8 0 1 1 11.99 6 Z M12 10 V14 L14.5 15.5";
+                                stroke: root.clock-timer-ringing ? Theme.on-primary : Theme.on-primary-container;
+                                stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+                            }
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Text {
+                                text: root.clock-timer-ringing ? @tr("Timer Done") : (root.clock-timer-running ? @tr("Timer Running") : @tr("Timer Paused"));
+                                font-size: Theme.font-caption;
+                                font-weight: 700;
+                                color: root.clock-timer-ringing ? Theme.on-primary-container : Theme.primary;
+                            }
+                            Text {
+                                text: root.clock-timer-text;
+                                font-size: 16px;
+                                font-weight: 700;
+                                color: root.clock-timer-ringing ? Theme.on-primary-container : Theme.on-surface;
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.primary;
+                            Text {
+                                text: root.clock-timer-ringing ? @tr("Stop") : (root.clock-timer-running ? @tr("Pause") : @tr("Resume"));
+                                font-size: 12px; font-weight: 700; color: Theme.on-primary;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                            TouchArea { clicked => { root.clock-timer-toggle(); } }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.surface-container-highest;
+                            Text { text: "+1m"; font-size: 12px; font-weight: 600; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-timer-add-min(); } }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1; height: 30px; border-radius: Theme.radius-pill;
+                            background: Theme.surface-container-high;
+                            Text { text: @tr("Cancel"); font-size: 12px; font-weight: 600; color: Theme.on-surface-variant; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.clock-timer-cancel(); } }
+                        }
+                    }
+                }
             }
 
             // Notification cards list

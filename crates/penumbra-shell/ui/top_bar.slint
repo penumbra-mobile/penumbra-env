@@ -15,6 +15,7 @@ export component TopBarWindow inherits Window {
     in-out property <string> carrier-text: "Penumbra";
     in-out property <bool> privacy-active: false;
     in-out property <bool> dnd-active: false;
+    in-out property <bool> alarm-active: false;
     in-out property <bool> wwan-present: false;
     in-out property <int> wwan-signal: 0;
     in-out property <string> wwan-tech: "";
@@ -202,6 +203,22 @@ export component TopBarWindow inherits Window {
                                 background: #003919;
                             }
                         }
+                    }
+                }
+
+                if root.alarm-active: VerticalLayout {
+                    alignment: center;
+                    Path {
+                        width: 14px;
+                        height: 14px;
+                        viewbox-width: 24;
+                        viewbox-height: 24;
+                        commands: "M12 5 A 8 8 0 1 1 11.99 5 Z M12 9 V13 L15 15 M5 3 L2 6 M19 3 L22 6";
+                        stroke: Theme.primary;
+                        stroke-width: 2.1px;
+                        stroke-line-cap: round;
+                        stroke-line-join: round;
+                        fill: transparent;
                     }
                 }
 

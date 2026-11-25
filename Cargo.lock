@@ -3839,6 +3839,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "penumbra-clock"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "i-slint-common",
+ "penumbra-services",
+ "slint",
+ "slint-build",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "penumbra-comp"
 version = "0.1.0"
 dependencies = [
@@ -3942,6 +3955,7 @@ dependencies = [
 name = "penumbra-services"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "futures-util",
  "hex",
  "image",

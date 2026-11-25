@@ -1337,6 +1337,142 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         });
     });
 
+    // Clock (Alarms & Timers): background tick, TopBar alarm icon, and QuickSettings notification cards
+    let sync_clock_ui = {
+        let tb = top_bar_weak.clone();
+        let q = qs_weak.clone();
+        move |state: &penumbra_services::clock::ClockState| {
+            let has_alarm = state.has_enabled_alarm();
+            let ringing_alarm = state.active_alarm_ringing_id.is_some();
+            if let Some(bar) = tb.upgrade() {
+                let show_icon = has_alarm || ringing_alarm;
+                if bar.get_alarm_active() != show_icon {
+                    bar.set_alarm_active(show_icon);
+                }
+            }
+            if let Some(shade) = q.upgrade() {
+                shade.set_clock_alarm_active(has_alarm);
+                shade.set_clock_alarm_ringing(ringing_alarm);
+                let alarm_txt = state
+                    .next_alarm_summary()
+                    .map(|(_, s)| s)
+                    .unwrap_or_default();
+                shade.set_clock_alarm_text(alarm_txt.into());
+
+                if let Some(ref t) = state.timer {
+                    let rem = state.effective_timer_remaining();
+                    shade.set_clock_timer_active(true);
+                    shade.set_clock_timer_running(t.running);
+                    shade.set_clock_timer_ringing(t.ringing);
+                    let lbl = if t.label.is_empty() { "Timer" } else { &t.label };
+                    shade.set_clock_timer_text(
+                        format!("{} • {}", penumbra_services::clock::format_hms(rem), lbl).into(),
+                    );
+                } else {
+                    shade.set_clock_timer_active(false);
+                    shade.set_clock_timer_running(false);
+                    shade.set_clock_timer_ringing(false);
+                    shade.set_clock_timer_text("".into());
+                }
+            }
+        }
+    };
+
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_alarm_snooze(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            st.snooze_ringing_alarm(10);
+            penumbra_services::audio::stop_ringtone_loop();
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_alarm_dismiss(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            st.dismiss_ringing_alarm();
+            penumbra_services::audio::stop_ringtone_loop();
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_alarm_disable(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            if let Some((id, _)) = st.next_alarm_summary() {
+                if let Some(a) = st.alarms.iter_mut().find(|a| a.id == id) {
+                    a.enabled = false;
+                    a.snoozed_until_epoch = 0;
+                }
+            }
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_timer_toggle(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            st.timer_toggle_pause();
+            if st.timer.as_ref().is_none_or(|t| !t.ringing) && st.active_alarm_ringing_id.is_none() {
+                penumbra_services::audio::stop_ringtone_loop();
+            }
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_timer_add_min(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            st.timer_add_minute();
+            if st.active_alarm_ringing_id.is_none() {
+                penumbra_services::audio::stop_ringtone_loop();
+            }
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    {
+        let sync = sync_clock_ui.clone();
+        qs.on_clock_timer_cancel(move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            st.timer_cancel();
+            if st.active_alarm_ringing_id.is_none() {
+                penumbra_services::audio::stop_ringtone_loop();
+            }
+            let _ = st.save();
+            sync(&st);
+        });
+    }
+    qs.on_clock_open_app(|| {
+        if let Ok(mut child) = std::process::Command::new("penumbra-clock").spawn() {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        let _ = penumbra_shell::ipc::send_command("focus-app penumbra-clock");
+    });
+
+    let clock_timer = Timer::default();
+    {
+        let sync = sync_clock_ui.clone();
+        clock_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
+            let mut st = penumbra_services::clock::ClockState::load();
+            let (should_ring, changed) = st.tick_background();
+            if changed {
+                let _ = st.save();
+            }
+            if should_ring {
+                penumbra_services::audio::start_ringtone_loop();
+            }
+            sync(&st);
+        });
+    }
+
     enum TileSyncMsg {
         Radios { wifi: bool, bt: bool, airplane: bool },
         Internet { connected: bool, ssid: String },

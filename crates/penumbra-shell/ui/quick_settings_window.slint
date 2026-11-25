@@ -28,6 +28,20 @@ export component QuickSettingsWindow inherits Window {
     in property <[TileData]> active-tiles;
     in property <[TileData]> available-tiles;
     in property <[NotificationData]> notifications;
+    in-out property <bool> clock-alarm-active: false;
+    in-out property <bool> clock-alarm-ringing: false;
+    in-out property <string> clock-alarm-text: "";
+    in-out property <bool> clock-timer-active: false;
+    in-out property <bool> clock-timer-running: false;
+    in-out property <bool> clock-timer-ringing: false;
+    in-out property <string> clock-timer-text: "";
+    callback clock-alarm-snooze();
+    callback clock-alarm-dismiss();
+    callback clock-alarm-disable();
+    callback clock-timer-toggle();
+    callback clock-timer-add-min();
+    callback clock-timer-cancel();
+    callback clock-open-app();
 
     in-out property <bool> media-active: false;
     in-out property <string> media-title: "";
@@ -83,6 +97,20 @@ export component QuickSettingsWindow inherits Window {
         active-tiles: root.active-tiles;
         available-tiles: root.available-tiles;
         notifications: root.notifications;
+        clock-alarm-active: root.clock-alarm-active;
+        clock-alarm-ringing: root.clock-alarm-ringing;
+        clock-alarm-text: root.clock-alarm-text;
+        clock-timer-active: root.clock-timer-active;
+        clock-timer-running: root.clock-timer-running;
+        clock-timer-ringing: root.clock-timer-ringing;
+        clock-timer-text: root.clock-timer-text;
+        clock-alarm-snooze => { root.clock-alarm-snooze(); }
+        clock-alarm-dismiss => { root.clock-alarm-dismiss(); }
+        clock-alarm-disable => { root.clock-alarm-disable(); }
+        clock-timer-toggle => { root.clock-timer-toggle(); }
+        clock-timer-add-min => { root.clock-timer-add-min(); }
+        clock-timer-cancel => { root.clock-timer-cancel(); }
+        clock-open-app => { root.clock-open-app(); }
         media-active: root.media-active;
         media-title: root.media-title;
         media-artist: root.media-artist;

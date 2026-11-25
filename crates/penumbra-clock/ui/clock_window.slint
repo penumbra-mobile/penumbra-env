@@ -1,0 +1,1197 @@
+import { LineEdit, ScrollView } from "std-widgets.slint";
+
+export struct AlarmItemData {
+    id: int,
+    time-text: string,
+    label: string,
+    days-text: string,
+    enabled: bool,
+}
+
+export struct WorldCityData {
+    name: string,
+    time-text: string,
+    offset-text: string,
+}
+
+export struct PresetCityData {
+    name: string,
+    tz-offset-mins: int,
+    added: bool,
+}
+
+export struct LapItemData {
+    num-text: string,
+    split-text: string,
+    total-text: string,
+}
+
+component ClockIcon inherits Rectangle {
+    in property <string> name;
+    in property <color> icon-color: #e3e2e6;
+    in property <length> icon-size: 22px;
+    width: root.icon-size;
+    height: root.icon-size;
+
+    if root.name == "alarm": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M12 5 A 8 8 0 1 1 11.99 5 Z M12 9 V13 L15 15 M5 3 L2 6 M19 3 L22 6";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "globe": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M12 3 A 9 9 0 1 1 11.99 3 Z M12 7 V12 L15.5 14";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "timer": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M9 3 H15 M12 6 A 8 8 0 1 1 11.99 6 Z M12 10 V14 L14.5 15.5";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "stopwatch": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M10 2 H14 M12 2 V5 M12 6 A 8 8 0 1 1 11.99 6 Z M12 10 V14 L15 11 M18.5 6.5 L20 5";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "plus": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M12 5 V19 M5 12 H19";
+        stroke: root.icon-color; stroke-width: 2.4px; stroke-line-cap: round; fill: transparent;
+    }
+    if root.name == "trash": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M4 7 H20 M9 7 V4 H15 V7 M7 7 V19 A 2 2 0 0 0 9 21 H15 A 2 2 0 0 0 17 19 V7";
+        stroke: root.icon-color; stroke-width: 1.9px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "play": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M7 5 L19 12 L7 19 Z";
+        fill: root.icon-color;
+    }
+    if root.name == "pause": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M7 5 H10 V19 H7 Z M14 5 H17 V19 H14 Z";
+        fill: root.icon-color;
+    }
+    if root.name == "reset": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M4 12 A 8 8 0 1 0 6.3 6.3 L4 8.5 M4 4 V8.5 H8.5";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+    if root.name == "flag": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M5 21 V4 H15 L14 9 L19 9 L17 14 H5";
+        stroke: root.icon-color; stroke-width: 2px; stroke-line-cap: round; stroke-line-join: round; fill: transparent;
+    }
+}
+
+component M3Switch inherits Rectangle {
+    in-out property <bool> checked: false;
+    callback toggled(bool);
+    width: 52px;
+    height: 30px;
+    border-radius: 15px;
+    in property <color> accent: #adc6ff;
+    in property <color> on-accent: #002e69;
+    in property <color> track-off: #27232e;
+    in property <color> knob-off: #8e9099;
+
+    background: root.checked ? root.accent : root.track-off;
+    border-width: root.checked ? 0px : 1.5px;
+    border-color: #8e9099;
+    animate background { duration: 140ms; }
+
+    Rectangle {
+        x: root.checked ? parent.width - self.width - 4px : 5px;
+        y: (parent.height - self.height) / 2;
+        width: root.checked ? 22px : 18px;
+        height: root.checked ? 22px : 18px;
+        border-radius: 11px;
+        background: root.checked ? root.on-accent : root.knob-off;
+        animate x { duration: 140ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
+        animate width { duration: 120ms; }
+        animate height { duration: 120ms; }
+    }
+
+    TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export component ClockWindow inherits Window {
+    title: "Clock";
+    preferred-width: 412px;
+    preferred-height: 841px;
+    background: root.surface;
+    default-font-family: "Droid Sans";
+
+    // Live Monet Dynamic Theme Tokens
+    in-out property <color> surface: #0b0a0e;
+    in-out property <color> surface-low: #17151d;
+    in-out property <color> surface-high: #27232e;
+    in-out property <color> primary: #adc6ff;
+    in-out property <color> on-primary: #002e69;
+    in-out property <color> primary-container: #254070;
+    in-out property <color> on-primary-container: #d8e2ff;
+    in-out property <color> on-surface: #e3e2e6;
+    in-out property <color> on-surface-variant: #c4c6d0;
+    in-out property <color> error-container: #93000a;
+    in-out property <color> on-error-container: #ffdad6;
+
+    // Navigation: 0=Alarm, 1=Clock, 2=Timer, 3=Stopwatch
+    in-out property <int> active-tab: 0;
+
+    // Alarms Tab State
+    in property <[AlarmItemData]> alarms: [];
+    in-out property <string> next-alarm-text: "";
+    in-out property <bool> alarm-ringing: false;
+    in-out property <string> ringing-alarm-text: "";
+
+    // Alarm Editor Modal State
+    in-out property <bool> show-alarm-editor: false;
+    in-out property <int> edit-alarm-id: -1;
+    in-out property <int> edit-hour: 7;
+    in-out property <int> edit-minute: 0;
+    in-out property <string> edit-label: "Alarm";
+    in-out property <bool> edit-mon: false;
+    in-out property <bool> edit-tue: false;
+    in-out property <bool> edit-wed: false;
+    in-out property <bool> edit-thu: false;
+    in-out property <bool> edit-fri: false;
+    in-out property <bool> edit-sat: false;
+    in-out property <bool> edit-sun: false;
+
+    // World Clock Tab State
+    in-out property <string> local-time-text: "12:00";
+    in-out property <string> local-secs-text: "00";
+    in-out property <string> local-date-text: "Wednesday, Nov 25";
+    in property <[WorldCityData]> world-cities: [];
+    in property <[PresetCityData]> preset-cities: [];
+    in-out property <bool> show-city-picker: false;
+
+    // Timer Tab State
+    in-out property <bool> timer-has-active: false;
+    in-out property <bool> timer-running: false;
+    in-out property <bool> timer-ringing: false;
+    in-out property <string> timer-display: "05:00";
+    in-out property <float> timer-progress: 1.0;
+    in-out property <int> timer-setup-secs: 300;
+    in-out property <string> timer-setup-display: "05:00";
+
+    // Stopwatch Tab State
+    in-out property <bool> sw-running: false;
+    in-out property <bool> sw-has-started: false;
+    in-out property <string> sw-main-text: "00:00";
+    in-out property <string> sw-cs-text: ".00";
+    in property <[LapItemData]> sw-laps: [];
+
+    // Callbacks
+    callback toggle-alarm(int, bool);
+    callback save-alarm(int, int, int, string, bool, bool, bool, bool, bool, bool, bool);
+    callback delete-alarm(int);
+    callback dismiss-alarm();
+    callback snooze-alarm();
+
+    callback toggle-city(string, int);
+    callback remove-city(string);
+
+    callback timer-adjust-setup(int);
+    callback timer-set-preset(int);
+    callback timer-start();
+    callback timer-toggle-pause();
+    callback timer-add-minute();
+    callback timer-cancel();
+
+    callback sw-toggle();
+    callback sw-lap();
+    callback sw-reset();
+
+    VerticalLayout {
+        width: 100%;
+        height: 100%;
+
+        // Top App Bar
+        Rectangle {
+            height: 56px;
+            background: root.surface;
+            HorizontalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                alignment: space-between;
+                Text {
+                    text: root.active-tab == 0 ? @tr("Alarm")
+                        : root.active-tab == 1 ? @tr("Clock")
+                        : root.active-tab == 2 ? @tr("Timer")
+                        : @tr("Stopwatch");
+                    font-size: 24px;
+                    font-weight: 700;
+                    color: root.on-surface;
+                    vertical-alignment: center;
+                }
+                if root.active-tab == 0 && root.next-alarm-text != "": Rectangle {
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    border-radius: 14px;
+                    background: root.primary-container;
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        Text {
+                            text: root.next-alarm-text;
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.on-primary-container;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Main Content Viewport
+        Rectangle {
+            vertical-stretch: 1;
+            clip: true;
+
+            // =================================================================
+            // TAB 0: ALARMS
+            // =================================================================
+            if root.active-tab == 0: Rectangle {
+                width: 100%;
+                height: 100%;
+
+                ScrollView {
+                    width: 100%;
+                    height: 100%;
+                    content-width: self.width;
+
+                    VerticalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        padding-top: 4px;
+                        padding-bottom: 92px;
+                        spacing: 12px;
+
+                        if root.alarm-ringing: Rectangle {
+                            border-radius: 28px;
+                            background: root.primary-container;
+                            border-width: 1px;
+                            border-color: #ffffff33;
+                            VerticalLayout {
+                                padding: 18px;
+                                spacing: 12px;
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    ClockIcon { name: "alarm"; icon-color: root.on-primary-container; icon-size: 24px; }
+                                    Text {
+                                        text: @tr("Alarm Ringing: ") + root.ringing-alarm-text;
+                                        font-size: 16px;
+                                        font-weight: 700;
+                                        color: root.on-primary-container;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                HorizontalLayout {
+                                    spacing: 10px;
+                                    Rectangle {
+                                        horizontal-stretch: 1;
+                                        height: 44px;
+                                        border-radius: 22px;
+                                        background: root.surface-high;
+                                        Text { text: @tr("Snooze 10m"); font-size: 14px; font-weight: 600; color: root.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.snooze-alarm(); } }
+                                    }
+                                    Rectangle {
+                                        horizontal-stretch: 1;
+                                        height: 44px;
+                                        border-radius: 22px;
+                                        background: root.primary;
+                                        Text { text: @tr("Dismiss"); font-size: 14px; font-weight: 700; color: root.on-primary; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.dismiss-alarm(); } }
+                                    }
+                                }
+                            }
+                        }
+
+                        if root.alarms.length == 0: Rectangle {
+                            height: 160px;
+                            border-radius: 28px;
+                            background: root.surface-low;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+                            Text {
+                                text: @tr("No alarms set.\nTap + to create an alarm.");
+                                font-size: 14px;
+                                color: root.on-surface-variant;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        for alarm in root.alarms: Rectangle {
+                            border-radius: 28px;
+                            background: alarm.enabled ? root.surface-high : root.surface-low;
+                            border-width: 1px;
+                            border-color: alarm.enabled ? #ffffff22 : #ffffff14;
+                            animate background { duration: 150ms; }
+
+                            TouchArea {
+                                clicked => {
+                                    root.edit-alarm-id = alarm.id;
+                                    // Parse HH:MM in Rust or keep simple defaults via callback; open editor
+                                    root.edit-label = alarm.label;
+                                    root.show-alarm-editor = true;
+                                }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: 20px;
+                                padding-right: 18px;
+                                padding-top: 16px;
+                                padding-bottom: 16px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: alarm.time-text;
+                                        font-size: 34px;
+                                        font-weight: 700;
+                                        color: alarm.enabled ? root.on-surface : root.on-surface-variant;
+                                    }
+                                    Text {
+                                        text: (alarm.label != "" ? alarm.label + " • " : "") + alarm.days-text;
+                                        font-size: 13px;
+                                        color: alarm.enabled ? root.primary : root.on-surface-variant;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    alignment: center;
+                                    M3Switch {
+                                        y: (parent.height - self.height) / 2;
+                                        checked: alarm.enabled;
+                                        accent: root.primary;
+                                        on-accent: root.on-primary;
+                                        track-off: root.surface-low;
+                                        toggled(v) => { root.toggle-alarm(alarm.id, v); }
+                                    }
+                                    Rectangle {
+                                        width: 36px;
+                                        height: 36px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: 18px;
+                                        background: del-ta.pressed ? root.error-container : transparent;
+                                        ClockIcon {
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            name: "trash";
+                                            icon-size: 18px;
+                                            icon-color: root.on-surface-variant;
+                                        }
+                                        del-ta := TouchArea {
+                                            clicked => { root.delete-alarm(alarm.id); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Floating Add Alarm FAB
+                Rectangle {
+                    x: parent.width - self.width - 20px;
+                    y: parent.height - self.height - 20px;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 20px;
+                    background: fab-alarm.pressed ? root.primary : root.primary-container;
+                    border-width: 1px;
+                    border-color: #ffffff33;
+                    ClockIcon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        name: "plus";
+                        icon-size: 26px;
+                        icon-color: fab-alarm.pressed ? root.on-primary : root.on-primary-container;
+                    }
+                    fab-alarm := TouchArea {
+                        clicked => {
+                            root.edit-alarm-id = -1;
+                            root.edit-hour = 7;
+                            root.edit-minute = 0;
+                            root.edit-label = "Alarm";
+                            root.edit-mon = false;
+                            root.edit-tue = false;
+                            root.edit-wed = false;
+                            root.edit-thu = false;
+                            root.edit-fri = false;
+                            root.edit-sat = false;
+                            root.edit-sun = false;
+                            root.show-alarm-editor = true;
+                        }
+                    }
+                }
+            }
+
+            // =================================================================
+            // TAB 1: WORLD CLOCK
+            // =================================================================
+            if root.active-tab == 1: Rectangle {
+                width: 100%;
+                height: 100%;
+
+                ScrollView {
+                    width: 100%;
+                    height: 100%;
+                    content-width: self.width;
+
+                    VerticalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        padding-top: 4px;
+                        padding-bottom: 92px;
+                        spacing: 12px;
+
+                        // Local Time Hero Card
+                        Rectangle {
+                            border-radius: 32px;
+                            background: root.surface-low;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+                            VerticalLayout {
+                                padding: 22px;
+                                spacing: 6px;
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    alignment: start;
+                                    Text {
+                                        text: root.local-time-text;
+                                        font-size: 52px;
+                                        font-weight: 700;
+                                        color: root.on-surface;
+                                    }
+                                    Text {
+                                        text: ":" + root.local-secs-text;
+                                        font-size: 24px;
+                                        font-weight: 600;
+                                        color: root.primary;
+                                        vertical-alignment: bottom;
+                                    }
+                                }
+                                Text {
+                                    text: root.local-date-text;
+                                    font-size: 14px;
+                                    color: root.on-surface-variant;
+                                }
+                            }
+                        }
+
+                        for city in root.world-cities: Rectangle {
+                            border-radius: 26px;
+                            background: root.surface-low;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+                            HorizontalLayout {
+                                padding-left: 20px;
+                                padding-right: 16px;
+                                padding-top: 16px;
+                                padding-bottom: 16px;
+                                alignment: space-between;
+
+                                VerticalLayout {
+                                    spacing: 3px;
+                                    horizontal-stretch: 1;
+                                    Text {
+                                        text: city.name;
+                                        font-size: 18px;
+                                        font-weight: 700;
+                                        color: root.on-surface;
+                                    }
+                                    Text {
+                                        text: city.offset-text;
+                                        font-size: 12px;
+                                        color: root.on-surface-variant;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 12px;
+                                    Text {
+                                        text: city.time-text;
+                                        font-size: 30px;
+                                        font-weight: 700;
+                                        color: root.primary;
+                                        vertical-alignment: center;
+                                    }
+                                    Rectangle {
+                                        width: 34px; height: 34px;
+                                        y: (parent.height - self.height) / 2;
+                                        border-radius: 17px;
+                                        background: rm-city.pressed ? root.error-container : transparent;
+                                        ClockIcon {
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            name: "trash"; icon-size: 17px; icon-color: root.on-surface-variant;
+                                        }
+                                        rm-city := TouchArea {
+                                            clicked => { root.remove-city(city.name); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    x: parent.width - self.width - 20px;
+                    y: parent.height - self.height - 20px;
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 20px;
+                    background: fab-city.pressed ? root.primary : root.primary-container;
+                    border-width: 1px;
+                    border-color: #ffffff33;
+                    ClockIcon {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        name: "plus";
+                        icon-size: 26px;
+                        icon-color: fab-city.pressed ? root.on-primary : root.on-primary-container;
+                    }
+                    fab-city := TouchArea {
+                        clicked => { root.show-city-picker = true; }
+                    }
+                }
+            }
+
+            // =================================================================
+            // TAB 2: TIMER
+            // =================================================================
+            if root.active-tab == 2: VerticalLayout {
+                padding: 20px;
+                spacing: 20px;
+                alignment: center;
+
+                if !root.timer-has-active: VerticalLayout {
+                    spacing: 20px;
+                    alignment: center;
+
+                    Rectangle {
+                        height: 150px;
+                        border-radius: 36px;
+                        background: root.surface-low;
+                        border-width: 1px;
+                        border-color: #ffffff14;
+                        Text {
+                            text: root.timer-setup-display;
+                            font-size: 56px;
+                            font-weight: 700;
+                            color: root.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Quick duration presets
+                    HorizontalLayout {
+                        spacing: 8px;
+                        for p in [
+                            { secs: 60, label: "1m" },
+                            { secs: 180, label: "3m" },
+                            { secs: 300, label: "5m" },
+                            { secs: 600, label: "10m" },
+                            { secs: 900, label: "15m" },
+                            { secs: 1800, label: "30m" },
+                        ]: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 42px;
+                            border-radius: 21px;
+                            background: root.timer-setup-secs == p.secs ? root.primary-container : root.surface-high;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+                            Text {
+                                text: p.label;
+                                font-size: 13px;
+                                font-weight: 700;
+                                color: root.timer-setup-secs == p.secs ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea { clicked => { root.timer-set-preset(p.secs); } }
+                        }
+                    }
+
+                    // Fine adjust steppers
+                    HorizontalLayout {
+                        spacing: 10px;
+                        for adj in [
+                            { delta: -60, label: "-1m" },
+                            { delta: -10, label: "-10s" },
+                            { delta: 10, label: "+10s" },
+                            { delta: 60, label: "+1m" },
+                        ]: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 46px;
+                            border-radius: 23px;
+                            background: root.surface-low;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+                            Text {
+                                text: adj.label;
+                                font-size: 14px;
+                                font-weight: 600;
+                                color: root.on-surface;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                            TouchArea { clicked => { root.timer-adjust-setup(adj.delta); } }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 60px;
+                        border-radius: 30px;
+                        background: root.primary;
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 10px;
+                            ClockIcon {
+                                y: (parent.height - self.height) / 2;
+                                name: "play"; icon-size: 22px; icon-color: root.on-primary;
+                            }
+                            Text {
+                                text: @tr("Start Timer");
+                                font-size: 16px;
+                                font-weight: 700;
+                                color: root.on-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        TouchArea { clicked => { root.timer-start(); } }
+                    }
+                }
+
+                if root.timer-has-active: VerticalLayout {
+                    spacing: 22px;
+                    alignment: center;
+
+                    Rectangle {
+                        height: 220px;
+                        border-radius: 40px;
+                        background: root.timer-ringing ? root.primary-container : root.surface-low;
+                        border-width: 1px;
+                        border-color: root.timer-ringing ? #ffffff33 : #ffffff14;
+
+                        VerticalLayout {
+                            padding: 24px;
+                            spacing: 18px;
+                            alignment: center;
+
+                            Text {
+                                text: root.timer-ringing ? @tr("Time's up!") : (root.timer-running ? @tr("Running") : @tr("Paused"));
+                                font-size: 14px;
+                                font-weight: 600;
+                                color: root.timer-ringing ? root.on-primary-container : root.primary;
+                                horizontal-alignment: center;
+                            }
+
+                            Text {
+                                text: root.timer-display;
+                                font-size: 62px;
+                                font-weight: 700;
+                                color: root.timer-ringing ? root.on-primary-container : root.on-surface;
+                                horizontal-alignment: center;
+                            }
+
+                            // Linear M3E Progress Track
+                            Rectangle {
+                                height: 10px;
+                                border-radius: 5px;
+                                background: root.surface-high;
+                                clip: true;
+                                Rectangle {
+                                    x: 0px;
+                                    y: 0px;
+                                    width: parent.width * Math.clamp(root.timer-progress, 0.0, 1.0);
+                                    height: parent.height;
+                                    border-radius: 5px;
+                                    background: root.primary;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 56px;
+                            border-radius: 28px;
+                            background: root.surface-high;
+                            Text { text: "+1:00"; font-size: 15px; font-weight: 700; color: root.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.timer-add-minute(); } }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 2;
+                            height: 56px;
+                            border-radius: 28px;
+                            background: root.primary;
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: 8px;
+                                ClockIcon {
+                                    y: (parent.height - self.height) / 2;
+                                    name: root.timer-ringing ? "pause" : (root.timer-running ? "pause" : "play");
+                                    icon-size: 20px;
+                                    icon-color: root.on-primary;
+                                }
+                                Text {
+                                    text: root.timer-ringing ? @tr("Stop") : (root.timer-running ? @tr("Pause") : @tr("Resume"));
+                                    font-size: 16px;
+                                    font-weight: 700;
+                                    color: root.on-primary;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea { clicked => { root.timer-toggle-pause(); } }
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: 56px;
+                            border-radius: 28px;
+                            background: root.error-container;
+                            Text { text: @tr("Cancel"); font-size: 14px; font-weight: 700; color: root.on-error-container; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.timer-cancel(); } }
+                        }
+                    }
+                }
+            }
+
+            // =================================================================
+            // TAB 3: STOPWATCH
+            // =================================================================
+            if root.active-tab == 3: VerticalLayout {
+                padding: 16px;
+                spacing: 16px;
+
+                Rectangle {
+                    height: 170px;
+                    border-radius: 36px;
+                    background: root.surface-low;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Text {
+                            text: root.sw-main-text;
+                            font-size: 60px;
+                            font-weight: 700;
+                            color: root.on-surface;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: root.sw-cs-text;
+                            font-size: 28px;
+                            font-weight: 700;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    if root.sw-has-started: Rectangle {
+                        horizontal-stretch: 1;
+                        height: 56px;
+                        border-radius: 28px;
+                        background: root.surface-high;
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 6px;
+                            ClockIcon {
+                                y: (parent.height - self.height) / 2;
+                                name: root.sw-running ? "flag" : "reset";
+                                icon-size: 18px;
+                                icon-color: root.on-surface;
+                            }
+                            Text {
+                                text: root.sw-running ? @tr("Lap") : @tr("Reset");
+                                font-size: 15px;
+                                font-weight: 700;
+                                color: root.on-surface;
+                                vertical-alignment: center;
+                            }
+                        }
+                        TouchArea {
+                            clicked => {
+                                if (root.sw-running) {
+                                    root.sw-lap();
+                                } else {
+                                    root.sw-reset();
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 2;
+                        height: 56px;
+                        border-radius: 28px;
+                        background: root.primary;
+                        HorizontalLayout {
+                            alignment: center;
+                            spacing: 8px;
+                            ClockIcon {
+                                y: (parent.height - self.height) / 2;
+                                name: root.sw-running ? "pause" : "play";
+                                icon-size: 20px;
+                                icon-color: root.on-primary;
+                            }
+                            Text {
+                                text: root.sw-running ? @tr("Pause") : (root.sw-has-started ? @tr("Resume") : @tr("Start"));
+                                font-size: 16px;
+                                font-weight: 700;
+                                color: root.on-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+                        TouchArea { clicked => { root.sw-toggle(); } }
+                    }
+                }
+
+                ScrollView {
+                    vertical-stretch: 1;
+                    content-width: self.width;
+                    VerticalLayout {
+                        spacing: 8px;
+                        for lap in root.sw-laps: Rectangle {
+                            height: 46px;
+                            border-radius: 16px;
+                            background: root.surface-low;
+                            HorizontalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                alignment: space-between;
+                                Text { text: lap.num-text; font-size: 13px; font-weight: 700; color: root.primary; vertical-alignment: center; }
+                                Text { text: lap.split-text; font-size: 14px; color: root.on-surface-variant; vertical-alignment: center; }
+                                Text { text: lap.total-text; font-size: 14px; font-weight: 700; color: root.on-surface; vertical-alignment: center; }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =====================================================================
+        // BOTTOM NAVIGATION BAR (4 M3E Tabs)
+        // =====================================================================
+        Rectangle {
+            height: 72px;
+            background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff14;
+
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+
+                for tab in [
+                    { idx: 0, icon: "alarm", label: @tr("Alarm") },
+                    { idx: 1, icon: "globe", label: @tr("Clock") },
+                    { idx: 2, icon: "timer", label: @tr("Timer") },
+                    { idx: 3, icon: "stopwatch", label: @tr("Stopwatch") },
+                ]: Rectangle {
+                    horizontal-stretch: 1;
+                    TouchArea { clicked => { root.active-tab = tab.idx; } }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Rectangle {
+                            width: 56px;
+                            height: 30px;
+                            x: (parent.width - self.width) / 2;
+                            border-radius: 15px;
+                            background: root.active-tab == tab.idx ? root.primary-container : transparent;
+                            animate background { duration: 150ms; }
+                            ClockIcon {
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                name: tab.icon;
+                                icon-size: 20px;
+                                icon-color: root.active-tab == tab.idx ? root.on-primary-container : root.on-surface-variant;
+                            }
+                        }
+                        Text {
+                            text: tab.label;
+                            font-size: 11px;
+                            font-weight: root.active-tab == tab.idx ? 700 : 500;
+                            color: root.active-tab == tab.idx ? root.on-surface : root.on-surface-variant;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // MODAL: ADD / EDIT ALARM
+    // =========================================================================
+    if root.show-alarm-editor: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000b0;
+        TouchArea { clicked => { root.show-alarm-editor = false; } }
+
+        Rectangle {
+            width: Math.min(368px, parent.width - 28px);
+            height: editor-col.min-height + 32px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 32px;
+            background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff22;
+            TouchArea {}
+
+            editor-col := VerticalLayout {
+                padding: 22px;
+                spacing: 16px;
+
+                Text {
+                    text: root.edit-alarm-id < 0 ? @tr("New Alarm") : @tr("Edit Alarm");
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: root.on-surface;
+                }
+
+                // Hour : Minute Stepper Picker
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        alignment: center;
+                        Rectangle {
+                            width: 74px; height: 34px; border-radius: 17px; background: root.surface-high;
+                            Text { text: "+"; font-size: 18px; font-weight: 700; color: root.primary; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.edit-hour = Math.mod(root.edit-hour + 1, 24); } }
+                        }
+                        Rectangle {
+                            width: 74px; height: 64px; border-radius: 20px; background: root.primary-container;
+                            Text {
+                                text: (root.edit-hour < 10 ? "0" : "") + root.edit-hour;
+                                font-size: 36px; font-weight: 700; color: root.on-primary-container;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            width: 74px; height: 34px; border-radius: 17px; background: root.surface-high;
+                            Text { text: "-"; font-size: 18px; font-weight: 700; color: root.primary; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.edit-hour = Math.mod(root.edit-hour + 23, 24); } }
+                        }
+                    }
+
+                    Text { text: ":"; font-size: 36px; font-weight: 700; color: root.on-surface; vertical-alignment: center; }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        alignment: center;
+                        Rectangle {
+                            width: 74px; height: 34px; border-radius: 17px; background: root.surface-high;
+                            Text { text: "+"; font-size: 18px; font-weight: 700; color: root.primary; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.edit-minute = Math.mod(root.edit-minute + 1, 60); } }
+                        }
+                        Rectangle {
+                            width: 74px; height: 64px; border-radius: 20px; background: root.surface-high;
+                            Text {
+                                text: (root.edit-minute < 10 ? "0" : "") + root.edit-minute;
+                                font-size: 36px; font-weight: 700; color: root.on-surface;
+                                horizontal-alignment: center; vertical-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            width: 74px; height: 34px; border-radius: 17px; background: root.surface-high;
+                            Text { text: "-"; font-size: 18px; font-weight: 700; color: root.primary; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.edit-minute = Math.mod(root.edit-minute + 59, 60); } }
+                        }
+                    }
+                }
+
+                // Weekday toggles
+                HorizontalLayout {
+                    spacing: 6px;
+                    for day in [
+                        { idx: 0, ch: "M", active: root.edit-mon },
+                        { idx: 1, ch: "T", active: root.edit-tue },
+                        { idx: 2, ch: "W", active: root.edit-wed },
+                        { idx: 3, ch: "T", active: root.edit-thu },
+                        { idx: 4, ch: "F", active: root.edit-fri },
+                        { idx: 5, ch: "S", active: root.edit-sat },
+                        { idx: 6, ch: "S", active: root.edit-sun },
+                    ]: Rectangle {
+                        horizontal-stretch: 1;
+                        height: 36px;
+                        border-radius: 18px;
+                        background: day.active ? root.primary : root.surface-high;
+                        Text {
+                            text: day.ch;
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: day.active ? root.on-primary : root.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            clicked => {
+                                if (day.idx == 0) { root.edit-mon = !root.edit-mon; }
+                                if (day.idx == 1) { root.edit-tue = !root.edit-tue; }
+                                if (day.idx == 2) { root.edit-wed = !root.edit-wed; }
+                                if (day.idx == 3) { root.edit-thu = !root.edit-thu; }
+                                if (day.idx == 4) { root.edit-fri = !root.edit-fri; }
+                                if (day.idx == 5) { root.edit-sat = !root.edit-sat; }
+                                if (day.idx == 6) { root.edit-sun = !root.edit-sun; }
+                            }
+                        }
+                    }
+                }
+
+                LineEdit {
+                    text <=> root.edit-label;
+                    placeholder-text: @tr("Alarm label");
+                    height: 42px;
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: root.surface-high;
+                        Text { text: @tr("Cancel"); font-size: 14px; font-weight: 600; color: root.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea { clicked => { root.show-alarm-editor = false; } }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: root.primary;
+                        Text { text: @tr("Save"); font-size: 14px; font-weight: 700; color: root.on-primary; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea {
+                            clicked => {
+                                root.save-alarm(
+                                    root.edit-alarm-id,
+                                    root.edit-hour,
+                                    root.edit-minute,
+                                    root.edit-label,
+                                    root.edit-mon,
+                                    root.edit-tue,
+                                    root.edit-wed,
+                                    root.edit-thu,
+                                    root.edit-fri,
+                                    root.edit-sat,
+                                    root.edit-sun,
+                                );
+                                root.show-alarm-editor = false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================
+    // MODAL: ADD WORLD CITY
+    // =========================================================================
+    if root.show-city-picker: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000b0;
+        TouchArea { clicked => { root.show-city-picker = false; } }
+
+        Rectangle {
+            width: Math.min(368px, parent.width - 28px);
+            height: Math.min(540px, parent.height - 80px);
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 32px;
+            background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff22;
+            TouchArea {}
+
+            VerticalLayout {
+                padding: 18px;
+                spacing: 12px;
+                Text { text: @tr("Add City"); font-size: 20px; font-weight: 700; color: root.on-surface; }
+                ScrollView {
+                    vertical-stretch: 1;
+                    content-width: self.width;
+                    VerticalLayout {
+                        spacing: 8px;
+                        for city in root.preset-cities: Rectangle {
+                            height: 46px;
+                            border-radius: 16px;
+                            background: city.added ? root.primary-container : root.surface-high;
+                            HorizontalLayout {
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                alignment: space-between;
+                                Text {
+                                    text: city.name;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    color: city.added ? root.on-primary-container : root.on-surface;
+                                    vertical-alignment: center;
+                                }
+                                if city.added: Text {
+                                    text: "✓";
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                    color: root.on-primary-container;
+                                    vertical-alignment: center;
+                                }
+                            }
+                            TouchArea {
+                                clicked => { root.toggle-city(city.name, city.tz-offset-mins); }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 42px;
+                    border-radius: 21px;
+                    background: root.surface-high;
+                    Text { text: @tr("Done"); font-size: 14px; font-weight: 600; color: root.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                    TouchArea { clicked => { root.show-city-picker = false; } }
+                }
+            }
+        }
+    }
+}
+

@@ -14,6 +14,7 @@ members = [
     "crates/penumbra-calls",
     "crates/penumbra-messaging",
     "crates/penumbra-contacts",
+    "crates/penumbra-clock",
 ]
 
 [workspace.package]
