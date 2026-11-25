@@ -81,6 +81,10 @@ fn apply_calls_to_ui(
     active_start: &mut Option<(String, u64)>,
 ) {
     if let Some(call) = calls.first() {
+        if !ui.get_has_call() {
+            ui.set_speaker_on(false);
+            ui.set_mic_muted(false);
+        }
         ui.set_has_call(true);
         ui.set_call_path(call.path.clone().into());
         ui.set_call_number(call.number.clone().into());
@@ -107,6 +111,8 @@ fn apply_calls_to_ui(
     } else {
         if ui.get_has_call() {
             *active_start = None;
+            ui.set_speaker_on(false);
+            ui.set_mic_muted(false);
             reload_history(ui);
         }
         ui.set_has_call(false);

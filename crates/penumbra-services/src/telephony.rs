@@ -390,40 +390,6 @@ fn find_voice_card_and_profiles(want_call: bool, want_speaker: bool) -> Option<(
     None
 }
 
-static CALL_KEEPALIVE: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
-
-fn set_call_sink_keepalive(active: bool) {
-    let Ok(mut guard) = CALL_KEEPALIVE.lock() else {
-        return;
-    };
-    if let Some(mut child) = guard.take() {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-    if !active {
-        let _ = std::process::Command::new("pkill")
-            .args(["-f", "^pacat .*penumbra-call-keepalive"])
-            .status();
-        return;
-    }
-    if let Ok(child) = std::process::Command::new("pacat")
-        .args([
-            "-p",
-            "--stream-name=penumbra-call-keepalive",
-            "--rate=48000",
-            "--channels=2",
-            "--format=s16le",
-            "/dev/zero",
-        ])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        *guard = Some(child);
-    }
-}
-
 fn wait_for_sink_matching(kw: &str) {
     for _ in 0..10 {
         if let Ok(out) = std::process::Command::new("pactl")
@@ -442,14 +408,13 @@ fn wait_for_sink_matching(kw: &str) {
 
 /// Switches PipeWire/PulseAudio UCM profile (and sink port if needed) generically across any Linux device.
 pub fn set_call_audio_mode(in_call: bool) {
-    set_call_sink_keepalive(false);
     if let Some((card, profile)) = find_voice_card_and_profiles(in_call, false) {
         let _ = std::process::Command::new("pactl")
             .args(["set-card-profile", &card, &profile])
             .output();
     }
     if in_call {
-        // Wait for WirePlumber to create and promote the Voice Call sink before starting keepalive.
+        // Wait for WirePlumber to create and promote the Voice Call sink before unmuting.
         wait_for_sink_matching("voice");
         let _ = std::process::Command::new("pactl")
             .args(["set-sink-mute", "@DEFAULT_SINK@", "0"])
@@ -458,42 +423,10 @@ pub fn set_call_audio_mode(in_call: bool) {
             .args(["set-sink-volume", "@DEFAULT_SINK@", "100%"])
             .output();
         set_mic_muted(false);
-        // Keep the Voice Call PipeWire sink active (un-suspended) during calls so
-        // I2S/smart-amp backends driven by q6voiced keep their clocks & DACs powered.
-        set_call_sink_keepalive(true);
     }
 }
 
-/// Toggles speakerphone during a call generically via PipeWire UCM profiles and sink ports.
-pub fn set_speakerphone(enabled: bool) {
-    set_call_sink_keepalive(false);
-    let target_kw = if enabled { "speaker" } else { "earpiece" };
-    if let Some((card, profile)) = find_voice_card_and_profiles(true, enabled) {
-        let _ = std::process::Command::new("pactl")
-            .args(["set-card-profile", &card, &profile])
-            .output();
-        wait_for_sink_matching(target_kw);
-    }
-    // Also attempt port switch on @DEFAULT_SINK@ for devices using a single Voice Call profile with multiple ports
-    let snap = crate::audio::snapshot();
-    if let Some(dev) = snap
-        .outputs
-        .iter()
-        .find(|d| d.port_name.to_lowercase().contains(target_kw))
-    {
-        crate::audio::set_default_sink(&dev.node_name, &dev.port_name);
-    }
-    let _ = std::process::Command::new("pactl")
-        .args(["set-sink-mute", "@DEFAULT_SINK@", "0"])
-        .output();
-    set_call_sink_keepalive(true);
-}
-
-/// Toggles microphone mute during a call via PipeWire/PulseAudio default source mute
-/// and generic ALSA hardware capture/ADC switches (for DSP voice paths that bypass PipeWire).
-pub fn set_mic_muted(muted: bool) {
-    crate::audio::set_source_mute("", muted);
-
+fn for_each_alsa_card<F: FnMut(&str)>(mut f: F) {
     let Ok(cards_txt) = std::fs::read_to_string("/proc/asound/cards") else {
         return;
     };
@@ -505,15 +438,59 @@ pub fn set_mic_muted(muted: bool) {
         if !rest.trim_start().starts_with('[') || idx_str.parse::<u32>().is_err() {
             continue;
         }
-        let hw = format!("hw:{idx_str}");
+        f(&format!("hw:{idx_str}"));
+    }
+}
+
+/// Toggles speakerphone during a call generically via PipeWire UCM profiles and sink ports.
+pub fn set_speakerphone(enabled: bool) {
+    let target_kw = if enabled { "speaker" } else { "earpiece" };
+    if let Some((card, profile)) = find_voice_card_and_profiles(true, enabled) {
+        let out = std::process::Command::new("pactl")
+            .args(["set-card-profile", &card, &profile])
+            .output();
+        if let Ok(ref res) = out {
+            if !res.status.success() {
+                tracing::warn!(
+                    card = %card,
+                    profile = %profile,
+                    stderr = %String::from_utf8_lossy(&res.stderr),
+                    "pactl set-card-profile failed"
+                );
+            } else {
+                tracing::info!(card = %card, profile = %profile, "Switched call audio profile");
+            }
+        }
+        wait_for_sink_matching(target_kw);
+    }
+    // Attempt port switch on @DEFAULT_SINK@ for devices using a single Voice Call profile with multiple ports
+    let snap = crate::audio::snapshot();
+    if let Some(dev) = snap
+        .outputs
+        .iter()
+        .find(|d| d.port_name.to_lowercase().contains(target_kw))
+    {
+        crate::audio::set_default_sink(&dev.node_name, &dev.port_name);
+    }
+    let _ = std::process::Command::new("pactl")
+        .args(["set-sink-mute", "@DEFAULT_SINK@", "0"])
+        .output();
+}
+
+/// Toggles microphone mute during a call via PipeWire/PulseAudio default source mute
+/// and generic ALSA hardware capture/ADC switches (for DSP voice paths that bypass PipeWire).
+pub fn set_mic_muted(muted: bool) {
+    crate::audio::set_source_mute("", muted);
+
+    for_each_alsa_card(|hw| {
         let Ok(scontrols) = std::process::Command::new("amixer")
-            .args(["-D", &hw, "scontrols"])
+            .args(["-D", hw, "scontrols"])
             .output()
         else {
-            continue;
+            return;
         };
         if !scontrols.status.success() {
-            continue;
+            return;
         }
         let list = String::from_utf8_lossy(&scontrols.stdout);
         for (ctrl, val_muted, val_unmuted) in [
@@ -527,22 +504,71 @@ pub fn set_mic_muted(muted: bool) {
             if list.contains(&format!("'{ctrl}'")) {
                 let state = if muted { val_muted } else { val_unmuted };
                 let _ = std::process::Command::new("amixer")
-                    .args(["-D", &hw, "sset", ctrl, state])
+                    .args(["-D", hw, "sset", ctrl, state])
                     .output();
             }
         }
-    }
+    });
 }
 
-/// Sets the active call output volume percentage (`0..=100`) on `@DEFAULT_SINK@`.
+/// Sets the active call output volume percentage (`0..=100`) on PipeWire `@DEFAULT_SINK@`
+/// and hardware ALSA RX/codec volume controls (for DSP voice paths that bypass PipeWire PCM).
 pub fn set_call_volume(pct: i32) {
     let clamped = pct.clamp(0, 100);
     let _ = std::process::Command::new("pactl")
-        .args(["set-sink-mute", "@DEFAULT_SINK@", "0"])
-        .spawn();
+        .args(["set-sink-mute", "@DEFAULT_SINK@", if clamped == 0 { "1" } else { "0" }])
+        .output();
     let _ = std::process::Command::new("pactl")
         .args(["set-sink-volume", "@DEFAULT_SINK@", &format!("{clamped}%")])
-        .spawn();
+        .output();
+
+    for_each_alsa_card(|hw| {
+        if let Ok(ctrls) = std::process::Command::new("amixer")
+            .args(["-D", hw, "controls"])
+            .output()
+        {
+            if ctrls.status.success() {
+                // Generic attenuation-style RX volume controls (0 = 0 dB max, 255 = mute)
+                let atten = if clamped == 0 {
+                    255
+                } else {
+                    ((100 - clamped) * 80) / 100
+                };
+                let atten_str = atten.to_string();
+                for line in String::from_utf8_lossy(&ctrls.stdout).lines() {
+                    if let Some(start) = line.find("name='") {
+                        let rest = &line[start + 6..];
+                        if let Some(end) = rest.find('\'') {
+                            let name = &rest[..end];
+                            let lower = name.to_lowercase();
+                            if lower.contains("rx_volume") {
+                                let _ = std::process::Command::new("amixer")
+                                    .args(["-D", hw, "cset", &format!("name='{name}'"), &atten_str])
+                                    .output();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Ok(scontrols) = std::process::Command::new("amixer")
+            .args(["-D", hw, "scontrols"])
+            .output()
+        {
+            if scontrols.status.success() {
+                let slist = String::from_utf8_lossy(&scontrols.stdout);
+                let pct_arg = format!("{clamped}%");
+                for ctrl in ["Earpiece", "Speaker", "Voice Rx Volume", "Headphone"] {
+                    if slist.contains(&format!("'{ctrl}'")) {
+                        let _ = std::process::Command::new("amixer")
+                            .args(["-D", hw, "sset", ctrl, &pct_arg])
+                            .output();
+                    }
+                }
+            }
+        }
+    });
 }
 
 /// Blocks on the system D-Bus and invokes `on_event` immediately whenever
