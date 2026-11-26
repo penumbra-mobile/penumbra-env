@@ -335,21 +335,9 @@ fn read_bluetooth_mac() -> String {
         }
     }
 
-    // 2. Query bluetoothctl show
-    if let Ok(out) = std::process::Command::new("bluetoothctl").arg("show").output() {
-        let text = String::from_utf8_lossy(&out.stdout);
-        for line in text.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("Controller ") {
-                let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    let mac = parts[1].trim().to_uppercase();
-                    if mac.contains(':') {
-                        return mac;
-                    }
-                }
-            }
-        }
+    // 2. Query org.bluez.Adapter1.Address over system D-Bus
+    if let Some(mac) = penumbra_services::status::read_bluetooth_adapter_mac() {
+        return mac;
     }
 
     "Bluetooth Controller".to_string()

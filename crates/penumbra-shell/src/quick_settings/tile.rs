@@ -105,21 +105,14 @@ pub fn set_wifi(active: bool) {
 }
 
 pub fn is_bluetooth_active() -> bool {
-    if let Ok(output) = std::process::Command::new("timeout")
-        .args(["2", "bluetoothctl", "show"])
-        .stdin(std::process::Stdio::null())
-        .output()
-    {
-        if let Ok(text) = String::from_utf8(output.stdout) {
-            return text.lines().any(|l| l.trim().eq_ignore_ascii_case("Powered: yes"));
-        }
-    }
-    false
+    penumbra_services::status::is_bluetooth_powered()
 }
 
 pub fn set_bluetooth(active: bool) {
-    let arg = if active { "on" } else { "off" };
-    let _ = std::process::Command::new("bluetoothctl").args(["power", arg]).spawn();
+    // Run blocking D-Bus property write off the UI thread.
+    std::thread::spawn(move || {
+        penumbra_services::status::set_bluetooth_powered(active);
+    });
 }
 
 pub fn is_battery_saver_active() -> bool {

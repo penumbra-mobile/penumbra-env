@@ -492,10 +492,15 @@ impl BluetoothBackend {
             None => return,
         };
 
-        let adapter_path = {
+        let mut adapter_path = {
             let guard = self.adapter_path.lock().await;
             guard.clone()
         };
+        if adapter_path.is_none() {
+            // Re-query ObjectManager in case the controller finished UART setup after startup.
+            self.refresh_all(conn).await;
+            adapter_path = self.adapter_path.lock().await.clone();
+        }
 
         if let Some(ref a_path) = adapter_path {
             if let Ok(builder) = BluezAdapterProxyProxy::builder(conn).path(a_path) {
@@ -517,10 +522,15 @@ impl BluetoothBackend {
             None => return,
         };
 
-        let adapter_path = {
+        let mut adapter_path = {
             let guard = self.adapter_path.lock().await;
             guard.clone()
         };
+        if adapter_path.is_none() {
+            // Re-query ObjectManager in case the controller finished UART setup after startup.
+            self.refresh_all(conn).await;
+            adapter_path = self.adapter_path.lock().await.clone();
+        }
 
         if let Some(ref a_path) = adapter_path {
             if let Ok(builder) = BluezAdapterProxyProxy::builder(conn).path(a_path) {

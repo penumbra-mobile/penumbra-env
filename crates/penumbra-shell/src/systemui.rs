@@ -1515,7 +1515,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
-    // Probe initial radio states in background so startup is never blocked by D-Bus/nmcli/bluetoothctl
+    // Probe initial radio states in background so startup is never blocked by D-Bus or nmcli.
     {
         let tx = tile_sync_tx.clone();
         rt.spawn(async move {

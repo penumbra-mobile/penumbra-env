@@ -168,3 +168,75 @@ pub async fn poll_mobile_status() -> MobileStatusIndicators {
     out
 }
 
+fn find_bluez_adapter(
+    conn: &zbus::blocking::Connection,
+) -> Option<(OwnedObjectPath, HashMap<String, OwnedValue>)> {
+    let om = zbus::blocking::Proxy::new(
+        conn,
+        "org.bluez",
+        "/",
+        "org.freedesktop.DBus.ObjectManager",
+    )
+    .ok()?;
+    let objects: HashMap<OwnedObjectPath, HashMap<String, HashMap<String, OwnedValue>>> =
+        om.call("GetManagedObjects", &()).ok()?;
+    for (path, mut ifaces) in objects {
+        if let Some(adapter) = ifaces.remove("org.bluez.Adapter1") {
+            return Some((path, adapter));
+        }
+    }
+    None
+}
+
+/// Returns whether any BlueZ adapter (`org.bluez.Adapter1`) is currently powered on.
+pub fn is_bluetooth_powered() -> bool {
+    let Ok(conn) = zbus::blocking::Connection::system() else {
+        return false;
+    };
+    let Some((_path, adapter)) = find_bluez_adapter(&conn) else {
+        return false;
+    };
+    adapter
+        .get("Powered")
+        .and_then(|v| bool::try_from(v).ok())
+        .unwrap_or(false)
+}
+
+/// Sets `org.bluez.Adapter1.Powered` directly via D-Bus (avoids `bluetoothctl` async exit race).
+pub fn set_bluetooth_powered(powered: bool) -> bool {
+    let Ok(conn) = zbus::blocking::Connection::system() else {
+        return false;
+    };
+    let Some((path, _adapter)) = find_bluez_adapter(&conn) else {
+        return false;
+    };
+    let Ok(props) = zbus::blocking::Proxy::new(
+        &conn,
+        "org.bluez",
+        path.as_str(),
+        "org.freedesktop.DBus.Properties",
+    ) else {
+        return false;
+    };
+    props
+        .call::<_, _, ()>(
+            "Set",
+            &("org.bluez.Adapter1", "Powered", zbus::zvariant::Value::from(powered)),
+        )
+        .is_ok()
+}
+
+/// Reads the primary BlueZ adapter's hardware MAC address (`org.bluez.Adapter1.Address`).
+pub fn read_bluetooth_adapter_mac() -> Option<String> {
+    let conn = zbus::blocking::Connection::system().ok()?;
+    let (_path, adapter) = find_bluez_adapter(&conn)?;
+    let addr = adapter.get("Address")?;
+    let s = <&str>::try_from(addr).ok()?;
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_uppercase())
+    }
+}
+
