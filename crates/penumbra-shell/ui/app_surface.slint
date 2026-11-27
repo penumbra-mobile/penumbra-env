@@ -334,7 +334,7 @@ export component AppSurface inherits Rectangle {
             }
         }
 
-        // Top At-a-Glance Clock & Weather Widget (Page 0, slides left with page-scroll)
+        // Top At-a-Glance Clock & Date Widget (Page 0, slides left with page-scroll)
         Rectangle {
             x: 20px - (root.page-scroll * 380px);
             y: 54px;
@@ -343,30 +343,39 @@ export component AppSurface inherits Rectangle {
             opacity: Math.clamp(1.0 - (root.page-scroll * 1.6), 0.0, 1.0);
             visible: self.opacity > 0.01;
 
-            VerticalLayout {
-                spacing: 4px;
-                alignment: start;
+            // Shadow + dark halo layers
+            Text {
+                x: -1px; y: 0px;
+                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
+            }
+            Text {
+                x: 1px; y: 0px;
+                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
+            }
+            Text {
+                x: 0px; y: 2px;
+                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000088;
+            }
+            Text {
+                x: 0px; y: 0px;
+                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: Theme.on-surface;
+            }
 
-                Text {
-                    text: root.time-text;
-                    font-size: Theme.font-clock-large;
-                    font-weight: 800;
-                    color: Theme.on-surface;
-                }
-
-                HorizontalLayout {
-                    spacing: 10px;
-                    alignment: start;
-
-                    Text {
-                        text: root.date-text;
-                        font-size: Theme.font-body;
-                        font-weight: 600;
-                        color: Theme.on-surface-variant;
-                        vertical-alignment: center;
-                    }
-
-                }
+            Text {
+                x: -0.8px; y: 54px;
+                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
+            }
+            Text {
+                x: 0.8px; y: 54px;
+                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
+            }
+            Text {
+                x: 0px; y: 55.5px;
+                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000099;
+            }
+            Text {
+                x: 0px; y: 54px;
+                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: Theme.on-surface;
             }
         }
 

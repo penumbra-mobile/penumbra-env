@@ -55,9 +55,12 @@ export component DrawerAppTile inherits Rectangle {
             width: (root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px;
             height: Theme.icon-shape == "pill" ? ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 46px : 52px) : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? 58px : 64px);
             border-radius: Theme.icon-shape-radius;
-            background: Theme.icon-is-path-shape ? transparent : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container));
+            background: Theme.icon-is-path-shape ? transparent : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container.with-alpha(0.92)));
             border-width: Theme.icon-is-path-shape ? 0px : 1px;
-            border-color: Theme.themed-icons ? Theme.primary.with-alpha(0.35) : Theme.specular-rim;
+            border-color: Theme.themed-icons ? Theme.primary.with-alpha(0.45) : Theme.specular-rim-active;
+            drop-shadow-blur: 8px;
+            drop-shadow-offset-y: 2px;
+            drop-shadow-color: #00000055;
             x: (parent.width - self.width) / 2;
 
             animate width, height { duration: 110ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.0); }
@@ -70,7 +73,7 @@ export component DrawerAppTile inherits Rectangle {
                 viewbox-height: 100;
                 commands: Theme.icon-shape-path;
                 fill: Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging && !root.is-drawer-grabbing) ? Theme.surface-bright : Theme.surface-container);
-                stroke: Theme.themed-icons ? Theme.primary.with-alpha(0.35) : Theme.specular-rim;
+                stroke: Theme.themed-icons ? Theme.primary.with-alpha(0.45) : Theme.specular-rim-active;
                 stroke-width: 1.5px;
             }
 
@@ -84,23 +87,38 @@ export component DrawerAppTile inherits Rectangle {
                 y: (parent.height - self.height) / 2;
             }
 
-            if !root.app.has-icon: Text {
-                text: "📦";
-                font-size: 30px;
-                color: Theme.themed-icons ? Theme.on-primary-container : Theme.on-surface;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            if !root.app.has-icon: Icon {
+                name: "app";
+                icon-size: 28px;
+                icon-color: Theme.themed-icons ? Theme.on-primary-container : Theme.on-surface;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
             }
         }
 
-        Text {
-            text: root.app.name;
-            color: Theme.on-surface;
-            font-size: 13px;
-            font-weight: 500;
-            horizontal-alignment: center;
-            overflow: elide;
+        Rectangle {
             width: 100%;
+            height: 18px;
+            background: transparent;
+
+            Text {
+                x: 0px; y: 1.5px; width: 100%; height: 100%;
+                text: root.app.name;
+                color: #00000099;
+                font-size: 12.5px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            Text {
+                x: 0px; y: 0px; width: 100%; height: 100%;
+                text: root.app.name;
+                color: Theme.on-surface;
+                font-size: 12.5px;
+                font-weight: 600;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
         }
     }
 

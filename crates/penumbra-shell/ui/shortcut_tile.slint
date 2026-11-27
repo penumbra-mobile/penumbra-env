@@ -81,9 +81,12 @@ export component ShortcutTile inherits Rectangle {
                 height: (Theme.icon-shape == "pill" && !root.tile-is-folder) ? ((root.is-down && !root.is-dragging) ? 46px : 52px) : ((root.is-down && !root.is-dragging) ? 58px : 64px);
                 x: (parent.width - self.width) / 2;
                 border-radius: Theme.icon-shape-radius;
-                background: (Theme.icon-is-path-shape && !root.tile-is-folder) ? transparent : (root.tile-is-folder ? Theme.surface-container-high : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container)));
+                background: (Theme.icon-is-path-shape && !root.tile-is-folder) ? transparent : (root.tile-is-folder ? Theme.surface-container-high.with-alpha(0.92) : (Theme.themed-icons ? Theme.primary-container : ((root.is-down && !root.is-dragging) ? Theme.surface-bright : Theme.surface-container.with-alpha(0.92))));
                 border-width: (Theme.icon-is-path-shape && !root.tile-is-folder && !root.is-editing) ? 0px : (root.is-editing ? 2px : 1px);
-                border-color: root.is-editing ? Theme.primary : (Theme.themed-icons && !root.tile-is-folder ? Theme.primary.with-alpha(0.35) : Theme.specular-rim);
+                border-color: root.is-editing ? Theme.primary : (Theme.themed-icons && !root.tile-is-folder ? Theme.primary.with-alpha(0.45) : Theme.specular-rim-active);
+                drop-shadow-blur: 10px;
+                drop-shadow-offset-y: 3px;
+                drop-shadow-color: #00000066;
                 clip: false;
 
                 animate width, height { duration: 110ms; easing: cubic-bezier(0.2, 0.9, 0.3, 1.0); }
@@ -212,14 +215,37 @@ export component ShortcutTile inherits Rectangle {
 
             }
 
-            if root.show-label: Text {
-                text: root.tile-name;
-                font-size: 13px;
-                font-weight: 500;
-                color: Theme.on-surface;
-                horizontal-alignment: center;
-                overflow: elide;
-                max-width: 82px;
+            // Unboxed label with dark outline halo + drop shadow for crisp legibility over any wallpaper
+            if root.show-label: Rectangle {
+                width: 82px;
+                height: 18px;
+                background: transparent;
+
+                Text {
+                    x: -0.8px; y: 0px; width: 100%; height: 100%;
+                    text: root.tile-name; font-size: 12.5px; font-weight: 600;
+                    color: #00000070; horizontal-alignment: center; overflow: elide;
+                }
+                Text {
+                    x: 0.8px; y: 0px; width: 100%; height: 100%;
+                    text: root.tile-name; font-size: 12.5px; font-weight: 600;
+                    color: #00000070; horizontal-alignment: center; overflow: elide;
+                }
+                Text {
+                    x: 0px; y: -0.8px; width: 100%; height: 100%;
+                    text: root.tile-name; font-size: 12.5px; font-weight: 600;
+                    color: #00000070; horizontal-alignment: center; overflow: elide;
+                }
+                Text {
+                    x: 0px; y: 1.5px; width: 100%; height: 100%;
+                    text: root.tile-name; font-size: 12.5px; font-weight: 600;
+                    color: #00000099; horizontal-alignment: center; overflow: elide;
+                }
+                Text {
+                    x: 0px; y: 0px; width: 100%; height: 100%;
+                    text: root.tile-name; font-size: 12.5px; font-weight: 600;
+                    color: Theme.on-surface; horizontal-alignment: center; overflow: elide;
+                }
             }
         }
     }

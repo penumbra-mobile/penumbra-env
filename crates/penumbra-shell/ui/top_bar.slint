@@ -115,7 +115,7 @@ export component TopBarWindow inherits Window {
                         Rectangle {
                             height: 15px;
                             border-radius: 7.5px;
-                            background: Theme.surface-container-highest.with-alpha(0.85);
+                            background: Theme.surface-container-highest.with-alpha(0.9);
                             HorizontalLayout {
                                 padding-left: 5px;
                                 padding-right: 5px;
@@ -147,8 +147,8 @@ export component TopBarWindow inherits Window {
                 if root.vpn-active: VerticalLayout {
                     alignment: center;
                     Image {
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         source: @image-url("icons/vpn_key.svg");
                         colorize: Theme.primary;
                     }
@@ -157,8 +157,8 @@ export component TopBarWindow inherits Window {
                 if root.docked: VerticalLayout {
                     alignment: center;
                     Image {
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         source: @image-url("icons/dock.svg");
                         colorize: Theme.primary;
                     }
@@ -209,8 +209,8 @@ export component TopBarWindow inherits Window {
                 if root.alarm-active: VerticalLayout {
                     alignment: center;
                     Path {
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         viewbox-width: 24;
                         viewbox-height: 24;
                         commands: "M12 5 A 8 8 0 1 1 11.99 5 Z M12 9 V13 L15 15 M5 3 L2 6 M19 3 L22 6";
@@ -225,18 +225,18 @@ export component TopBarWindow inherits Window {
                 if root.dnd-active: VerticalLayout {
                     alignment: center;
                     Image {
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         source: @image-url("icons/do_not_disturb_on.svg");
-                        colorize: Theme.on-surface-variant;
+                        colorize: Theme.on-surface;
                     }
                 }
 
                 if root.bt-powered: VerticalLayout {
                     alignment: center;
                     Image {
-                        width: 14px;
-                        height: 14px;
+                        width: 15px;
+                        height: 15px;
                         source: root.bt-connected ? @image-url("icons/bluetooth_connected.svg")
                               : @image-url("icons/bluetooth.svg");
                         colorize: root.bt-connected ? Theme.primary : Theme.on-surface;
@@ -250,10 +250,10 @@ export component TopBarWindow inherits Window {
                         height: 19px;
                         border-radius: 9.5px;
                         background: root.is-charging
-                            ? Theme.privacy-green.with-alpha(0.22)
+                            ? Theme.privacy-green.with-alpha(0.24)
                             : (root.battery-pct < 20.0
-                                ? Theme.error.with-alpha(0.22)
-                                : Theme.surface-container-highest.with-alpha(0.82));
+                                ? Theme.error.with-alpha(0.24)
+                                : Theme.surface-container-highest.with-alpha(0.88));
 
                         HorizontalLayout {
                             padding-left: 6px;
@@ -288,7 +288,55 @@ export component TopBarWindow inherits Window {
             }
         }
 
-        // Center: Wall Clock
+        // Center: Wall Clock (dark halo + drop shadow for legibility over bright wallpapers)
+        if !root.solid: Text {
+            x: -0.8px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.time-text;
+            color: #00000070;
+            font-size: Theme.font-body;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        if !root.solid: Text {
+            x: 0.8px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.time-text;
+            color: #00000070;
+            font-size: Theme.font-body;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        if !root.solid: Text {
+            x: 0px;
+            y: -0.8px;
+            width: parent.width;
+            height: parent.height;
+            text: root.time-text;
+            color: #00000070;
+            font-size: Theme.font-body;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        if !root.solid: Text {
+            x: 0px;
+            y: 1.5px;
+            width: parent.width;
+            height: parent.height;
+            text: root.time-text;
+            color: #00000099;
+            font-size: Theme.font-body;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
         Text {
             x: 0px;
             y: 0px;
