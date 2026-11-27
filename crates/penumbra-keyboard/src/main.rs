@@ -34,8 +34,9 @@ use tracing_subscriber::FmtSubscriber;
 use layer_shell_slint::{Anchor, KeyboardInteractivity, Layer, LayerConfig};
 use physical_detector::detect_active_physical_keyboard;
 use uinput::{
-    UInputKeyboard, KEY_BACKSPACE, KEY_DELETE, KEY_DOWN, KEY_END, KEY_ENTER, KEY_ESC, KEY_HOME,
-    KEY_LEFT, KEY_PAGEDOWN, KEY_PAGEUP, KEY_RIGHT, KEY_SPACE, KEY_TAB, KEY_UP,
+    UInputKeyboard, KEY_A, KEY_BACKSPACE, KEY_C, KEY_DELETE, KEY_DOWN, KEY_END, KEY_ENTER,
+    KEY_ESC, KEY_HOME, KEY_LEFT, KEY_PAGEDOWN, KEY_PAGEUP, KEY_RIGHT, KEY_SPACE, KEY_TAB, KEY_UP,
+    KEY_V, KEY_Z,
 };
 
 slint::include_modules!();
@@ -84,45 +85,66 @@ fn handle_cli_args() -> bool {
     }
 }
 
+fn send_key_with_ui_modifiers(
+    uinput: &UInputKeyboard,
+    ui_weak: &slint::Weak<KeyboardWindow>,
+    code: u16,
+) {
+    if let Some(ui) = ui_weak.upgrade() {
+        let ctrl = ui.get_ctrl_active();
+        let alt = ui.get_alt_active();
+        let meta = ui.get_super_active();
+        uinput.click_with_modifiers(code, ctrl, alt, false, meta);
+        if ctrl {
+            ui.set_ctrl_active(false);
+        }
+        if alt {
+            ui.set_alt_active(false);
+        }
+        if meta {
+            ui.set_super_active(false);
+        }
+    } else {
+        uinput.click_key(code);
+    }
+}
+
+fn sync_keyboard_state(ui: &KeyboardWindow) {
+    let eff_open = ui.get_is_open() && !ui.get_physical_keyboard_connected();
+    ipc::write_keyboard_state(eff_open, ui.get_content_height_px());
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
     let _ = tracing::subscriber::set_global_default(subscriber);
 
-    // If an external control flag is passed, dispatch and exit immediately
     if handle_cli_args() {
         return Ok(());
     }
 
     info!("Initializing Penumbra Keyboard via layer-shell-slint...");
 
-    // 1. Configure Wayland Layer Shell Platform backend.
-    // Anchored to screen bottom, Overlay layer, 280px height.
     let (logical_w, _logical_h, _scale) = layer_shell_slint::mobile_output_geometry();
     let config = LayerConfig::default()
         .with_namespace("penumbra-keyboard")
         .with_layer(Layer::Top)
         .with_anchor(Anchor::Bottom | Anchor::Left | Anchor::Right)
-        .with_size(logical_w, 316)
+        .with_size(logical_w, 380)
         .with_exclusive_zone(0)
         .with_keyboard_interactivity(KeyboardInteractivity::None);
 
     layer_shell_slint::init(config)?;
 
-    // 2. Instantiate Slint KeyboardWindow UI
     let keyboard_window = KeyboardWindow::new()?;
     let ui_weak = keyboard_window.as_weak();
-
-    // 3. Initialize Linux /dev/uinput Driver
     let uinput = Arc::new(UInputKeyboard::new());
 
-    // 4. Register Event Callbacks
     {
         let uinput = Arc::clone(&uinput);
         let ui_weak_k = ui_weak.clone();
         keyboard_window.on_key_clicked(move |text| {
-            info!("Virtual key clicked: '{}'", text);
             if let Some(ui) = ui_weak_k.upgrade() {
                 let ctrl = ui.get_ctrl_active();
                 let alt = ui.get_alt_active();
@@ -137,7 +159,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if meta {
                     ui.set_super_active(false);
                 }
-                // One-shot Shift (mode 1) returns to lowercase after typing a character
                 if ui.get_layout_mode() == 1 {
                     ui.set_layout_mode(0);
                 }
@@ -151,7 +172,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let uinput = Arc::clone(&uinput);
         let ui_weak_s = ui_weak.clone();
         keyboard_window.on_special_key_clicked(move |key_name| {
-            info!("Virtual special key clicked: '{}'", key_name);
             let code = match key_name.as_str() {
                 "esc" => KEY_ESC,
                 "tab" => KEY_TAB,
@@ -166,23 +186,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "del" => KEY_DELETE,
                 _ => return,
             };
-            if let Some(ui) = ui_weak_s.upgrade() {
-                let ctrl = ui.get_ctrl_active();
-                let alt = ui.get_alt_active();
-                let meta = ui.get_super_active();
-                uinput.click_with_modifiers(code, ctrl, alt, false, meta);
-                if ctrl {
-                    ui.set_ctrl_active(false);
-                }
-                if alt {
-                    ui.set_alt_active(false);
-                }
-                if meta {
-                    ui.set_super_active(false);
-                }
-            } else {
-                uinput.click_key(code);
-            }
+            send_key_with_ui_modifiers(&uinput, &ui_weak_s, code);
+        });
+    }
+
+    {
+        let uinput = Arc::clone(&uinput);
+        keyboard_window.on_shortcut_clicked(move |action| {
+            let code = match action.as_str() {
+                "undo" => KEY_Z,
+                "select_all" => KEY_A,
+                "copy" => KEY_C,
+                "paste" => KEY_V,
+                _ => return,
+            };
+            uinput.click_with_modifiers(code, true, false, false, false);
         });
     }
 
@@ -190,18 +208,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let uinput = Arc::clone(&uinput);
         let ui_weak_b = ui_weak.clone();
         keyboard_window.on_backspace_clicked(move || {
-            info!("Virtual backspace clicked");
-            if let Some(ui) = ui_weak_b.upgrade() {
-                let ctrl = ui.get_ctrl_active();
-                let alt = ui.get_alt_active();
-                let meta = ui.get_super_active();
-                uinput.click_with_modifiers(KEY_BACKSPACE, ctrl, alt, false, meta);
-                if ctrl { ui.set_ctrl_active(false); }
-                if alt { ui.set_alt_active(false); }
-                if meta { ui.set_super_active(false); }
-            } else {
-                uinput.click_key(KEY_BACKSPACE);
-            }
+            send_key_with_ui_modifiers(&uinput, &ui_weak_b, KEY_BACKSPACE);
         });
     }
 
@@ -209,18 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let uinput = Arc::clone(&uinput);
         let ui_weak_sp = ui_weak.clone();
         keyboard_window.on_space_clicked(move || {
-            info!("Virtual space clicked");
-            if let Some(ui) = ui_weak_sp.upgrade() {
-                let ctrl = ui.get_ctrl_active();
-                let alt = ui.get_alt_active();
-                let meta = ui.get_super_active();
-                uinput.click_with_modifiers(KEY_SPACE, ctrl, alt, false, meta);
-                if ctrl { ui.set_ctrl_active(false); }
-                if alt { ui.set_alt_active(false); }
-                if meta { ui.set_super_active(false); }
-            } else {
-                uinput.click_key(KEY_SPACE);
-            }
+            send_key_with_ui_modifiers(&uinput, &ui_weak_sp, KEY_SPACE);
         });
     }
 
@@ -228,18 +224,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let uinput = Arc::clone(&uinput);
         let ui_weak_e = ui_weak.clone();
         keyboard_window.on_enter_clicked(move || {
-            info!("Virtual enter clicked");
-            if let Some(ui) = ui_weak_e.upgrade() {
-                let ctrl = ui.get_ctrl_active();
-                let alt = ui.get_alt_active();
-                let meta = ui.get_super_active();
-                uinput.click_with_modifiers(KEY_ENTER, ctrl, alt, false, meta);
-                if ctrl { ui.set_ctrl_active(false); }
-                if alt { ui.set_alt_active(false); }
-                if meta { ui.set_super_active(false); }
-            } else {
-                uinput.click_key(KEY_ENTER);
-            }
+            send_key_with_ui_modifiers(&uinput, &ui_weak_e, KEY_ENTER);
         });
     }
 
@@ -247,14 +232,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let ui_weak = ui_weak.clone();
         keyboard_window.on_toggle_hide(move || {
             if let Some(ui) = ui_weak.upgrade() {
-                let eff_open = ui.get_is_open() && !ui.get_physical_keyboard_connected();
-                ipc::write_keyboard_state(eff_open);
+                sync_keyboard_state(&ui);
             }
-            info!("On-screen keyboard visibility toggled by user");
         });
     }
 
-    // 5. Initial Physical Keyboard Detection Check
+    {
+        let ui_weak = ui_weak.clone();
+        keyboard_window.on_layout_height_changed(move |_h| {
+            if let Some(ui) = ui_weak.upgrade() {
+                sync_keyboard_state(&ui);
+            }
+        });
+    }
+
     let initial_physical = detect_active_physical_keyboard();
     if let Some(ref name) = initial_physical {
         info!(
@@ -267,11 +258,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         keyboard_window.set_physical_keyboard_connected(false);
         keyboard_window.set_physical_keyboard_name("".into());
     }
-    // Always start with virtual keyboard hidden until explicitly invoked
     keyboard_window.set_is_open(false);
-    ipc::write_keyboard_state(false);
+    sync_keyboard_state(&keyboard_window);
 
-    // 6. Background Telemetry and Command Polling Timer (every 200ms)
     let poll_timer = Timer::default();
     let last_known_physical = Rc::new(std::cell::RefCell::new(initial_physical));
 
@@ -284,22 +273,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return;
             };
 
-            // 6a. Auto-dismiss if Quick Settings drawer or power dialog is open
-            if ipc::is_drawer_or_dialog_open() {
-                if ui.get_is_open() {
-                    ui.set_is_open(false);
-                    ipc::write_keyboard_state(false);
-                }
+            if ipc::is_drawer_or_dialog_open() && ui.get_is_open() {
+                ui.set_is_open(false);
             }
 
-            // 6b. Check for physical keyboard connection changes
             let current_physical = detect_active_physical_keyboard();
             let mut last = last_known.borrow_mut();
 
             if current_physical != *last {
                 if let Some(ref name) = current_physical {
                     info!(
-                        "Physical keyboard plugged in / detected ('{}') -> auto-hiding on-screen keyboard",
+                        "Physical keyboard detected ('{}') -> auto-hiding on-screen keyboard",
                         name
                     );
                     ui.set_physical_keyboard_connected(true);
@@ -314,14 +298,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 *last = current_physical;
             }
 
-            // 6c. Check for external IPC commands
             if let Some(cmd) = ipc::poll_pending_command() {
                 match cmd {
                     ipc::KeyboardCommand::Show => {
                         if !ui.get_physical_keyboard_connected() {
                             ui.set_is_open(true);
-                        } else {
-                            info!("Ignoring show command: physical keyboard is connected");
                         }
                     }
                     ipc::KeyboardCommand::Hide => {
@@ -331,19 +312,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if !ui.get_physical_keyboard_connected() {
                             let curr = ui.get_is_open();
                             ui.set_is_open(!curr);
-                        } else {
-                            info!("Ignoring toggle command: physical keyboard is connected");
                         }
                     }
                 }
             }
 
-            let eff_open = ui.get_is_open() && !ui.get_physical_keyboard_connected();
-            ipc::write_keyboard_state(eff_open);
+            sync_keyboard_state(&ui);
         });
     }
 
-    // 7. Run Slint Event Loop
     keyboard_window.run()?;
 
     info!("Penumbra Keyboard exited cleanly");

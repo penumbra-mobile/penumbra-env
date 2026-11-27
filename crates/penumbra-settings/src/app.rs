@@ -137,6 +137,11 @@ pub fn setup_app(
         window.set_night_light_enabled(multi_disp_cfg.night_light.enabled);
         let temp_norm = (multi_disp_cfg.night_light.temperature_k.clamp(2700, 6500) as f32 - 2700.0) / (6500.0 - 2700.0);
         window.set_night_light_temp(temp_norm);
+        window.set_notch_enabled(multi_disp_cfg.notch.enabled);
+        window.set_notch_x(multi_disp_cfg.notch.x);
+        window.set_notch_y(multi_disp_cfg.notch.y);
+        window.set_notch_width(multi_disp_cfg.notch.width);
+        window.set_notch_height(multi_disp_cfg.notch.height);
 
         // Populate real PipeWire/PulseAudio sound state (GNOME 1:1)
         let snd_cfg = SoundConfig::load();
@@ -764,6 +769,21 @@ pub fn setup_app(
         let mut cfg = DisplaysConfig::load();
         cfg.night_light.temperature_k = temp;
         let _ = cfg.save();
+    });
+
+    window.on_notch_config_changed(|enabled, x, y, width, height| {
+        info!("Settings: Mobile panel notch -> enabled={enabled}, x={x}, y={y}, w={width}, h={height}");
+        let mut cfg = DisplaysConfig::load();
+        cfg.notch = penumbra_services::NotchConfig {
+            enabled,
+            x: x.clamp(0, 390),
+            y: y.clamp(0, 48),
+            width: width.clamp(16, 240),
+            height: height.clamp(16, 64),
+        };
+        let _ = cfg.save();
+        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
+        let _ = std::fs::write(std::path::PathBuf::from(runtime_dir).join("penumbra-display-reload"), "1");
     });
 
     // Real PipeWire / PulseAudio Sound Settings (GNOME Control Center 1:1)

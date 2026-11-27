@@ -16,11 +16,15 @@ pub fn runtime_path(name: &str) -> PathBuf {
     PathBuf::from(dir).join(name)
 }
 
-/// Atomically persists current open/closed status for compositor hit testing & rendering.
-pub fn write_keyboard_state(is_open: bool) {
+/// Atomically persists current open/closed status and height for compositor layout.
+pub fn write_keyboard_state(is_open: bool, height_px: i32) {
     let path = runtime_path(KEYBOARD_STATE_FILE);
     let tmp = path.with_extension("tmp");
-    let val = if is_open { "open=1\n" } else { "open=0\n" };
+    let val = if is_open {
+        format!("open=1\nheight={}\n", height_px.max(0))
+    } else {
+        "open=0\nheight=0\n".to_string()
+    };
     if std::fs::write(&tmp, val).is_ok() {
         let _ = std::fs::rename(&tmp, &path);
     }

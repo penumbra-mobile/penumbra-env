@@ -151,6 +151,11 @@ export component SettingsWindow inherits Window {
     in-out property <bool> is-mirroring: false;
     in-out property <bool> night-light-enabled: false;
     in-out property <float> night-light-temp: 0.5;
+    in-out property <bool> notch-enabled: false;
+    in-out property <int> notch-x: 146;
+    in-out property <int> notch-y: 0;
+    in-out property <int> notch-width: 120;
+    in-out property <int> notch-height: 36;
 
     // Display Callbacks
     callback display-selected(int);
@@ -159,6 +164,7 @@ export component SettingsWindow inherits Window {
     callback display-primary-toggled(int, bool);
     callback toggle-night-light(bool);
     callback night-light-temp-changed(float);
+    callback notch-config-changed(bool, int, int, int, int);
     callback accent-color-changed(string);
     callback toggle-dynamic-monet(bool);
     callback toggle-themed-icons(bool);
@@ -478,6 +484,11 @@ export component SettingsWindow inherits Window {
                     is-mirroring <=> root.is-mirroring;
                     night-light-enabled <=> root.night-light-enabled;
                     night-light-temp <=> root.night-light-temp;
+                    notch-enabled <=> root.notch-enabled;
+                    notch-x <=> root.notch-x;
+                    notch-y <=> root.notch-y;
+                    notch-width <=> root.notch-width;
+                    notch-height <=> root.notch-height;
 
                     brightness-changed(v) => { root.brightness-changed(v); }
                     toggle-adaptive-brightness(v) => { root.toggle-adaptive-brightness(v); }
@@ -490,6 +501,7 @@ export component SettingsWindow inherits Window {
                     display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
                     toggle-night-light(nl) => { root.toggle-night-light(nl); }
                     night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
+                    notch-config-changed(en, nx, ny, nw, nh) => { root.notch-config-changed(en, nx, ny, nw, nh); }
                 }
 
                 if root.active-page == "appearance": PageAppearance {
@@ -770,6 +782,11 @@ export component SettingsWindow inherits Window {
                     is-mirroring <=> root.is-mirroring;
                     night-light-enabled <=> root.night-light-enabled;
                     night-light-temp <=> root.night-light-temp;
+                    notch-enabled <=> root.notch-enabled;
+                    notch-x <=> root.notch-x;
+                    notch-y <=> root.notch-y;
+                    notch-width <=> root.notch-width;
+                    notch-height <=> root.notch-height;
 
                     brightness-changed(v) => { root.brightness-changed(v); }
                     toggle-adaptive-brightness(v) => { root.toggle-adaptive-brightness(v); }
@@ -782,6 +799,7 @@ export component SettingsWindow inherits Window {
                     display-primary-toggled(idx, p) => { root.display-primary-toggled(idx, p); }
                     toggle-night-light(nl) => { root.toggle-night-light(nl); }
                     night-light-temp-changed(t) => { root.night-light-temp-changed(t); }
+                    notch-config-changed(en, nx, ny, nw, nh) => { root.notch-config-changed(en, nx, ny, nw, nh); }
                 }
 
                 if root.active-page == "appearance": PageAppearance {

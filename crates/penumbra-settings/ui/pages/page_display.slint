@@ -140,6 +140,13 @@ export component PageDisplay inherits Rectangle {
     in-out property <bool> night-light-enabled: false;
     in-out property <float> night-light-temp: 0.5; // 0.0 (warm 2700K) to 1.0 (cool 6500K)
 
+    // Mobile Panel Camera Notch state (logical px on 412px mobile panel)
+    in-out property <bool> notch-enabled: false;
+    in-out property <int> notch-x: 146;
+    in-out property <int> notch-y: 0;
+    in-out property <int> notch-width: 120;
+    in-out property <int> notch-height: 36;
+
     // Accent color state (Adapted from COSMIC Settings)
     in-out property <string> accent-color: "blue"; // "blue", "lavender", "mint", "rose", "amber"
 
@@ -158,6 +165,7 @@ export component PageDisplay inherits Rectangle {
     callback display-primary-toggled(int, bool);
     callback toggle-night-light(bool);
     callback night-light-temp-changed(float);
+    callback notch-config-changed(bool, int, int, int, int);
 
     background: Theme.base-surface;
 
@@ -389,6 +397,323 @@ export component PageDisplay inherits Rectangle {
                                     scale-touch := TouchArea {
                                         clicked => {
                                             root.display-scale-selected(root.selected-display-index, scale);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Mobile Panel Camera Notch Configuration (shown for internal mobile display)
+                if cur.id == "DSI-1" || cur.connector == "DSI-1": VerticalLayout {
+                    spacing: 8px;
+
+                    SettingsSectionHeader { title: @tr("Mobile panel notch"); }
+
+                    SettingsSectionCard {
+                        VerticalLayout {
+                            padding-top: 4px;
+                            padding-bottom: root.notch-enabled ? 14px : 4px;
+                            spacing: 12px;
+
+                            SettingsTile {
+                                icon-name: "display";
+                                icon-bg: #a3e8b0;
+                                icon-tint: #073919;
+                                title: @tr("Camera notch");
+                                subtitle: root.notch-enabled
+                                    ? @tr("Active ({}×{} at {}, {})", root.notch-width, root.notch-height, root.notch-x, root.notch-y)
+                                    : @tr("Off");
+                                is-switch: true;
+                                switch-checked: root.notch-enabled;
+                                is-first: true;
+                                is-last: !root.notch-enabled;
+                                show-divider: root.notch-enabled;
+                                toggled(val) => {
+                                    root.notch-enabled = val;
+                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                }
+                            }
+
+                            if root.notch-enabled: VerticalLayout {
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                spacing: 12px;
+
+                                // Live Top Bar Cutout Preview (proportional to 412px mobile panel)
+                                preview-bar := Rectangle {
+                                    height: 46px;
+                                    border-radius: 14px;
+                                    background: #0b0a0e;
+                                    border-width: 1px;
+                                    border-color: Theme.outline-variant;
+                                    clip: true;
+
+                                    property <float> sx: (self.width / 1px) / 412.0;
+
+                                    Text {
+                                        x: (root.notch-x < 72 ? (root.notch-x + root.notch-width + 8) * preview-bar.sx : 14 * preview-bar.sx) * 1px;
+                                        y: 0px;
+                                        height: parent.height;
+                                        text: "12:00";
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Text {
+                                        x: ((root.notch-x + root.notch-width) > 340 ? (root.notch-x - 58) * preview-bar.sx : (412 - 58) * preview-bar.sx) * 1px;
+                                        y: 0px;
+                                        height: parent.height;
+                                        text: "5G  92%";
+                                        font-size: 10px;
+                                        font-weight: 700;
+                                        color: Theme.on-surface-variant;
+                                        vertical-alignment: center;
+                                    }
+
+                                    // Cutout visualization
+                                    Rectangle {
+                                        x: Math.clamp(root.notch-x * preview-bar.sx, 0, preview-bar.width / 1px - 12) * 1px;
+                                        y: Math.clamp(root.notch-y * preview-bar.sx, 0, preview-bar.height / 1px - 10) * 1px;
+                                        width: Math.max(12px, root.notch-width * preview-bar.sx * 1px);
+                                        height: Math.min(parent.height - self.y, Math.max(10px, root.notch-height * preview-bar.sx * 1px));
+                                        border-radius: 8px;
+                                        background: #1f1c26;
+                                        border-width: 1.5px;
+                                        border-color: Theme.primary;
+                                    }
+                                }
+
+                                // Quick Placement Presets
+                                HorizontalLayout {
+                                    spacing: 8px;
+
+                                    for preset in [
+                                        { label: @tr("Left"), px: 16, py: 8, pw: 32, ph: 32 },
+                                        { label: @tr("Center"), px: 146, py: 0, pw: 120, ph: 36 },
+                                        { label: @tr("Right"), px: 364, py: 8, pw: 32, ph: 32 },
+                                    ]: Rectangle {
+                                        property <bool> is-active: root.notch-x == preset.px && root.notch-y == preset.py && root.notch-width == preset.pw && root.notch-height == preset.ph;
+                                        height: 44px;
+                                        horizontal-stretch: 1;
+                                        border-radius: 12px;
+                                        background: is-active ? Theme.primary : (preset-touch.pressed ? Theme.surface-highest : Theme.surface-high);
+                                        border-width: is-active ? 0px : 1px;
+                                        border-color: is-active ? transparent : Theme.outline-variant;
+
+                                        Text {
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            text: preset.label;
+                                            font-size: 13px;
+                                            font-weight: is-active ? 700 : 500;
+                                            color: is-active ? Theme.on-primary : Theme.on-surface;
+                                        }
+
+                                        preset-touch := TouchArea {
+                                            clicked => {
+                                                root.notch-x = preset.px;
+                                                root.notch-y = preset.py;
+                                                root.notch-width = preset.pw;
+                                                root.notch-height = preset.ph;
+                                                root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Coordinate & Dimension Stepper Rows (44x44px tap targets)
+                                // X Coordinate
+                                HorizontalLayout {
+                                    height: 48px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: @tr("X coordinate");
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: end;
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: x-dec.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "-"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            x-dec := TouchArea {
+                                                clicked => {
+                                                    root.notch-x = Math.max(0, root.notch-x - 4);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            width: 58px;
+                                            text: root.notch-x + " px";
+                                            font-size: 13px; font-weight: 600; color: Theme.primary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: x-inc.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "+"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            x-inc := TouchArea {
+                                                clicked => {
+                                                    root.notch-x = Math.min(390, root.notch-x + 4);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Y Coordinate
+                                HorizontalLayout {
+                                    height: 48px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: @tr("Y coordinate");
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: end;
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: y-dec.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "-"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            y-dec := TouchArea {
+                                                clicked => {
+                                                    root.notch-y = Math.max(0, root.notch-y - 2);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            width: 58px;
+                                            text: root.notch-y + " px";
+                                            font-size: 13px; font-weight: 600; color: Theme.primary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: y-inc.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "+"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            y-inc := TouchArea {
+                                                clicked => {
+                                                    root.notch-y = Math.min(48, root.notch-y + 2);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Notch Width
+                                HorizontalLayout {
+                                    height: 48px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: @tr("Width");
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: end;
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: w-dec.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "-"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            w-dec := TouchArea {
+                                                clicked => {
+                                                    root.notch-width = Math.max(16, root.notch-width - 4);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            width: 58px;
+                                            text: root.notch-width + " px";
+                                            font-size: 13px; font-weight: 600; color: Theme.primary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: w-inc.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "+"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            w-inc := TouchArea {
+                                                clicked => {
+                                                    root.notch-width = Math.min(240, root.notch-width + 4);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Notch Height
+                                HorizontalLayout {
+                                    height: 48px;
+                                    spacing: 8px;
+                                    alignment: space-between;
+                                    Text {
+                                        text: @tr("Height");
+                                        font-size: 14px;
+                                        font-weight: 500;
+                                        color: Theme.on-surface;
+                                        vertical-alignment: center;
+                                    }
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: end;
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: h-dec.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "-"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            h-dec := TouchArea {
+                                                clicked => {
+                                                    root.notch-height = Math.max(16, root.notch-height - 2);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
+                                        }
+                                        Text {
+                                            width: 58px;
+                                            text: root.notch-height + " px";
+                                            font-size: 13px; font-weight: 600; color: Theme.primary;
+                                            horizontal-alignment: center; vertical-alignment: center;
+                                        }
+                                        Rectangle {
+                                            width: 44px; height: 44px; border-radius: 12px;
+                                            background: h-inc.pressed ? Theme.surface-highest : Theme.surface-high;
+                                            border-width: 1px; border-color: Theme.outline-variant;
+                                            Text { text: "+"; font-size: 18px; font-weight: 700; color: Theme.on-surface; horizontal-alignment: center; vertical-alignment: center; }
+                                            h-inc := TouchArea {
+                                                clicked => {
+                                                    root.notch-height = Math.min(64, root.notch-height + 2);
+                                                    root.notch-config-changed(root.notch-enabled, root.notch-x, root.notch-y, root.notch-width, root.notch-height);
+                                                }
+                                            }
                                         }
                                     }
                                 }

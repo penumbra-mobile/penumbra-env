@@ -1,44 +1,32 @@
-// ==============================================================================
-// Penumbra Keyboard: Material 3 / Android 17 On-Screen Virtual Keyboard
-// ==============================================================================
-// Standalone on-screen layer-shell keyboard built with Slint for Penumbra Mobile DE.
-//
-// Aesthetic & Ergonomic Principles:
-// 1. Android 17 Deep Night Palette:
-//    - Base Surface: `#141218`
-//    - Normal key surface: `#2b2930` (elevated squircle pill)
-//    - Functional keys (Shift, Backspace, Symbols): `#36343b`
-//    - Action key (Enter / Return): Pastel accent `#a8c7fa` with deep navy tint `#042b59`
-//    - Pressed feedback: `#48464f` with micro-animations
-// 2. High-performance touch responsiveness:
-//    - 12px squircle corner radius
-//    - Touch target dimensions: ~42px to ~46px height per key
-//    - Seamless layout switching between Letters (QWERTY), Shift/Caps, and Symbols
-// 3. Physical Keyboard Coexistence:
-//    - Reactively hides when a physical hardware keyboard is detected.
-// ==============================================================================
+// Penumbra Keyboard: Wayland layer-shell on-screen keyboard.
 
 component KeyButton inherits Rectangle {
     in property <string> text: "";
     in property <bool> is-accent: false;
     in property <bool> is-functional: false;
+    in property <bool> is-console: false;
     in property <bool> is-active: false;
     in property <length> custom-font-size: 19px;
+    in property <string> icon-name: "";
 
     callback clicked();
 
-    border-radius: 8px;
+    border-radius: root.is-console ? 9px : 10px;
     background: touch.pressed
-        ? (root.is-accent ? #8ab4f8 : #4a4852)
+        ? (root.is-accent ? #8ab4f8 : (root.is-console ? #34313d : #4a4852))
         : (root.is-active
             ? #a8c7fa
             : (root.is-accent
                 ? #a8c7fa
-                : (root.is-functional ? #36343b : #2b2930)));
+                : (root.is-console
+                    ? #1d1b23
+                    : (root.is-functional ? #383542 : #2c2a33))));
+    border-width: root.is-console && !root.is-active ? 1px : 0px;
+    border-color: #ffffff1c;
 
-    animate background { duration: 90ms; easing: ease-out; }
+    animate background { duration: 80ms; easing: ease-out; }
 
-    HorizontalLayout {
+    if root.icon-name == "": HorizontalLayout {
         alignment: center;
         Text {
             text: root.text;
@@ -46,13 +34,75 @@ component KeyButton inherits Rectangle {
                 ? #042b59
                 : #e6e1e5;
             font-size: root.custom-font-size;
-            font-weight: root.is-accent || root.is-functional ? 600 : 400;
+            font-weight: root.is-accent || root.is-functional || root.is-console ? 600 : 400;
             vertical-alignment: center;
             horizontal-alignment: center;
         }
     }
 
+    if root.icon-name != "": Path {
+        width: 20px;
+        height: 20px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.icon-name == "shift" ? "M12 4 L4 13 H9 V20 H15 V13 H20 Z"
+                : root.icon-name == "capslock" ? "M12 3 L4 12 H9 V17 H15 V12 H20 Z M7 20 H17"
+                : root.icon-name == "backspace" ? "M21 6 H9 L3 12 L9 18 H21 Z M12 9 L17 15 M17 9 L12 15"
+                : root.icon-name == "enter" ? "M19 6 V14 H6 M10 10 L6 14 L10 18"
+                : root.icon-name == "left" ? "M15 6 L9 12 L15 18"
+                : root.icon-name == "right" ? "M9 6 L15 12 L9 18"
+                : root.icon-name == "up" ? "M6 15 L12 9 L18 15"
+                : root.icon-name == "down" ? "M6 9 L12 15 L18 9"
+                : "";
+        stroke: root.is-active || (root.is-accent && !touch.pressed) ? #042b59 : #e6e1e5;
+        stroke-width: 2px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+        fill: transparent;
+    }
+
     touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component ToolbarChip inherits Rectangle {
+    in property <string> label: "";
+    in property <bool> active: false;
+    in property <bool> accent-text: false;
+    callback clicked();
+
+    height: 44px;
+    background: transparent;
+
+    Rectangle {
+        y: 4px;
+        width: parent.width;
+        height: 36px;
+        border-radius: 10px;
+        background: chip-touch.pressed
+            ? #3c3947
+            : (root.active ? #a8c7fa : #24222b);
+        border-width: root.active ? 0px : 1px;
+        border-color: #ffffff14;
+
+        animate background { duration: 80ms; }
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: root.label;
+            font-size: 12px;
+            font-weight: 600;
+            color: root.active ? #042b59 : (root.accent-text ? #a8c7fa : #e6e1e5);
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    chip-touch := TouchArea {
         clicked => { root.clicked(); }
     }
 }
@@ -63,54 +113,54 @@ export component KeyboardWindow inherits Window {
     default-font-family: "Droid Sans";
     background: transparent;
 
-    // Fixed layer-shell dimensions
     width: 412px;
-    height: 316px;
+    height: 380px;
 
-    // --------------------------------------------------------------------------
-    // State Properties
-    // --------------------------------------------------------------------------
-    // Whether the keyboard is currently expanded and visible.
     in-out property <bool> is-open: true;
-    // Whether a physical keyboard is currently connected and active.
     in-out property <bool> physical-keyboard-connected: false;
-    // Name of the detected physical keyboard.
     in-out property <string> physical-keyboard-name: "";
-    // Layout mode: 0 = Lowercase Letters, 1 = Uppercase/Shift, 2 = CapsLock, 3 = Symbols, 4 = More Symbols
+    // 0 = Lowercase, 1 = Shift, 2 = CapsLock, 3 = Symbols, 4 = More Symbols
     in-out property <int> layout-mode: 0;
-    // Stevia-style Linux Terminal / Command Bar & Sticky Modifiers
     in-out property <bool> terminal-bar-visible: true;
+    in-out property <bool> number-row-visible: false;
     in-out property <bool> ctrl-active: false;
     in-out property <bool> alt-active: false;
     in-out property <bool> super-active: false;
-    property <bool> effectively-open: root.is-open && !root.physical-keyboard-connected;
 
-    // Callbacks emitted to the Rust Wayland / UInput driver
+    property <bool> effectively-open: root.is-open && !root.physical-keyboard-connected;
+    out property <int> content-height-px:
+        14
+        + 44
+        + (root.terminal-bar-visible ? 50 : 0)
+        + (root.number-row-visible ? 50 : 0)
+        + (4 * 48)
+        + (3 * 6);
+
     callback key-clicked(string);
     callback special-key-clicked(string);
+    callback shortcut-clicked(string);
     callback backspace-clicked();
     callback space-clicked();
     callback enter-clicked();
     callback toggle-hide();
+    callback layout-height-changed(int);
 
-    // Container background
     Rectangle {
         width: 100%;
         height: 100%;
         clip: true;
 
-        // Main Animated Sheet
         keyboard-sheet := Rectangle {
             width: 100%;
-            height: 316px;
-            y: root.effectively-open ? 0px : 316px;
+            height: root.content-height-px * 1px;
+            y: root.effectively-open ? (parent.height - self.height) : parent.height;
             background: #141218;
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
             border-width: 1px;
-            border-color: #ffffff14;
+            border-color: #ffffff1a;
 
-            animate y { duration: 220ms; easing: ease-out; }
+            animate y, height { duration: 190ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
             VerticalLayout {
                 padding-left: 6px;
@@ -119,131 +169,135 @@ export component KeyboardWindow inherits Window {
                 padding-bottom: 8px;
                 spacing: 6px;
 
-                // --------------------------------------------------------------
-                // Header Bar (Pill Handle + Dismiss / Status)
-                // --------------------------------------------------------------
-                Rectangle {
-                    height: 28px;
+                // Utility & Editing Strip
+                HorizontalLayout {
+                    height: 44px;
+                    spacing: 6px;
 
-                    // Centered drag handle pill
-                    Rectangle {
-                        width: 40px;
-                        height: 4px;
-                        border-radius: 2px;
-                        background: #ffffff33;
-                        x: (parent.width - self.width) / 2;
-                        y: 4px;
-                    }
-
-                    // Left Side: Status / Indicator
-                    HorizontalLayout {
-                        x: 8px;
-                        y: 2px;
-                        spacing: 8px;
-                        alignment: start;
-
-                        if root.physical-keyboard-connected: Text {
-                            text: "⌨ " + root.physical-keyboard-name;
-                            color: #a8c7fa;
-                            font-size: 11px;
-                            vertical-alignment: center;
-                        }
-
-                        if !root.physical-keyboard-connected: Text {
-                            text: root.layout-mode == 0 || root.layout-mode == 1 || root.layout-mode == 2
-                                ? "EN • US"
-                                : "?123";
-                            color: #938f99;
-                            font-size: 11px;
-                            vertical-alignment: center;
+                    ToolbarChip {
+                        width: 48px;
+                        label: ">_";
+                        active: root.terminal-bar-visible;
+                        clicked => {
+                            root.terminal-bar-visible = !root.terminal-bar-visible;
+                            root.layout-height-changed(root.content-height-px);
                         }
                     }
 
-                    // Right Side: Terminal Bar Toggle + Hide Keyboard Button
-                    Rectangle {
-                        width: 34px;
-                        height: 24px;
-                        x: parent.width - 78px;
-                        y: 2px;
-                        border-radius: 6px;
-                        background: root.terminal-bar-visible ? #a8c7fa : (term-toggle-touch.pressed ? #36343b : #2b2930);
-
-                        Text {
-                            text: ">_";
-                            font-size: 11px;
-                            font-weight: 700;
-                            color: root.terminal-bar-visible ? #042b59 : #c4c7c5;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
+                    ToolbarChip {
+                        width: 48px;
+                        label: "123";
+                        active: root.number-row-visible;
+                        clicked => {
+                            root.number-row-visible = !root.number-row-visible;
+                            root.layout-height-changed(root.content-height-px);
                         }
+                    }
 
-                        term-toggle-touch := TouchArea {
-                            clicked => {
-                                root.terminal-bar-visible = !root.terminal-bar-visible;
+                    ToolbarChip {
+                        horizontal-stretch: 1;
+                        label: @tr("Undo");
+                        clicked => { root.shortcut-clicked("undo"); }
+                    }
+
+                    ToolbarChip {
+                        horizontal-stretch: 1;
+                        label: @tr("All");
+                        clicked => { root.shortcut-clicked("select_all"); }
+                    }
+
+                    ToolbarChip {
+                        horizontal-stretch: 1;
+                        label: @tr("Copy");
+                        clicked => { root.shortcut-clicked("copy"); }
+                    }
+
+                    ToolbarChip {
+                        horizontal-stretch: 1;
+                        label: @tr("Paste");
+                        clicked => { root.shortcut-clicked("paste"); }
+                    }
+
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        background: transparent;
+
+                        Rectangle {
+                            y: 4px;
+                            width: 44px;
+                            height: 36px;
+                            border-radius: 10px;
+                            background: hide-touch.pressed ? #3c3947 : #24222b;
+                            border-width: 1px;
+                            border-color: #ffffff14;
+
+                            Path {
+                                width: 16px;
+                                height: 16px;
+                                x: (parent.width - self.width) / 2;
+                                y: (parent.height - self.height) / 2;
+                                viewbox-width: 24;
+                                viewbox-height: 24;
+                                commands: "M6 9 L12 15 L18 9";
+                                stroke: #e6e1e5;
+                                stroke-width: 2.2px;
+                                stroke-line-cap: round;
+                                stroke-line-join: round;
+                                fill: transparent;
                             }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 32px;
-                        height: 24px;
-                        x: parent.width - self.width - 6px;
-                        y: 2px;
-                        border-radius: 6px;
-                        background: hide-touch.pressed ? #36343b : transparent;
-
-                        // Down Chevron Path (Hide Keyboard)
-                        Path {
-                            width: 14px;
-                            height: 14px;
-                            x: (parent.width - self.width) / 2;
-                            y: (parent.height - self.height) / 2;
-                            viewbox-width: 24;
-                            viewbox-height: 24;
-                            commands: "M6 9 L12 15 L18 9";
-                            stroke: #c4c7c5;
-                            stroke-width: 2.2px;
-                            fill: transparent;
                         }
 
                         hide-touch := TouchArea {
                             clicked => {
-                                root.is-open = !root.is-open;
+                                root.is-open = false;
                                 root.toggle-hide();
                             }
                         }
                     }
                 }
 
-                // ==============================================================
-                // Stevia-style Linux Terminal & Command Toolbar Row
-                // ==============================================================
+                // Console / Terminal Key Row
                 if root.terminal-bar-visible: HorizontalLayout {
                     spacing: 4px;
-                    height: 30px;
+                    height: 44px;
 
-                    KeyButton { text: "Esc"; is-functional: true; horizontal-stretch: 1.1; custom-font-size: 11px; clicked => { root.special-key-clicked("esc"); } }
-                    KeyButton { text: "Tab"; is-functional: true; horizontal-stretch: 1.1; custom-font-size: 11px; clicked => { root.special-key-clicked("tab"); } }
-                    KeyButton { text: "Ctrl"; is-functional: true; is-active: root.ctrl-active; horizontal-stretch: 1.2; custom-font-size: 11px; clicked => { root.ctrl-active = !root.ctrl-active; } }
-                    KeyButton { text: "Alt"; is-functional: true; is-active: root.alt-active; horizontal-stretch: 1.0; custom-font-size: 11px; clicked => { root.alt-active = !root.alt-active; } }
-                    KeyButton { text: "/"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("/"); } }
-                    KeyButton { text: "|"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("|"); } }
-                    KeyButton { text: "~"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("~"); } }
-                    KeyButton { text: "-"; is-functional: true; horizontal-stretch: 0.85; custom-font-size: 13px; clicked => { root.key-clicked("-"); } }
-                    KeyButton { text: "◀"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("left"); } }
-                    KeyButton { text: "▼"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("down"); } }
-                    KeyButton { text: "▲"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("up"); } }
-                    KeyButton { text: "▶"; is-functional: true; horizontal-stretch: 0.9; custom-font-size: 11px; clicked => { root.special-key-clicked("right"); } }
+                    KeyButton { text: "Esc"; is-console: true; horizontal-stretch: 1.15; custom-font-size: 11px; clicked => { root.special-key-clicked("esc"); } }
+                    KeyButton { text: "Tab"; is-console: true; horizontal-stretch: 1.15; custom-font-size: 11px; clicked => { root.special-key-clicked("tab"); } }
+                    KeyButton { text: "Ctrl"; is-console: true; is-active: root.ctrl-active; horizontal-stretch: 1.25; custom-font-size: 11px; clicked => { root.ctrl-active = !root.ctrl-active; } }
+                    KeyButton { text: "Alt"; is-console: true; is-active: root.alt-active; horizontal-stretch: 1.05; custom-font-size: 11px; clicked => { root.alt-active = !root.alt-active; } }
+                    KeyButton { text: "/"; is-console: true; horizontal-stretch: 0.85; custom-font-size: 14px; clicked => { root.key-clicked("/"); } }
+                    KeyButton { text: "|"; is-console: true; horizontal-stretch: 0.85; custom-font-size: 14px; clicked => { root.key-clicked("|"); } }
+                    KeyButton { text: "~"; is-console: true; horizontal-stretch: 0.85; custom-font-size: 14px; clicked => { root.key-clicked("~"); } }
+                    KeyButton { text: "-"; is-console: true; horizontal-stretch: 0.85; custom-font-size: 14px; clicked => { root.key-clicked("-"); } }
+                    KeyButton { icon-name: "left"; is-console: true; horizontal-stretch: 0.95; clicked => { root.special-key-clicked("left"); } }
+                    KeyButton { icon-name: "down"; is-console: true; horizontal-stretch: 0.95; clicked => { root.special-key-clicked("down"); } }
+                    KeyButton { icon-name: "up"; is-console: true; horizontal-stretch: 0.95; clicked => { root.special-key-clicked("up"); } }
+                    KeyButton { icon-name: "right"; is-console: true; horizontal-stretch: 0.95; clicked => { root.special-key-clicked("right"); } }
                 }
 
-                // ==============================================================
+                // Optional Dedicated Number Row
+                if root.number-row-visible: HorizontalLayout {
+                    spacing: 5px;
+                    height: 44px;
+
+                    KeyButton { text: "1"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("1"); } }
+                    KeyButton { text: "2"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("2"); } }
+                    KeyButton { text: "3"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("3"); } }
+                    KeyButton { text: "4"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("4"); } }
+                    KeyButton { text: "5"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("5"); } }
+                    KeyButton { text: "6"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("6"); } }
+                    KeyButton { text: "7"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("7"); } }
+                    KeyButton { text: "8"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("8"); } }
+                    KeyButton { text: "9"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("9"); } }
+                    KeyButton { text: "0"; horizontal-stretch: 1; custom-font-size: 17px; clicked => { root.key-clicked("0"); } }
+                }
+
                 // Key Row 1
-                // ==============================================================
                 HorizontalLayout {
                     spacing: 5px;
-                    height: 46px;
+                    height: 48px;
 
-                    // QWERTY Mode (0, 1, 2)
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "q" : "Q"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "w" : "W"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "e" : "E"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -255,7 +309,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "o" : "O"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "p" : "P"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // Symbols Mode 3
                     if root.layout-mode == 3: KeyButton { text: "1"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "2"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "3"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -267,7 +320,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode == 3: KeyButton { text: "9"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "0"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // More Symbols Mode 4
                     if root.layout-mode == 4: KeyButton { text: "~"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "`"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "|"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -280,17 +332,13 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode == 4: KeyButton { text: "\\"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                 }
 
-                // ==============================================================
                 // Key Row 2
-                // ==============================================================
                 HorizontalLayout {
                     spacing: 5px;
-                    height: 46px;
+                    height: 48px;
 
-                    // Margin spacers for standard staggered keyboard layout
                     Rectangle { width: 14px; background: transparent; }
 
-                    // QWERTY Mode (0, 1, 2)
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "a" : "A"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "s" : "S"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "d" : "D"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -301,7 +349,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "k" : "K"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "l" : "L"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // Symbols Mode 3
                     if root.layout-mode == 3: KeyButton { text: "@"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "#"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "$"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -312,7 +359,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode == 3: KeyButton { text: "("; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: ")"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // More Symbols Mode 4
                     if root.layout-mode == 4: KeyButton { text: "<"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: ">"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "*"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -326,27 +372,23 @@ export component KeyboardWindow inherits Window {
                     Rectangle { width: 14px; background: transparent; }
                 }
 
-                // ==============================================================
-                // Key Row 3 (Shift / Symbols Toggle + Letters + Backspace)
-                // ==============================================================
+                // Key Row 3
                 HorizontalLayout {
                     spacing: 5px;
-                    height: 46px;
+                    height: 48px;
 
-                    // Shift Key (QWERTY) or Mode Key (Symbols)
                     if root.layout-mode <= 2: KeyButton {
-                        text: root.layout-mode == 2 ? "⇪" : "⇧";
+                        icon-name: root.layout-mode == 2 ? "capslock" : "shift";
                         is-functional: true;
                         is-active: root.layout-mode == 1 || root.layout-mode == 2;
                         horizontal-stretch: 1.4;
-                        custom-font-size: 20px;
                         clicked => {
                             if root.layout-mode == 0 {
-                                root.layout-mode = 1; // Shift
+                                root.layout-mode = 1;
                             } else if root.layout-mode == 1 {
-                                root.layout-mode = 2; // CapsLock
+                                root.layout-mode = 2;
                             } else {
-                                root.layout-mode = 0; // Normal
+                                root.layout-mode = 0;
                             }
                         }
                     }
@@ -367,7 +409,6 @@ export component KeyboardWindow inherits Window {
                         clicked => { root.layout-mode = 3; }
                     }
 
-                    // QWERTY Mode (0, 1, 2)
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "z" : "Z"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); if root.layout-mode == 1 { root.layout-mode = 0; } } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "x" : "X"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); if root.layout-mode == 1 { root.layout-mode = 0; } } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "c" : "C"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); if root.layout-mode == 1 { root.layout-mode = 0; } } }
@@ -376,7 +417,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "n" : "N"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); if root.layout-mode == 1 { root.layout-mode = 0; } } }
                     if root.layout-mode <= 2: KeyButton { text: root.layout-mode == 0 ? "m" : "M"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); if root.layout-mode == 1 { root.layout-mode = 0; } } }
 
-                    // Symbols Mode 3
                     if root.layout-mode == 3: KeyButton { text: "*"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "\""; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "'"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -385,7 +425,6 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode == 3: KeyButton { text: "!"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 3: KeyButton { text: "?"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // More Symbols Mode 4
                     if root.layout-mode == 4: KeyButton { text: "!"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "?"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "$"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
@@ -394,24 +433,19 @@ export component KeyboardWindow inherits Window {
                     if root.layout-mode == 4: KeyButton { text: "&"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
                     if root.layout-mode == 4: KeyButton { text: "€"; horizontal-stretch: 1; clicked => { root.key-clicked(self.text); } }
 
-                    // Backspace Key
                     KeyButton {
-                        text: "⌫";
+                        icon-name: "backspace";
                         is-functional: true;
                         horizontal-stretch: 1.4;
-                        custom-font-size: 18px;
                         clicked => { root.backspace-clicked(); }
                     }
                 }
 
-                // ==============================================================
-                // Key Row 4 (Mode Switch + Comma + Space + Period + Enter)
-                // ==============================================================
+                // Key Row 4
                 HorizontalLayout {
                     spacing: 5px;
-                    height: 46px;
+                    height: 48px;
 
-                    // Mode Switcher (?123 / ABC)
                     KeyButton {
                         text: root.layout-mode <= 2 ? "?123" : "ABC";
                         is-functional: true;
@@ -426,76 +460,32 @@ export component KeyboardWindow inherits Window {
                         }
                     }
 
-                    // Comma Key
                     KeyButton {
                         text: ",";
-                        is-functional: false;
                         horizontal-stretch: 1;
                         custom-font-size: 18px;
                         clicked => { root.key-clicked(","); }
                     }
 
-                    // Spacebar (Expanded Pill)
                     KeyButton {
-                        text: "Space";
-                        is-functional: false;
+                        text: "";
                         horizontal-stretch: 4.6;
-                        custom-font-size: 14px;
                         clicked => { root.space-clicked(); }
                     }
 
-                    // Period Key
                     KeyButton {
                         text: ".";
-                        is-functional: false;
                         horizontal-stretch: 1;
                         custom-font-size: 18px;
                         clicked => { root.key-clicked("."); }
                     }
 
-                    // Enter / Action Key (Accent Blue with Dark Tone)
                     KeyButton {
-                        text: "↵";
+                        icon-name: "enter";
                         is-accent: true;
                         horizontal-stretch: 1.8;
-                        custom-font-size: 20px;
                         clicked => { root.enter-clicked(); }
                     }
-                }
-            }
-        }
-
-        // ----------------------------------------------------------------------
-        // Floating Restore Capsule (Shown when collapsed without physical keyboard)
-        // ----------------------------------------------------------------------
-        if !root.effectively-open && !root.physical-keyboard-connected: Rectangle {
-            width: 48px;
-            height: 38px;
-            x: parent.width - self.width - 12px;
-            y: parent.height - self.height - 8px;
-            border-radius: 19px;
-            background: restore-touch.pressed ? #3b3d45 : #2b2930;
-            border-width: 1px;
-            border-color: #ffffff20;
-
-            // Mini Keyboard Icon
-            Path {
-                width: 22px;
-                height: 22px;
-                x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
-                viewbox-width: 24;
-                viewbox-height: 24;
-                commands: "M4 6 H20 A 2 2 0 0 1 22 8 V16 A 2 2 0 0 1 20 18 H4 A 2 2 0 0 1 2 16 V8 A 2 2 0 0 1 4 6 Z M6 9 H8 V11 H6 Z M10 9 H12 V11 H10 Z M14 9 H16 V11 H14 Z M18 9 H18.01 V11 H18 Z M6 13 H8 V15 H6 Z M10 14 H14 V15 H10 Z M16 13 H18 V15 H16 Z";
-                stroke: #a8c7fa;
-                stroke-width: 1.8px;
-                fill: transparent;
-            }
-
-            restore-touch := TouchArea {
-                clicked => {
-                    root.is-open = true;
-                    root.toggle-hide();
                 }
             }
         }

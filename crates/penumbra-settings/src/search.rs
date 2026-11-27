@@ -225,6 +225,13 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         target_page: "display",
         keywords: "font size text scale zoom dpi accessibility display",
     },
+    SearchEntry {
+        category: "Display",
+        title: "Camera notch & cutout",
+        breadcrumb: "Display > Mobile panel notch",
+        target_page: "display",
+        keywords: "notch camera cutout punch hole topbar mobile panel coordinates dimensions",
+    },
 
     // Sound & vibration
     SearchEntry {

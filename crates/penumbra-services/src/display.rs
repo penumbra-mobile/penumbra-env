@@ -99,6 +99,29 @@ impl Default for DesktopCustomizationConfig {
     }
 }
 
+/// Camera notch / display cutout configuration for the internal mobile panel (logical px).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct NotchConfig {
+    pub enabled: bool,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl Default for NotchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            x: 146,
+            y: 0,
+            width: 120,
+            height: 36,
+        }
+    }
+}
+
 /// Comprehensive Convergence Displays Configuration (saved in `~/.config/penumbra/displays.toml`)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
@@ -107,6 +130,7 @@ pub struct DisplaysConfig {
     pub outputs: Vec<DisplayOutputInfo>,
     pub night_light: NightLightConfig,
     pub desktop: DesktopCustomizationConfig,
+    pub notch: NotchConfig,
 }
 
 impl Default for DisplaysConfig {
@@ -116,6 +140,7 @@ impl Default for DisplaysConfig {
             outputs: vec![DisplayOutputInfo::default()],
             night_light: NightLightConfig::default(),
             desktop: DesktopCustomizationConfig::default(),
+            notch: NotchConfig::default(),
         }
     }
 }
@@ -303,5 +328,20 @@ mod tests {
         let nl = NightLightConfig::default();
         assert!(!nl.enabled);
         assert_eq!(nl.temperature_k, 3800);
+    }
+
+    #[test]
+    fn test_notch_config_roundtrip() {
+        let mut cfg = DisplaysConfig::default();
+        cfg.notch = NotchConfig {
+            enabled: true,
+            x: 150,
+            y: 4,
+            width: 112,
+            height: 34,
+        };
+        let toml_str = toml::to_string_pretty(&cfg).expect("serialize notch toml");
+        let parsed: DisplaysConfig = toml::from_str(&toml_str).expect("deserialize notch toml");
+        assert_eq!(cfg.notch, parsed.notch);
     }
 }
