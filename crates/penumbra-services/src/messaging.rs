@@ -12,6 +12,10 @@ use zbus::zvariant::{OwnedObjectPath, Value};
 use crate::contacts::{normalize_phone, phone_matches, resolve_number};
 use crate::telephony::{find_modem_path, now_epoch_secs};
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmsMessage {
     pub id: String,
@@ -20,6 +24,8 @@ pub struct SmsMessage {
     pub outgoing: bool,
     pub timestamp_secs: u64,
     pub modem_path: String,
+    #[serde(default = "default_true")]
+    pub read: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -117,6 +123,7 @@ pub fn sync_modem_sms() -> Vec<SmsMessage> {
             outgoing,
             timestamp_secs: now,
             modem_path: path_str.clone(),
+            read: outgoing,
         });
         changed = true;
     }
@@ -132,10 +139,14 @@ pub fn list_threads() -> Vec<SmsThread> {
     let msgs = sync_modem_sms();
     let mut threads: Vec<SmsThread> = Vec::new();
     for m in &msgs {
+        let is_unread = !m.outgoing && !m.read;
         if let Some(existing) = threads
             .iter_mut()
             .find(|t| phone_matches(&t.peer_number, &m.peer_number))
         {
+            if is_unread {
+                existing.unread_count += 1;
+            }
             if m.timestamp_secs >= existing.last_timestamp_secs {
                 existing.last_message = m.text.clone();
                 existing.last_timestamp_secs = m.timestamp_secs;
@@ -149,12 +160,86 @@ pub fn list_threads() -> Vec<SmsThread> {
                 contact_name,
                 last_message: m.text.clone(),
                 last_timestamp_secs: m.timestamp_secs,
-                unread_count: 0,
+                unread_count: usize::from(is_unread),
             });
         }
     }
     threads.sort_by(|a, b| b.last_timestamp_secs.cmp(&a.last_timestamp_secs));
     threads
+}
+
+/// Marks all incoming messages in `peer_number`'s thread as read.
+pub fn mark_thread_read(peer_number: &str) {
+    let mut store = load_messages();
+    let mut changed = false;
+    for m in &mut store {
+        if phone_matches(&m.peer_number, peer_number) && !m.read {
+            m.read = true;
+            changed = true;
+        }
+    }
+    if changed {
+        save_messages(&store);
+    }
+}
+
+fn delete_modem_sms_paths(paths: &[String]) {
+    if paths.is_empty() {
+        return;
+    }
+    let Ok(conn) = Connection::system() else {
+        return;
+    };
+    let Some(modem_path) = find_modem_path(&conn) else {
+        return;
+    };
+    let Ok(messaging) = zbus::blocking::Proxy::new(
+        &conn,
+        "org.freedesktop.ModemManager1",
+        modem_path.as_str(),
+        "org.freedesktop.ModemManager1.Modem.Messaging",
+    ) else {
+        return;
+    };
+    for p in paths {
+        if p.starts_with('/') {
+            if let Ok(obj_path) = zbus::zvariant::ObjectPath::try_from(p.as_str()) {
+                let _ = messaging.call::<_, _, ()>("Delete", &(obj_path,));
+            }
+        }
+    }
+}
+
+/// Deletes a single SMS message by `id` from local storage and ModemManager.
+pub fn delete_message(id: &str) {
+    let mut store = load_messages();
+    let modem_paths: Vec<String> = store
+        .iter()
+        .filter(|m| m.id == id && !m.modem_path.is_empty())
+        .map(|m| m.modem_path.clone())
+        .collect();
+    let before = store.len();
+    store.retain(|m| m.id != id);
+    if store.len() != before {
+        save_messages(&store);
+        delete_modem_sms_paths(&modem_paths);
+    }
+}
+
+/// Deletes all messages belonging to `peer_number` from local storage and ModemManager.
+pub fn delete_thread(peer_number: &str) {
+    let mut store = load_messages();
+    let modem_paths: Vec<String> = store
+        .iter()
+        .filter(|m| phone_matches(&m.peer_number, peer_number) && !m.modem_path.is_empty())
+        .map(|m| m.modem_path.clone())
+        .collect();
+    let before = store.len();
+    store.retain(|m| !phone_matches(&m.peer_number, peer_number));
+    if store.len() != before {
+        save_messages(&store);
+        delete_modem_sms_paths(&modem_paths);
+    }
 }
 
 /// Returns all messages belonging to a conversation with `peer_number`.
@@ -211,9 +296,22 @@ pub fn send_sms(raw_number: &str, text: &str) -> Result<SmsMessage, String> {
         outgoing: true,
         timestamp_secs: now,
         modem_path: sms_path.to_string(),
+        read: true,
     };
     let mut store = load_messages();
     store.push(msg.clone());
     save_messages(&store);
     Ok(msg)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sms_message_read_defaults_true_on_legacy_json() {
+        let legacy = r#"{"id":"1","peer_number":"+15551234567","text":"hi","outgoing":false,"timestamp_secs":100,"modem_path":""}"#;
+        let parsed: SmsMessage = serde_json::from_str(legacy).expect("parse legacy sms");
+        assert!(parsed.read);
+    }
 }

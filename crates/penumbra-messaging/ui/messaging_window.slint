@@ -4,9 +4,11 @@ export struct ThreadRow {
     initials: string,
     last-message: string,
     time-label: string,
+    unread-count: int,
 }
 
 export struct ChatBubble {
+    id: string,
     text: string,
     outgoing: bool,
     time-label: string,
@@ -87,6 +89,18 @@ component MsgIcon inherits Rectangle {
         fill: root.icon-color;
         commands: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z";
     }
+    if root.name == "delete": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z";
+    }
+    if root.name == "copy": Path {
+        width: 100%; height: 100%;
+        viewbox-width: 24; viewbox-height: 24;
+        fill: root.icon-color;
+        commands: "M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z";
+    }
 }
 
 export component MessagingWindow inherits Window {
@@ -99,6 +113,7 @@ export component MessagingWindow inherits Window {
     in-out property <color> surface-low: #17151d;
     in-out property <color> surface-high: #27232e;
     in-out property <color> primary: #d0bcff;
+    in-out property <color> on-primary: #381e72;
     in-out property <color> primary-container: #4f378b;
     in-out property <color> on-primary-container: #eaddff;
     in-out property <color> on-surface: #e6e1e5;
@@ -110,22 +125,29 @@ export component MessagingWindow inherits Window {
     in-out property <string> active-peer: "";
     in-out property <string> active-peer-name: "";
     in-out property <bool> composing-new: false;
+    in-out property <string> thread-search: "";
     in-out property <string> new-recipient: "";
     in-out property <string> draft-text: "";
     in-out property <string> status-banner: "";
     in-out property <bool> sending: false;
 
+    in-out property <bool> confirm-delete-thread: false;
+    in-out property <string> action-msg-id: "";
+    in-out property <string> action-msg-text: "";
+
     callback open-thread(string);
     callback back-to-threads();
     callback send-message(string, string);
+    callback delete-message(string, string);
+    callback delete-thread(string);
+    callback copy-message(string);
+    callback thread-search-changed(string);
     callback recipient-filter-changed(string);
     callback call-number(string);
     callback add-contact-number(string);
     callback open-contacts();
 
-    // =========================================================================
-    // 1. THREADS LIST
-    // =========================================================================
+    // Threads list
     if root.active-peer == "" && !root.composing-new: VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
@@ -145,65 +167,124 @@ export component MessagingWindow inherits Window {
             }
             HorizontalLayout {
                 spacing: 8px;
-                VerticalLayout {
-                    alignment: center;
-                    Rectangle {
-                        height: 38px;
-                        border-radius: 19px;
-                        background: contacts-btn-ta.pressed ? root.primary-container : root.surface-high;
-                        border-width: 1px;
-                        border-color: #ffffff14;
-                        animate background { duration: 100ms; }
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            spacing: 6px;
-                            VerticalLayout {
-                                alignment: center;
-                                MsgIcon { name: "contacts"; icon-size: 15px; icon-color: root.primary; }
-                            }
-                            Text {
-                                text: @tr("Contacts");
-                                font-size: 13px;
-                                font-weight: 600;
-                                color: root.primary;
-                                vertical-alignment: center;
-                            }
+                Rectangle {
+                    height: 44px;
+                    border-radius: 16px;
+                    background: contacts-btn-ta.pressed ? root.primary-container : root.surface-high;
+                    border-width: 1px;
+                    border-color: #ffffff14;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            MsgIcon { name: "contacts"; icon-size: 16px; icon-color: root.primary; }
                         }
-                        contacts-btn-ta := TouchArea { clicked => { root.open-contacts(); } }
+                        Text {
+                            text: @tr("Contacts");
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: root.primary;
+                            vertical-alignment: center;
+                        }
+                    }
+                    contacts-btn-ta := TouchArea { clicked => { root.open-contacts(); } }
+                }
+                Rectangle {
+                    height: 44px;
+                    border-radius: 16px;
+                    background: new-btn-ta.pressed ? root.primary : root.primary-container;
+                    border-width: 1px;
+                    border-color: #ffffff1f;
+                    animate background { duration: 100ms; }
+                    HorizontalLayout {
+                        padding-left: 14px;
+                        padding-right: 14px;
+                        spacing: 6px;
+                        VerticalLayout {
+                            alignment: center;
+                            MsgIcon { name: "add"; icon-size: 16px; icon-color: root.on-primary-container; }
+                        }
+                        Text {
+                            text: @tr("New");
+                            font-size: 13px;
+                            font-weight: 700;
+                            color: root.on-primary-container;
+                            vertical-alignment: center;
+                        }
+                    }
+                    new-btn-ta := TouchArea {
+                        clicked => {
+                            root.new-recipient = "";
+                            root.recipient-filter-changed("");
+                            root.composing-new = true;
+                        }
                     }
                 }
+            }
+        }
+
+        // Conversation search bar
+        Rectangle {
+            height: 46px;
+            border-radius: 23px;
+            background: root.surface-low;
+            border-width: 1px;
+            border-color: #ffffff14;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 6px;
+                spacing: 10px;
                 VerticalLayout {
                     alignment: center;
+                    MsgIcon { name: "search"; icon-size: 18px; icon-color: root.on-surface-variant; }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: transparent;
+                    if root.thread-search == "": Text {
+                        text: @tr("Search conversations");
+                        font-size: 14px;
+                        color: root.on-surface-variant.with-alpha(0.65);
+                        vertical-alignment: center;
+                    }
+                    TextInput {
+                        width: 100%;
+                        height: 100%;
+                        text <=> root.thread-search;
+                        font-size: 14px;
+                        color: root.on-surface;
+                        vertical-alignment: center;
+                        single-line: true;
+                        edited => { root.thread-search-changed(self.text); }
+                    }
+                }
+                if root.thread-search != "": Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    background: transparent;
                     Rectangle {
-                        height: 38px;
-                        border-radius: 19px;
-                        background: new-btn-ta.pressed ? root.primary : root.primary-container;
-                        border-width: 1px;
-                        border-color: #ffffff1f;
-                        animate background { duration: 100ms; }
-                        HorizontalLayout {
-                            padding-left: 14px;
-                            padding-right: 14px;
-                            spacing: 6px;
-                            VerticalLayout {
-                                alignment: center;
-                                MsgIcon { name: "add"; icon-size: 16px; icon-color: root.on-primary-container; }
-                            }
-                            Text {
-                                text: @tr("New");
-                                font-size: 13px;
-                                font-weight: 700;
-                                color: root.on-primary-container;
-                                vertical-alignment: center;
-                            }
+                        width: 30px;
+                        height: 30px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        border-radius: 15px;
+                        background: root.surface-high;
+                        MsgIcon {
+                            name: "close";
+                            icon-size: 14px;
+                            icon-color: root.on-surface-variant;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
-                        new-btn-ta := TouchArea {
-                            clicked => {
-                                root.new-recipient = "";
-                                root.recipient-filter-changed("");
-                                root.composing-new = true;
-                            }
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.thread-search = "";
+                            root.thread-search-changed("");
                         }
                     }
                 }
@@ -219,7 +300,7 @@ export component MessagingWindow inherits Window {
 
                 if root.threads.length == 0: Rectangle {
                     height: 140px;
-                    border-radius: 28px;
+                    border-radius: 18px;
                     background: root.surface-low;
                     border-width: 1px;
                     border-color: #ffffff14;
@@ -229,13 +310,13 @@ export component MessagingWindow inherits Window {
                         HorizontalLayout {
                             alignment: center;
                             MsgIcon {
-                                name: "message";
+                                name: root.thread-search == "" ? "message" : "search";
                                 icon-size: 28px;
                                 icon-color: root.on-surface-variant;
                             }
                         }
                         Text {
-                            text: @tr("No conversations yet");
+                            text: root.thread-search == "" ? @tr("No conversations yet") : @tr("No matching conversations");
                             font-size: 15px;
                             font-weight: 500;
                             color: root.on-surface-variant;
@@ -246,10 +327,10 @@ export component MessagingWindow inherits Window {
 
                 for th in root.threads: Rectangle {
                     height: 76px;
-                    border-radius: 24px;
+                    border-radius: 18px;
                     background: th-ta.pressed ? root.surface-high : root.surface-low;
                     border-width: 1px;
-                    border-color: th-ta.pressed ? #ffffff26 : #ffffff14;
+                    border-color: th.unread-count > 0 ? root.primary.with-alpha(0.45) : (th-ta.pressed ? #ffffff26 : #ffffff14);
                     animate background { duration: 100ms; }
 
                     HorizontalLayout {
@@ -287,7 +368,7 @@ export component MessagingWindow inherits Window {
                         VerticalLayout {
                             horizontal-stretch: 1;
                             alignment: center;
-                            spacing: 3px;
+                            spacing: 4px;
                             HorizontalLayout {
                                 alignment: space-between;
                                 spacing: 8px;
@@ -295,23 +376,47 @@ export component MessagingWindow inherits Window {
                                     horizontal-stretch: 1;
                                     text: th.display-name != "" ? th.display-name : th.peer-number;
                                     font-size: 16px;
-                                    font-weight: 600;
+                                    font-weight: th.unread-count > 0 ? 700 : 600;
                                     color: root.on-surface;
                                     overflow: elide;
                                 }
                                 Text {
                                     text: th.time-label;
                                     font-size: 11px;
-                                    font-weight: 500;
-                                    color: root.on-surface-variant;
+                                    font-weight: th.unread-count > 0 ? 700 : 500;
+                                    color: th.unread-count > 0 ? root.primary : root.on-surface-variant;
                                     vertical-alignment: center;
                                 }
                             }
-                            Text {
-                                text: th.last-message;
-                                font-size: 13px;
-                                color: root.on-surface-variant;
-                                overflow: elide;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                spacing: 8px;
+                                Text {
+                                    horizontal-stretch: 1;
+                                    text: th.last-message;
+                                    font-size: 13px;
+                                    font-weight: th.unread-count > 0 ? 600 : 400;
+                                    color: th.unread-count > 0 ? root.on-surface : root.on-surface-variant;
+                                    overflow: elide;
+                                }
+                                if th.unread-count > 0: Rectangle {
+                                    min-width: 22px;
+                                    height: 20px;
+                                    border-radius: 10px;
+                                    background: root.primary;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        Text {
+                                            text: th.unread-count > 99 ? "99+" : th.unread-count;
+                                            font-size: 11px;
+                                            font-weight: 700;
+                                            color: root.on-primary;
+                                            vertical-alignment: center;
+                                            horizontal-alignment: center;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -323,9 +428,7 @@ export component MessagingWindow inherits Window {
         }
     }
 
-    // =========================================================================
-    // 2. NEW CONVERSATION RECIPIENT ENTRY + CONTACT PICKER
-    // =========================================================================
+    // New conversation recipient entry and contact picker
     if root.composing-new && root.active-peer == "": VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
@@ -336,24 +439,21 @@ export component MessagingWindow inherits Window {
         HorizontalLayout {
             spacing: 12px;
             height: 44px;
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    background: comp-back-ta.pressed ? root.primary-container : root.surface-high;
-                    border-width: 1px;
-                    border-color: #ffffff14;
-                    HorizontalLayout {
-                        alignment: center;
-                        VerticalLayout {
-                            alignment: center;
-                            MsgIcon { name: "back"; icon-size: 18px; icon-color: root.on-surface; }
-                        }
-                    }
-                    comp-back-ta := TouchArea { clicked => { root.composing-new = false; } }
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: comp-back-ta.pressed ? root.primary-container : root.surface-high;
+                border-width: 1px;
+                border-color: #ffffff14;
+                MsgIcon {
+                    name: "back";
+                    icon-size: 18px;
+                    icon-color: root.on-surface;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                 }
+                comp-back-ta := TouchArea { clicked => { root.composing-new = false; } }
             }
             Text {
                 text: @tr("New conversation");
@@ -364,7 +464,6 @@ export component MessagingWindow inherits Window {
             }
         }
 
-        // Recipient Input Pill
         Rectangle {
             height: 50px;
             border-radius: 25px;
@@ -373,7 +472,7 @@ export component MessagingWindow inherits Window {
             border-color: #ffffff14;
             HorizontalLayout {
                 padding-left: 16px;
-                padding-right: 10px;
+                padding-right: 4px;
                 spacing: 10px;
                 VerticalLayout {
                     alignment: center;
@@ -385,7 +484,7 @@ export component MessagingWindow inherits Window {
                     if root.new-recipient == "": Text {
                         text: @tr("Enter name or phone number");
                         font-size: 14px;
-                        color: root.on-surface-variant.with-alpha(0.55);
+                        color: root.on-surface-variant.with-alpha(0.65);
                         vertical-alignment: center;
                     }
                     TextInput {
@@ -405,25 +504,29 @@ export component MessagingWindow inherits Window {
                         }
                     }
                 }
-                if root.new-recipient != "": VerticalLayout {
-                    alignment: center;
+                if root.new-recipient != "": Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    background: transparent;
                     Rectangle {
                         width: 30px;
                         height: 30px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
                         border-radius: 15px;
                         background: root.surface-high;
-                        HorizontalLayout {
-                            alignment: center;
-                            VerticalLayout {
-                                alignment: center;
-                                MsgIcon { name: "close"; icon-size: 14px; icon-color: root.on-surface-variant; }
-                            }
+                        MsgIcon {
+                            name: "close";
+                            icon-size: 14px;
+                            icon-color: root.on-surface-variant;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
                         }
-                        TouchArea {
-                            clicked => {
-                                root.new-recipient = "";
-                                root.recipient-filter-changed("");
-                            }
+                    }
+                    TouchArea {
+                        clicked => {
+                            root.new-recipient = "";
+                            root.recipient-filter-changed("");
                         }
                     }
                 }
@@ -432,7 +535,7 @@ export component MessagingWindow inherits Window {
 
         if root.new-recipient != "": Rectangle {
             height: 46px;
-            border-radius: 23px;
+            border-radius: 16px;
             background: start-ta.pressed ? root.primary : root.primary-container;
             border-width: 1px;
             border-color: #ffffff1f;
@@ -472,7 +575,7 @@ export component MessagingWindow inherits Window {
                 spacing: 8px;
                 for c in root.contact-suggestions: Rectangle {
                     height: 64px;
-                    border-radius: 22px;
+                    border-radius: 16px;
                     background: pick-ta.pressed ? root.surface-high : root.surface-low;
                     border-width: 1px;
                     border-color: #ffffff14;
@@ -516,39 +619,33 @@ export component MessagingWindow inherits Window {
         }
     }
 
-    // =========================================================================
-    // 3. CHAT THREAD VIEW
-    // =========================================================================
+    // Active chat thread view
     if root.active-peer != "": VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
         padding-bottom: 14px;
-        spacing: 12px;
+        spacing: 10px;
 
-        // Top Bar with Back, Name, Save Contact, Call
         HorizontalLayout {
-            spacing: 10px;
+            spacing: 8px;
             height: 44px;
 
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    background: chat-back-ta.pressed ? root.primary-container : root.surface-high;
-                    border-width: 1px;
-                    border-color: #ffffff14;
-                    HorizontalLayout {
-                        alignment: center;
-                        VerticalLayout {
-                            alignment: center;
-                            MsgIcon { name: "back"; icon-size: 18px; icon-color: root.on-surface; }
-                        }
-                    }
-                    chat-back-ta := TouchArea { clicked => { root.back-to-threads(); } }
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: chat-back-ta.pressed ? root.primary-container : root.surface-high;
+                border-width: 1px;
+                border-color: #ffffff14;
+                MsgIcon {
+                    name: "back";
+                    icon-size: 18px;
+                    icon-color: root.on-surface;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                 }
+                chat-back-ta := TouchArea { clicked => { root.back-to-threads(); } }
             }
 
             VerticalLayout {
@@ -570,74 +667,104 @@ export component MessagingWindow inherits Window {
                 }
             }
 
-            if root.active-peer-name == "": VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    background: save-peer-ta.pressed ? root.primary-container : root.surface-high;
-                    border-width: 1px;
-                    border-color: #ffffff14;
-                    HorizontalLayout {
-                        alignment: center;
-                        VerticalLayout {
-                            alignment: center;
-                            MsgIcon { name: "person-add"; icon-size: 18px; icon-color: root.primary; }
-                        }
-                    }
-                    save-peer-ta := TouchArea { clicked => { root.add-contact-number(root.active-peer); } }
+            if root.active-peer-name == "": Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: save-peer-ta.pressed ? root.primary-container : root.surface-high;
+                border-width: 1px;
+                border-color: #ffffff14;
+                MsgIcon {
+                    name: "person-add";
+                    icon-size: 18px;
+                    icon-color: root.primary;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                 }
+                save-peer-ta := TouchArea { clicked => { root.add-contact-number(root.active-peer); } }
             }
 
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
-                    background: chat-call-ta.pressed ? #1b5e20 : #2e7d32;
-                    border-width: 1px;
-                    border-color: #a3e8b033;
-                    HorizontalLayout {
-                        alignment: center;
-                        VerticalLayout {
-                            alignment: center;
-                            MsgIcon { name: "phone"; icon-size: 18px; icon-color: #ffffff; }
-                        }
-                    }
-                    chat-call-ta := TouchArea { clicked => { root.call-number(root.active-peer); } }
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: del-thread-ta.pressed ? #93000a : root.surface-high;
+                border-width: 1px;
+                border-color: #ffffff14;
+                MsgIcon {
+                    name: "delete";
+                    icon-size: 18px;
+                    icon-color: root.on-surface-variant;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                 }
+                del-thread-ta := TouchArea { clicked => { root.confirm-delete-thread = true; } }
+            }
+
+            Rectangle {
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: chat-call-ta.pressed ? #1b5e20 : #2e7d32;
+                border-width: 1px;
+                border-color: #a3e8b033;
+                MsgIcon {
+                    name: "phone";
+                    icon-size: 18px;
+                    icon-color: #ffffff;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+                chat-call-ta := TouchArea { clicked => { root.call-number(root.active-peer); } }
             }
         }
 
         if root.status-banner != "": Rectangle {
-            height: 36px;
+            height: 44px;
             border-radius: 14px;
             background: #93000a;
             border-width: 1px;
             border-color: #ffb4a933;
-            Text {
-                text: root.status-banner;
-                font-size: 12px;
-                font-weight: 500;
-                color: #ffdad6;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 4px;
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    text: root.status-banner;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: #ffdad6;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+                Rectangle {
+                    width: 44px;
+                    height: 44px;
+                    background: transparent;
+                    MsgIcon {
+                        name: "close";
+                        icon-size: 16px;
+                        icon-color: #ffdad6;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                    }
+                    TouchArea { clicked => { root.status-banner = ""; } }
+                }
             }
         }
 
-        // Messages List
         Flickable {
             vertical-stretch: 1;
             content-height: msgs-col.min-height + 16px;
+            content-y: Math.min(0px, self.height - msgs-col.min-height - 16px);
             msgs-col := VerticalLayout {
                 width: parent.width;
                 spacing: 8px;
 
                 if root.messages.length == 0: Rectangle {
                     height: 120px;
-                    border-radius: 24px;
+                    border-radius: 18px;
                     background: root.surface-low;
                     border-width: 1px;
                     border-color: #ffffff14;
@@ -662,10 +789,10 @@ export component MessagingWindow inherits Window {
                     Rectangle {
                         min-width: 68px;
                         max-width: 292px;
-                        border-top-left-radius: 20px;
-                        border-top-right-radius: 20px;
-                        border-bottom-left-radius: msg.outgoing ? 20px : 6px;
-                        border-bottom-right-radius: msg.outgoing ? 6px : 20px;
+                        border-top-left-radius: 18px;
+                        border-top-right-radius: 18px;
+                        border-bottom-left-radius: msg.outgoing ? 18px : 6px;
+                        border-bottom-right-radius: msg.outgoing ? 6px : 18px;
                         background: msg.outgoing ? root.primary-container : root.surface-low;
                         border-width: 1px;
                         border-color: msg.outgoing ? #ffffff1f : #ffffff14;
@@ -684,8 +811,14 @@ export component MessagingWindow inherits Window {
                             Text {
                                 text: msg.time-label;
                                 font-size: 10px;
-                                color: msg.outgoing ? root.on-primary-container.with-alpha(0.7) : root.on-surface-variant;
+                                color: msg.outgoing ? root.on-primary-container.with-alpha(0.75) : root.on-surface-variant;
                                 horizontal-alignment: right;
+                            }
+                        }
+                        TouchArea {
+                            clicked => {
+                                root.action-msg-id = msg.id;
+                                root.action-msg-text = msg.text;
                             }
                         }
                     }
@@ -693,7 +826,20 @@ export component MessagingWindow inherits Window {
             }
         }
 
-        // Composer Bar
+        // SMS character and segment counter when composing long messages
+        if root.draft-text != "": HorizontalLayout {
+            alignment: end;
+            padding-right: 58px;
+            Text {
+                property <int> chars: root.draft-text.character-count;
+                property <int> segs: chars <= 160 ? 1 : Math.ceil(chars / 153);
+                text: segs > 1 ? "\{chars} (\{segs} SMS)" : "\{chars}/160";
+                font-size: 11px;
+                font-weight: 600;
+                color: segs > 1 ? root.primary : root.on-surface-variant;
+            }
+        }
+
         HorizontalLayout {
             spacing: 8px;
             height: 48px;
@@ -712,7 +858,7 @@ export component MessagingWindow inherits Window {
                         if root.draft-text == "": Text {
                             text: @tr("Text message");
                             font-size: 14px;
-                            color: root.on-surface-variant.with-alpha(0.55);
+                            color: root.on-surface-variant.with-alpha(0.65);
                             vertical-alignment: center;
                         }
                         TextInput {
@@ -740,17 +886,190 @@ export component MessagingWindow inherits Window {
                 border-width: 1px;
                 border-color: #ffffff1f;
                 animate background { duration: 100ms; }
-                HorizontalLayout {
-                    alignment: center;
-                    VerticalLayout {
-                        alignment: center;
-                        MsgIcon { name: "send"; icon-size: 20px; icon-color: root.on-primary-container; }
-                    }
+                MsgIcon {
+                    name: "send";
+                    icon-size: 20px;
+                    icon-color: root.on-primary-container;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
                 }
                 send-ta := TouchArea {
                     clicked => {
                         if (root.draft-text != "" && !root.sending) {
                             root.send-message(root.active-peer, root.draft-text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Message action sheet (Copy / Delete)
+    if root.action-msg-id != "": Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        TouchArea {
+            clicked => {
+                root.action-msg-id = "";
+                root.action-msg-text = "";
+            }
+        }
+
+        Rectangle {
+            x: 16px;
+            y: parent.height - self.height - 16px;
+            width: parent.width - 32px;
+            height: msg-sheet-col.preferred-height;
+            border-radius: 24px;
+            background: root.surface-high;
+            border-width: 1px;
+            border-color: #ffffff1f;
+
+            msg-sheet-col := VerticalLayout {
+                padding: 16px;
+                spacing: 8px;
+
+                Text {
+                    text: root.action-msg-text;
+                    font-size: 13px;
+                    color: root.on-surface-variant;
+                    overflow: elide;
+                }
+
+                Rectangle {
+                    height: 48px;
+                    border-radius: 14px;
+                    background: copy-row-ta.pressed ? root.primary-container : root.surface-low;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: center;
+                            MsgIcon { name: "copy"; icon-size: 18px; icon-color: root.primary; }
+                        }
+                        Text {
+                            text: @tr("Copy text");
+                            font-size: 15px;
+                            font-weight: 600;
+                            color: root.on-surface;
+                            vertical-alignment: center;
+                        }
+                    }
+                    copy-row-ta := TouchArea {
+                        clicked => {
+                            root.copy-message(root.action-msg-text);
+                            root.action-msg-id = "";
+                            root.action-msg-text = "";
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: 48px;
+                    border-radius: 14px;
+                    background: del-row-ta.pressed ? #93000a : root.surface-low;
+                    HorizontalLayout {
+                        padding-left: 16px;
+                        padding-right: 16px;
+                        spacing: 12px;
+                        VerticalLayout {
+                            alignment: center;
+                            MsgIcon { name: "delete"; icon-size: 18px; icon-color: #ffb4ab; }
+                        }
+                        Text {
+                            text: @tr("Delete message");
+                            font-size: 15px;
+                            font-weight: 600;
+                            color: #ffb4ab;
+                            vertical-alignment: center;
+                        }
+                    }
+                    del-row-ta := TouchArea {
+                        clicked => {
+                            root.delete-message(root.active-peer, root.action-msg-id);
+                            root.action-msg-id = "";
+                            root.action-msg-text = "";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Delete conversation confirmation dialog
+    if root.confirm-delete-thread: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000a6;
+
+        TouchArea {}
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: Math.min(parent.width - 36px, 340px);
+            height: del-dlg-col.preferred-height;
+            border-radius: 24px;
+            background: root.surface-high;
+            border-width: 1px;
+            border-color: #ffffff1f;
+
+            del-dlg-col := VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                Text {
+                    text: @tr("Delete conversation?");
+                    font-size: 18px;
+                    font-weight: 700;
+                    color: root.on-surface;
+                }
+
+                Text {
+                    text: @tr("This will remove all messages with {} from this device.", root.active-peer-name != "" ? root.active-peer-name : root.active-peer);
+                    font-size: 13px;
+                    color: root.on-surface-variant;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+                    Rectangle {
+                        height: 44px;
+                        horizontal-stretch: 1;
+                        border-radius: 14px;
+                        background: cancel-del-ta.pressed ? root.primary-container : root.surface-low;
+                        Text {
+                            text: @tr("Cancel");
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: root.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        cancel-del-ta := TouchArea { clicked => { root.confirm-delete-thread = false; } }
+                    }
+                    Rectangle {
+                        height: 44px;
+                        horizontal-stretch: 1;
+                        border-radius: 14px;
+                        background: confirm-del-ta.pressed ? #b3261e : #93000a;
+                        Text {
+                            text: @tr("Delete");
+                            font-size: 14px;
+                            font-weight: 700;
+                            color: #ffdad6;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        confirm-del-ta := TouchArea {
+                            clicked => {
+                                root.confirm-delete-thread = false;
+                                root.delete-thread(root.active-peer);
+                            }
                         }
                     }
                 }
