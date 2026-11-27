@@ -96,6 +96,7 @@ pub(crate) struct InputState {
     pub shade_tracker: Option<ShadeTouchTracker>,
     pub power_press_time: Option<std::time::Instant>,
     pub power_dialog_triggered: bool,
+    pub volume_down_pressed: bool,
     pub last_tap_time: Option<std::time::Instant>,
     pub last_tap_pos: Option<Point<f64, Logical>>,
 }
@@ -120,6 +121,7 @@ impl InputState {
             shade_tracker: None,
             power_press_time: None,
             power_dialog_triggered: false,
+            volume_down_pressed: false,
             last_tap_time: None,
             last_tap_pos: None,
         }
@@ -230,6 +232,11 @@ fn handle_keyboard(
             KeyState::Pressed => {
                 input.power_press_time = Some(std::time::Instant::now());
                 input.power_dialog_triggered = false;
+                if input.volume_down_pressed {
+                    tracing::info!("Power + Volume Down -> Capturing mobile screenshot");
+                    input.power_dialog_triggered = true;
+                    server.pending_phone_screenshot = true;
+                }
             }
             KeyState::Released => {
                 if let Some(start) = input.power_press_time.take() {
@@ -263,9 +270,16 @@ fn handle_keyboard(
             }
         }
         KEY_VOLUMEDOWN_RAW | KEY_VOLUMEDOWN_XKB => {
+            input.volume_down_pressed = state == KeyState::Pressed;
             if state == KeyState::Pressed {
-                tracing::info!("Hardware Volume Down button pressed (-5%)");
-                server.adjust_volume(-0.05);
+                if input.power_press_time.is_some() {
+                    tracing::info!("Power + Volume Down -> Capturing mobile screenshot");
+                    input.power_dialog_triggered = true;
+                    server.pending_phone_screenshot = true;
+                } else {
+                    tracing::info!("Hardware Volume Down button pressed (-5%)");
+                    server.adjust_volume(-0.05);
+                }
             }
         }
         _ => {
@@ -311,6 +325,11 @@ fn handle_keyboard(
                                 action = Some("cycle");
                                 return FilterResult::Intercept(());
                             }
+                            // PrintScreen -> Capture screenshot (desktop if external output active, else mobile)
+                            if sym == 0xff61 {
+                                action = Some("screenshot");
+                                return FilterResult::Intercept(());
+                            }
                             // Super_L / Super_R alone -> Toggle COSMIC Launcher
                             if sym == 0xffeb || sym == 0xffec {
                                 action = Some("launcher");
@@ -328,6 +347,15 @@ fn handle_keyboard(
                         "ws3" => server.switch_desktop_workspace(3),
                         "ws4" => server.switch_desktop_workspace(4),
                         "cycle" => server.cycle_desktop_window(),
+                        "screenshot" => {
+                            if !server.external_outputs.is_empty() {
+                                tracing::info!("PrintScreen -> Capturing desktop screenshot");
+                                server.pending_desktop_screenshot = true;
+                            } else {
+                                tracing::info!("PrintScreen -> Capturing mobile screenshot");
+                                server.pending_phone_screenshot = true;
+                            }
+                        }
                         "launcher" if server.is_convergence_active => {
                             let _ = crate::phone::write_atomic(
                                 &crate::phone::runtime_path("penumbra-launcher-toggle"),

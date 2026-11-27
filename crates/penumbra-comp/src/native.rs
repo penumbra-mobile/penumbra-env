@@ -927,27 +927,13 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         let _ = server.shell_state.save();
     }
 
-    if std::path::Path::new("/tmp/take_screenshot").exists() {
-        let _ = std::fs::remove_file("/tmp/take_screenshot");
-        let w = width as i32;
-        let h = height as i32;
-        let mut pixels = vec![0u8; (w * h * 4) as usize];
-        let _ = frame.with_context(|gl| unsafe {
-            use smithay::backend::renderer::gles::ffi;
-            gl.ReadPixels(
-                0,
-                0,
-                w,
-                h,
-                ffi::RGBA,
-                ffi::UNSIGNED_BYTE,
-                pixels.as_mut_ptr() as *mut _,
-            );
-        });
-        if let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, pixels) {
-            let _ = img.save("/tmp/penumbra_screenshot.png");
-            tracing::info!("Saved screenshot to /tmp/penumbra_screenshot.png");
+    if server.pending_phone_screenshot || std::path::Path::new("/tmp/take_screenshot").exists() {
+        server.pending_phone_screenshot = false;
+        let was_file = std::path::Path::new("/tmp/take_screenshot").exists();
+        if was_file {
+            let _ = std::fs::remove_file("/tmp/take_screenshot");
         }
+        capture_frame_png(&mut frame, width as i32, height as i32, "mobile", was_file);
     }
 
     frame.finish()?.wait()?;
@@ -965,6 +951,50 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
 
     primary.surface.queue_buffer(None, None, ())?;
     Ok(())
+}
+
+/// Captures the current GLES frame into `~/Pictures/Screenshots/Screenshot_<ts>_<label>.png`
+/// (and `/tmp/penumbra_screenshot.png` when triggered via `/tmp/take_screenshot`).
+fn capture_frame_png(
+    frame: &mut smithay::backend::renderer::gles::GlesFrame<'_, '_>,
+    w: i32,
+    h: i32,
+    label: &str,
+    also_tmp: bool,
+) {
+    let mut pixels = vec![0u8; (w * h * 4) as usize];
+    let _ = frame.with_context(|gl| unsafe {
+        use smithay::backend::renderer::gles::ffi;
+        gl.Finish();
+        gl.ReadPixels(
+            0,
+            0,
+            w,
+            h,
+            ffi::RGBA,
+            ffi::UNSIGNED_BYTE,
+            pixels.as_mut_ptr() as *mut _,
+        );
+    });
+    let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, pixels) else {
+        return;
+    };
+    if also_tmp {
+        let _ = img.save("/tmp/penumbra_screenshot.png");
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+    let dir = std::path::PathBuf::from(home).join("Pictures/Screenshots");
+    let _ = std::fs::create_dir_all(&dir);
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let path = dir.join(format!("Screenshot_{ts}_{label}.png"));
+    if let Err(e) = img.save(&path) {
+        tracing::warn!(?e, path = %path.display(), "Failed to save screenshot");
+    } else {
+        tracing::info!(path = %path.display(), "Saved screenshot");
+    }
 }
 
 /// Layer-shell surfaces on `layer` of an output, placed at 1:1 geometry.
@@ -1175,6 +1205,11 @@ fn render_external_frame(
         draw_render_elements(&mut frame, 1.0, &[elem], &[damage])?;
     }
 
+    if server.pending_desktop_screenshot {
+        server.pending_desktop_screenshot = false;
+        capture_frame_png(&mut frame, width as i32, height as i32, "desktop", false);
+    }
+
     frame.finish()?.wait()?;
 
     let shot_trigger = crate::phone::runtime_path("penumbra-desktop-shot");
@@ -1314,6 +1349,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     let text_input_state = TextInputManagerState::new::<PenumbraServerState>(&dh);
     let input_method_state = InputMethodManagerState::new::<PenumbraServerState, _>(&dh, |_client| true);
     let virtual_keyboard_state = VirtualKeyboardManagerState::new::<PenumbraServerState, _>(&dh, |_client| true);
+    let viewporter_state = smithay::wayland::viewporter::ViewporterState::new::<PenumbraServerState>(&dh);
     let output_a = Output::new(
         "DSI-1".to_string(),
         PhysicalProperties {
@@ -1352,6 +1388,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         text_input_state,
         input_method_state,
         virtual_keyboard_state,
+        viewporter_state,
         last_text_input_active: false,
         active_osk_height: 0,
         seat,
@@ -1392,6 +1429,8 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
         phone_logical_size: (phone::PHONE_W, phone::PHONE_H),
         screen_blanked: false,
         saved_brightness: 2500,
+        pending_phone_screenshot: false,
+        pending_desktop_screenshot: false,
         nav_gesture_active: false,
         nav_gesture_progress: 0.0,
         nav_gesture_dy: 0.0,

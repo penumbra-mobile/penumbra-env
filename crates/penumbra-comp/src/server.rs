@@ -27,8 +27,8 @@ use smithay::{
     },
     delegate_compositor, delegate_data_device, delegate_input_method_manager,
     delegate_layer_shell, delegate_output, delegate_seat, delegate_shm,
-    delegate_text_input_manager, delegate_virtual_keyboard_manager, delegate_xdg_decoration,
-    delegate_xdg_shell,
+    delegate_text_input_manager, delegate_viewporter, delegate_virtual_keyboard_manager,
+    delegate_xdg_decoration, delegate_xdg_shell,
     desktop::{layer_map_for_output, space::Space, LayerMap, LayerSurface, Window, WindowSurfaceType},
     input::{
         keyboard::FilterResult,
@@ -126,6 +126,7 @@ pub struct PenumbraServerState {
     pub text_input_state: TextInputManagerState,
     pub input_method_state: InputMethodManagerState,
     pub virtual_keyboard_state: VirtualKeyboardManagerState,
+    pub viewporter_state: smithay::wayland::viewporter::ViewporterState,
     pub last_text_input_active: bool,
     pub active_osk_height: i32,
 
@@ -168,6 +169,8 @@ pub struct PenumbraServerState {
     pub phone_logical_size: (i32, i32),
     pub screen_blanked: bool,
     pub saved_brightness: u32,
+    pub pending_phone_screenshot: bool,
+    pub pending_desktop_screenshot: bool,
 
     /// Whether a bottom nav bar gesture is currently active (finger down and dragging).
     pub nav_gesture_active: bool,
@@ -1172,6 +1175,18 @@ impl PenumbraServerState {
                 None,
             );
             layer_map_for_output(&self.output_a).arrange();
+            for task in &self.phone_tasks {
+                if let Some(toplevel) = task.window.toplevel() {
+                    let surf = toplevel.wl_surface().clone();
+                    self.output_a.enter(&surf);
+                    toplevel.with_pending_state(|state| {
+                        state.states.set(xdg_toplevel::State::Activated);
+                        state.states.set(xdg_toplevel::State::Maximized);
+                        state.size = Some((PHONE_W, self.active_phone_app_height()).into());
+                    });
+                    toplevel.send_configure();
+                }
+            }
             for (name, ext_out) in &self.external_outputs {
                 let ext_scale = ext_scales
                     .iter()
@@ -1635,6 +1650,7 @@ impl PenumbraServerState {
                     });
                     toplevel.send_configure();
                     let surf = toplevel.wl_surface().clone();
+                    self.output_a.enter(&surf);
                     if let Some(keyboard) = self.seat.get_keyboard() {
                         keyboard.set_focus(self, Some(surf), serial);
                     }
@@ -1932,6 +1948,7 @@ impl XdgShellHandler for PenumbraServerState {
             let serial = smithay::utils::SERIAL_COUNTER.next_serial();
             if let Some(toplevel) = window_clone.toplevel() {
                 let surf = toplevel.wl_surface().clone();
+                self.output_a.enter(&surf);
                 if let Some(keyboard) = self.seat.get_keyboard() {
                     keyboard.set_focus(self, Some(surf), serial);
                 }
@@ -2437,6 +2454,7 @@ delegate_xdg_shell!(PenumbraServerState);
 delegate_xdg_decoration!(PenumbraServerState);
 delegate_layer_shell!(PenumbraServerState);
 delegate_compositor!(PenumbraServerState);
+delegate_viewporter!(PenumbraServerState);
 delegate_shm!(PenumbraServerState);
 delegate_seat!(PenumbraServerState);
 delegate_data_device!(PenumbraServerState);
@@ -2588,6 +2606,7 @@ impl PenumbraCompositor {
             InputMethodManagerState::new::<PenumbraServerState, _>(&dh, |_client| true);
         let virtual_keyboard_state =
             VirtualKeyboardManagerState::new::<PenumbraServerState, _>(&dh, |_client| true);
+        let viewporter_state = smithay::wayland::viewporter::ViewporterState::new::<PenumbraServerState>(&dh);
 
         let mut space = Space::<Window>::default();
 
@@ -2658,6 +2677,7 @@ impl PenumbraCompositor {
             text_input_state,
             input_method_state,
             virtual_keyboard_state,
+            viewporter_state,
             last_text_input_active: false,
             active_osk_height: 0,
             seat,
@@ -2704,6 +2724,8 @@ impl PenumbraCompositor {
             phone_logical_size: (mode_a.size.w, mode_a.size.h),
             screen_blanked: false,
             saved_brightness: 2500,
+            pending_phone_screenshot: false,
+            pending_desktop_screenshot: false,
             nav_gesture_active: false,
             nav_gesture_progress: 0.0,
             nav_gesture_dy: 0.0,
