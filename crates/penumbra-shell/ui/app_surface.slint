@@ -335,47 +335,67 @@ export component AppSurface inherits Rectangle {
         }
 
         // Top At-a-Glance Clock & Date Widget (Page 0, slides left with page-scroll)
-        Rectangle {
+        VerticalLayout {
             x: 20px - (root.page-scroll * 380px);
             y: 54px;
             width: parent.width - 40px;
-            height: 84px;
+            spacing: 4px;
+            alignment: start;
             opacity: Math.clamp(1.0 - (root.page-scroll * 1.6), 0.0, 1.0);
             visible: self.opacity > 0.01;
 
-            // Shadow + dark halo layers
-            Text {
-                x: -1px; y: 0px;
-                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
-            }
-            Text {
-                x: 1px; y: 0px;
-                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
-            }
-            Text {
-                x: 0px; y: 2px;
-                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000088;
-            }
-            Text {
-                x: 0px; y: 0px;
-                text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: Theme.on-surface;
+            Rectangle {
+                width: 100%;
+                height: clock-fg.preferred-height;
+                background: transparent;
+
+                Text {
+                    x: -1px; y: 0px; width: 100%;
+                    text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
+                    horizontal-alignment: left;
+                }
+                Text {
+                    x: 1px; y: 0px; width: 100%;
+                    text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000066;
+                    horizontal-alignment: left;
+                }
+                Text {
+                    x: 0px; y: 2px; width: 100%;
+                    text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: #00000088;
+                    horizontal-alignment: left;
+                }
+                clock-fg := Text {
+                    x: 0px; y: 0px; width: 100%;
+                    text: root.time-text; font-size: Theme.font-clock-large; font-weight: 800; color: Theme.on-surface;
+                    horizontal-alignment: left;
+                }
             }
 
-            Text {
-                x: -0.8px; y: 54px;
-                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
-            }
-            Text {
-                x: 0.8px; y: 54px;
-                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
-            }
-            Text {
-                x: 0px; y: 55.5px;
-                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000099;
-            }
-            Text {
-                x: 0px; y: 54px;
-                text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: Theme.on-surface;
+            Rectangle {
+                width: 100%;
+                height: date-fg.preferred-height;
+                background: transparent;
+
+                Text {
+                    x: -0.8px; y: 0px; width: 100%;
+                    text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
+                    horizontal-alignment: left;
+                }
+                Text {
+                    x: 0.8px; y: 0px; width: 100%;
+                    text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000070;
+                    horizontal-alignment: left;
+                }
+                Text {
+                    x: 0px; y: 1.5px; width: 100%;
+                    text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: #00000099;
+                    horizontal-alignment: left;
+                }
+                date-fg := Text {
+                    x: 0px; y: 0px; width: 100%;
+                    text: root.date-text; font-size: Theme.font-body; font-weight: 600; color: Theme.on-surface;
+                    horizontal-alignment: left;
+                }
             }
         }
 
