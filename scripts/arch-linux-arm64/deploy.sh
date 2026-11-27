@@ -242,9 +242,11 @@ fi
 install -d /etc/udev/rules.d
 cat > /etc/udev/rules.d/90-backlight.rules <<'UDEV_RULE'
 ACTION=="add", SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness", RUN+="/bin/chmod 0664 /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="*flash*|*torch*", RUN+="/bin/chgrp video /sys/class/leds/%k/brightness", RUN+="/bin/chmod 0664 /sys/class/leds/%k/brightness"
 UDEV_RULE
 udevadm control --reload-rules
 udevadm trigger --subsystem-match=backlight || true
+udevadm trigger --subsystem-match=leds || true
 
 id "$login_user" >/dev/null
 for group in video input audio; do

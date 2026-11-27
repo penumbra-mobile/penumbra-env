@@ -68,25 +68,71 @@ fn subtitles(id: &str) -> (&'static str, &'static str) {
     }
 }
 
-/// Query and control real system hardware subsystems.
-pub fn is_torch_active() -> bool {
-    for path in ["/sys/class/leds/white:flash/brightness", "/sys/class/leds/torch/brightness"] {
-        if let Ok(val) = std::fs::read_to_string(path) {
-            if let Ok(num) = val.trim().parse::<u32>() {
-                return num > 0;
+fn find_torch_leds() -> Vec<(std::path::PathBuf, String, u32)> {
+    let mut leds = Vec::new();
+    let Ok(entries) = std::fs::read_dir("/sys/class/leds") else {
+        return leds;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_lowercase();
+        if lower.contains("torch") || lower.contains("flash") {
+            let dir = entry.path();
+            let brightness = dir.join("brightness");
+            if brightness.exists() {
+                let max_val = std::fs::read_to_string(dir.join("max_brightness"))
+                    .ok()
+                    .and_then(|s| s.trim().parse::<u32>().ok())
+                    .filter(|&v| v > 0)
+                    .unwrap_or(255);
+                leds.push((brightness, name, max_val));
             }
         }
     }
-    false
+    // Prefer white/primary flash LED over warm/yellow secondary flash when both exist.
+    leds.sort_by_key(|(_, name, _)| {
+        let l = name.to_lowercase();
+        if l.contains("white") || l == "torch" {
+            0
+        } else {
+            1
+        }
+    });
+    leds
+}
+
+pub fn is_torch_active() -> bool {
+    find_torch_leds().iter().any(|(path, _, _)| {
+        std::fs::read_to_string(path)
+            .ok()
+            .and_then(|v| v.trim().parse::<u32>().ok())
+            .is_some_and(|n| n > 0)
+    })
 }
 
 pub fn set_torch(active: bool) {
-    let val = if active { "255" } else { "0" };
-    for path in ["/sys/class/leds/white:flash/brightness", "/sys/class/leds/torch/brightness"] {
-        if std::path::Path::new(path).exists() {
-            let _ = std::fs::write(path, val);
-            break;
-        }
+    let leds = find_torch_leds();
+    let Some((path, led_name, max_val)) = leds.into_iter().next() else {
+        tracing::warn!("No torch/flash LED found under /sys/class/leds");
+        return;
+    };
+    let target = if active { max_val } else { 0 };
+    if let Err(err) = std::fs::write(&path, target.to_string()) {
+        // Sysfs LED nodes are often 0644 root:root; fall back to systemd-logind SetBrightness.
+        tracing::debug!(%led_name, %err, "Direct sysfs torch write failed, trying logind SetBrightness");
+        let _ = std::process::Command::new("busctl")
+            .args([
+                "call",
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1/session/auto",
+                "org.freedesktop.login1.Session",
+                "SetBrightness",
+                "ssu",
+                "leds",
+                &led_name,
+                &target.to_string(),
+            ])
+            .status();
     }
 }
 
