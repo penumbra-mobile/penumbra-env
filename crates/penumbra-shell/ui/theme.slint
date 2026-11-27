@@ -1,8 +1,6 @@
 export global Theme {
-    // =========================================================================
     // Material 3 Expressive (M3E) Tonal Surface Hierarchy
     // Pure OLED Pitch-Black to High-Contrast Elevated Glass Containers
-    // =========================================================================
     in-out property <color> surface: #141218;                  // Standard baseline dark surface
     in-out property <color> surface-dim: #110f15;              // Dimmed / recessed background
     in-out property <color> surface-bright: #38353d;           // Luminous high-contrast surface
@@ -20,9 +18,7 @@ export global Theme {
     in-out property <color> surface-high: #27232e;
     in-out property <color> surface-highest: #36343b;
 
-    // =========================================================================
     // Dynamic Tonal Accent Roles (Pixel Monet Palette)
-    // =========================================================================
     // Primary: Dynamic Iris Periwinkle (Tonal 80 / 20 / 30 / 90)
     in-out property <color> primary: #ADC6FF;
     in-out property <color> on-primary: #002E69;
@@ -48,9 +44,7 @@ export global Theme {
     in-out property <color> error-container: #93000A;
     in-out property <color> on-error-container: #FFDAD6;
 
-    // =========================================================================
     // Content & Boundary Roles
-    // =========================================================================
     in-out property <color> on-surface: #E3E2E6;               // Primary typography & icons
     in-out property <color> on-surface-variant: #C4C6D0;       // Secondary label / caption text
     in-out property <color> inverse-surface: #E3E2E6;
@@ -58,9 +52,7 @@ export global Theme {
     in-out property <color> outline: #8E9099;                  // Unselected boundary strokes
     in-out property <color> outline-variant: #44474F;          // Recessed borders & dividers
 
-    // =========================================================================
     // Specular Fresnel Highlights & Glass Scrim Overlays
-    // =========================================================================
     out property <color> specular-rim: #ffffff14;           // 8% white glass specular edge
     out property <color> specular-rim-active: #ffffff33;    // 20% active component glass edge
     out property <color> specular-rim-glow: #ffffff50;      // 31% focus highlight edge
@@ -74,9 +66,7 @@ export global Theme {
     out property <color> privacy-green-glow: #48E88533;
     out property <color> charging-accent: #48E885;
 
-    // =========================================================================
     // Expressive Geometry Radii
-    // =========================================================================
     out property <length> radius-pill: 9999px;              // Fluid capsules & pastilles
     out property <length> radius-card: 32px;                // Large sheets & modal surfaces
     out property <length> radius-tile: 28px;                // QuickSettings toggles (resting)
@@ -86,9 +76,7 @@ export global Theme {
     out property <length> radius-small: 16px;               // Small chips
     out property <length> radius-xs: 8px;                   // Micro badges & tags
 
-    // =========================================================================
     // Launcher Icon Preferences (synced from penumbra-settings DisplayConfig)
-    // =========================================================================
     in-out property <bool> themed-icons: false;
     in-out property <string> icon-shape: "squircle";        // "squircle", "circle", "rounded", "pill", "clover", "flower", "arch", "diamond"
     out property <bool> icon-is-path-shape:
@@ -104,21 +92,17 @@ export global Theme {
         root.icon-shape == "arch" ? "M 50 6 C 76 6 94 24 94 50 L 94 82 C 94 90 88 94 80 94 L 20 94 C 12 94 6 90 6 82 L 6 50 C 6 24 24 6 50 6 Z" :
         "M 50 4 C 56 4 62 8 68 14 L 86 32 C 92 38 96 44 96 50 C 96 56 92 62 86 68 L 68 86 C 62 92 56 96 50 96 C 44 96 38 92 32 86 L 14 68 C 8 62 4 56 4 50 C 4 44 8 38 14 32 L 32 14 C 38 8 44 4 50 4 Z";
 
-    // =========================================================================
     // Expressive Durations
     // Canonical Bezier Curves (Use in Slint animate clauses):
     //   Standard:              cubic-bezier(0.2, 0.0, 0.0, 1.0)
     //   Emphasized Decelerate: cubic-bezier(0.05, 0.7, 0.1, 1.0)
     //   Emphasized Accelerate: cubic-bezier(0.3, 0.0, 0.8, 0.15)
-    // =========================================================================
     out property <duration> duration-micro: 80ms;           // Micro haptic responses
     out property <duration> duration-short: 120ms;          // Touch squash & pastille state changes
     out property <duration> duration-medium: 200ms;         // Modal expansions & card morphing
     out property <duration> duration-long: 320ms;           // Drawer pull & layout restructuring
 
-    // =========================================================================
     // Expressive Typography Hierarchy (Google Sans / Inter Scale)
-    // =========================================================================
     out property <length> font-clock-large: 64px;           // Lockscreen hero clock
     out property <length> font-clock-mid: 42px;             // QuickSettings header clock
     out property <length> font-display: 36px;               // Large feature titles

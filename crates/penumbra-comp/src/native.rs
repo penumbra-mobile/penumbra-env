@@ -759,6 +759,31 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
     let (overview, expanding_app) = overview_elements(renderer, server, canvas);
     // Phone Layer 2: active application inside the system insets (drawn above carousel so expanding card sits on top).
     let apps = app_elements(renderer, server, canvas);
+    // Solid OLED backing behind a resting fullscreen app so cell-snapping clients (e.g. foot)
+    // cannot expose the homescreen/wallpaper along the right or bottom edge.
+    let app_backing: Vec<smithay::backend::renderer::element::solid::SolidColorRenderElement> =
+        if server.phone_app_visible()
+            && server.shell_state.mode == PhoneMode::App
+            && !server.is_nav_animating()
+            && !server.nav_gesture_active
+            && !server.nav_switch_active
+            && server.nav_switch_spring.is_none()
+            && server.nav_switch_dx.abs() <= 0.5
+        {
+            let backing_buf = smithay::backend::renderer::element::solid::SolidColorBuffer::new(
+                (PHONE_W, APP_H),
+                Color32F::new(0.0431, 0.0392, 0.0549, 1.0),
+            );
+            smithay::backend::renderer::element::AsRenderElements::<GlesRenderer>::render_elements(
+                &backing_buf,
+                renderer,
+                canvas.loc(0, APP_Y).into(),
+                smithay::utils::Scale::from(canvas.scale),
+                1.0,
+            )
+        } else {
+            Vec::new()
+        };
 
     // (Card corner masks removed — they were causing UI breakage. Flat card rendering is used instead.)
 
@@ -811,6 +836,9 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
             if let Some((ref expanding_card, expanding_scale)) = expanding_app {
                 draw_render_elements(&mut scene_frame, expanding_scale, expanding_card, &[damage])?;
             }
+            if !app_backing.is_empty() {
+                draw_render_elements::<GlesRenderer, _, _>(&mut scene_frame, scale, &app_backing, &[damage])?;
+            }
             draw_render_elements(&mut scene_frame, active_app_scale, &apps, &[damage])?;
             let _ = scene_frame.finish()?;
         }
@@ -850,6 +878,9 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
         draw_render_elements(&mut frame, overview_scale, &overview, &[damage])?;
         if let Some((ref expanding_card, expanding_scale)) = expanding_app {
             draw_render_elements(&mut frame, expanding_scale, expanding_card, &[damage])?;
+        }
+        if !app_backing.is_empty() {
+            draw_render_elements::<GlesRenderer, _, _>(&mut frame, scale, &app_backing, &[damage])?;
         }
         draw_render_elements(&mut frame, active_app_scale, &apps, &[damage])?;
     }

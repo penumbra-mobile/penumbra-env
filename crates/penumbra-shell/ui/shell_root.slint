@@ -127,9 +127,7 @@ export component ShellRoot inherits Window {
     callback remove-scan-folder(string);
     callback rescan-wallpapers();
 
-    // =========================================================================
     // SCREEN 1: PHONE DISPLAY (DSI-1 • 412x915 @ 120Hz Strict Mobile Policy)
-    // =========================================================================
     phone-screen := Rectangle {
         x: 0px;
         y: 0px;
@@ -370,9 +368,7 @@ export component ShellRoot inherits Window {
         }
     }
 
-    // =========================================================================
     // SCREEN 2: EXTERNAL MONITOR (HDMI-A-1 • 1280x720 Desktop Environment)
-    // =========================================================================
     if root.convergence-mode: Rectangle {
         x: 412px;
         y: 0px;

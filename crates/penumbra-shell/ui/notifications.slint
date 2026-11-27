@@ -9,9 +9,7 @@ export struct NotificationData {
     time-text: string,
 }
 
-// =========================================================================
 // Material 3 Expressive Notification Card
-// =========================================================================
 export component NotificationCard inherits Rectangle {
     in property <NotificationData> data;
     in property <int> index;
@@ -178,9 +176,7 @@ export component NotificationCard inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Material 3 Expressive Notification Empty State
-// =========================================================================
 export component NotificationEmptyState inherits Rectangle {
     callback swipe-up();
 
@@ -239,9 +235,7 @@ export component NotificationEmptyState inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Notification Stack Container
-// =========================================================================
 export component NotificationStack inherits Rectangle {
     in property <[NotificationData]> notifications;
     in property <bool> clock-alarm-active: false;

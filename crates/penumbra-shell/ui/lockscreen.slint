@@ -1,9 +1,7 @@
 import { Theme } from "theme.slint";
 import { Icon } from "icon.slint";
 
-// ==============================================================================
 // Component: KeypadButton
-// ==============================================================================
 // 72px circular keypad button with large number and localized letter sub-labels.
 component KeypadButton inherits Rectangle {
     in property <string> number: "1";
@@ -74,9 +72,7 @@ component KeypadButton inherits Rectangle {
     }
 }
 
-// ==============================================================================
 // Component: PinDot
-// ==============================================================================
 component PinDot inherits Rectangle {
     in property <bool> filled: false;
     in property <bool> is-error: false;
@@ -90,9 +86,7 @@ component PinDot inherits Rectangle {
     animate background { duration: 140ms; easing: ease-out; }
 }
 
-// ==============================================================================
 // Component: Lockscreen
-// ==============================================================================
 export component Lockscreen inherits Rectangle {
     width: 412px;
     height: 915px;
@@ -139,9 +133,7 @@ export component Lockscreen inherits Rectangle {
     callback keyboard-show-requested();
     callback keyboard-hide-requested();
 
-    // -------------------------------------------------------------------------
     // Challenge Layer (Behind/Revealed on swipe up)
-    // -------------------------------------------------------------------------
     challenge-container := Rectangle {
         width: 100%;
         height: 100%;
@@ -453,9 +445,7 @@ export component Lockscreen inherits Rectangle {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Cover Page (Glance Mode - Slides Up on Swipe)
-    // -------------------------------------------------------------------------
     cover-container := Rectangle {
         width: 100%;
         height: 100%;

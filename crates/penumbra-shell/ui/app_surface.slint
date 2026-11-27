@@ -212,9 +212,7 @@ export component AppSurface inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // MODE 0: MULTI-PAGE HOMESCREEN WORKSPACE (Material 3 Expressive)
-    // =========================================================================
     homescreen-workspace := Rectangle {
         x: 0px;
         y: 0px;
@@ -386,7 +384,7 @@ export component AppSurface inherits Rectangle {
             width: 64px;
             height: 64px;
             border-radius: 18px;
-            background: #ADC6FF22;
+            background: Theme.primary.with-alpha(0.14);
             border-width: 2px;
             border-color: Theme.primary;
         }
@@ -398,7 +396,7 @@ export component AppSurface inherits Rectangle {
             width: 380px;
             height: 76px;
             border-radius: Theme.radius-card;
-            background: #ADC6FF22;
+            background: Theme.primary.with-alpha(0.14);
             border-width: 2px;
             border-color: Theme.primary;
         }
@@ -423,8 +421,8 @@ export component AppSurface inherits Rectangle {
                 height: 64px;
                 border-radius: 18px;
                 border-width: 3px;
-                border-color: item.is-folder ? #7CDB8A : #D0BCFF;
-                background: item.is-folder ? #7CDB8A33 : #D0BCFF33;
+                border-color: item.is-folder ? Theme.secondary : Theme.primary;
+                background: item.is-folder ? Theme.secondary.with-alpha(0.20) : Theme.primary.with-alpha(0.20);
                 z: 100;
 
                 Rectangle {
@@ -433,15 +431,15 @@ export component AppSurface inherits Rectangle {
                     width: tag-txt.width + 12px;
                     height: 18px;
                     border-radius: 9px;
-                    background: item.is-folder ? #23542B : #381E72;
+                    background: item.is-folder ? Theme.secondary-container : Theme.primary-container;
                     border-width: 1px;
-                    border-color: item.is-folder ? #7CDB8A : #D0BCFF;
+                    border-color: item.is-folder ? Theme.secondary : Theme.primary;
 
                     tag-txt := Text {
                         text: item.is-folder ? @tr("Add") : @tr("Folder");
                         font-size: 10px;
                         font-weight: 700;
-                        color: item.is-folder ? #A9FFAE : #EADDFF;
+                        color: item.is-folder ? Theme.on-secondary-container : Theme.on-primary-container;
                         horizontal-alignment: center;
                         vertical-alignment: center;
                     }
@@ -507,20 +505,28 @@ export component AppSurface inherits Rectangle {
         // Material 3 Expressive Worm Page Indicator (Positioned directly above dock)
         if root.num-pages > 1: Rectangle {
             x: 0px;
-            y: 756px;
+            y: 742px;
             width: parent.width;
-            height: 16px;
+            height: 44px;
 
-            // Dot track
+            // Dot track (28x44px hit targets around 8x8px dots)
             HorizontalLayout {
                 alignment: center;
-                spacing: 12px;
+                spacing: 0px;
 
                 for p in root.num-pages: Rectangle {
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 4px;
-                    background: Theme.surface-variant;
+                    width: 28px;
+                    height: 44px;
+                    background: transparent;
+
+                    Rectangle {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 4px;
+                        background: Theme.surface-variant;
+                    }
 
                     TouchArea {
                         clicked => {
@@ -533,13 +539,39 @@ export component AppSurface inherits Rectangle {
 
             // Smooth gliding active indicator pill
             Rectangle {
-                property <float> total-track-w: ((root.num-pages - 1) * 20.0);
-                x: ((parent.width / 1px - 20.0 - self.total-track-w) / 2.0 * 1px) + (root.page-scroll * 20px);
-                y: 4px;
+                property <float> total-track-w: ((root.num-pages - 1) * 28.0);
+                x: ((parent.width / 1px - 20.0 - self.total-track-w) / 2.0 * 1px) + (root.page-scroll * 28px);
+                y: 18px;
                 width: 20px;
                 height: 8px;
                 border-radius: Theme.radius-pill;
                 background: Theme.primary;
+            }
+        }
+
+        // Floating Edit Mode "Done" Pill (44px touch target)
+        if root.is-editing && !root.is-folder-open: Rectangle {
+            x: parent.width - 96px;
+            y: 54px;
+            width: 80px;
+            height: 44px;
+            border-radius: Theme.radius-pill;
+            background: Theme.primary;
+            z: 800;
+
+            Text {
+                text: @tr("Done");
+                font-size: 13px;
+                font-weight: 700;
+                color: Theme.on-primary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            TouchArea {
+                clicked => {
+                    root.is-editing = false;
+                }
             }
         }
 
@@ -565,9 +597,7 @@ export component AppSurface inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // FOLDER MODAL POPUP DIALOG (Like iOS / Android Folder Overlay)
-    // =========================================================================
     if root.is-folder-open || (root.is-dragging-app && root.dragging-from-folder-id != ""): Rectangle {
         x: 0px;
         y: 0px;
@@ -624,8 +654,8 @@ export component AppSurface inherits Rectangle {
                     }
 
                     Rectangle {
-                        width: 32px;
-                        height: 32px;
+                        width: 44px;
+                        height: 44px;
                         border-radius: Theme.radius-pill;
                         background: Theme.surface-container-highest;
                         border-width: 1px;
@@ -633,8 +663,8 @@ export component AppSurface inherits Rectangle {
 
                         Icon {
                             name: "close";
-                            icon-size: 16px;
-                            icon-color: #FFFFFF;
+                            icon-size: 18px;
+                            icon-color: Theme.on-surface;
                             x: (parent.width - self.width) / 2;
                             y: (parent.height - self.height) / 2;
                         }
@@ -675,7 +705,7 @@ export component AppSurface inherits Rectangle {
                                     border-radius: Theme.radius-squircle;
                                     border-width: 2px;
                                     border-color: Theme.primary;
-                                    background: #ADC6FF22;
+                                    background: Theme.primary.with-alpha(0.14);
                                 }
 
                                 if self.item-idx < root.open-folder-apps.length: ShortcutTile {
@@ -795,11 +825,9 @@ export component AppSurface inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // MODE 3: ACTIVE REAL WAYLAND APPLICATION CANVAS (Composited by penumbra-comp)
     // Mode 3 (native app) is rendered on Layer 1 by the compositor; homescreen stays as clean background.
 
-    // =========================================================================
     // Overview (Mode 1) is rendered natively by the compositor on Layer 1 with 120Hz physics.
 
     // Android Homescreen Long-Press Context Menu

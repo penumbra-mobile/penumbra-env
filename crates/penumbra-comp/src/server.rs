@@ -959,11 +959,8 @@ impl PenumbraServerState {
                     }
                     Some(NavigationTarget::Home) => {
                         self.nav_gesture_progress = 0.0;
-                        self.shell_state.mode = PhoneMode::Home;
-                        self.shell_state.overview_index = 0;
-                        self.shell_state.overview_scroll = 0.0;
-                        self.overview_scroll = 0.0;
-                        let _ = self.shell_state.save();
+                        self.nav_gesture_dy = 0.0;
+                        self.set_phone_home();
                     }
                     Some(NavigationTarget::Fullscreen) | _ => {
                         let target_id = self.phone_tasks.get(self.shell_state.overview_index).map(|t| t.id);
@@ -988,44 +985,58 @@ impl PenumbraServerState {
             self.nav_switch_dx = spring.position;
 
             if spring.is_settled(2.0, 20.0) {
-                let target = self.nav_switch_target.take();
-                self.nav_switch_spring = None;
-                self.nav_switch_dx = 0.0;
-                match target {
-                    Some(NavigationTarget::NextApp) => {
-                        if self.phone_tasks.len() > 1 {
-                            let task = self.phone_tasks.remove(0);
-                            self.phone_tasks.push(task);
-                        }
-                    }
-                    Some(NavigationTarget::PrevApp) => {
-                        if self.phone_tasks.len() > 1 {
-                            let task = self.phone_tasks.pop().unwrap();
-                            self.phone_tasks.insert(0, task);
-                        }
-                    }
-                    _ => {}
+                self.commit_pending_nav_switch();
+            }
+        }
+    }
+
+    /// Commits any in-flight horizontal app switch immediately so interrupted swipes
+    /// cannot leave `nav_switch_dx` or `nav_switch_target` out of sync with `phone_tasks`.
+    pub(crate) fn commit_pending_nav_switch(&mut self) {
+        let had_pending = self.nav_switch_spring.is_some()
+            || self.nav_switch_target.is_some()
+            || self.nav_switch_active
+            || self.nav_switch_dx.abs() > 0.5;
+        if !had_pending {
+            return;
+        }
+        let target = self.nav_switch_target.take();
+        self.nav_switch_spring = None;
+        self.nav_switch_active = false;
+        self.nav_switch_dx = 0.0;
+        match target {
+            Some(NavigationTarget::NextApp) => {
+                if self.phone_tasks.len() > 1 {
+                    let task = self.phone_tasks.remove(0);
+                    self.phone_tasks.push(task);
                 }
-                self.shell_state.mode = PhoneMode::App;
-                self.shell_state.overview_index = 0;
-                self.shell_state.overview_scroll = 0.0;
-                self.overview_scroll = 0.0;
-                let _ = self.shell_state.save();
-                self.publish_phone_tasks();
-                if let Some(first) = self.phone_tasks.first() {
-                    let serial = smithay::utils::SERIAL_COUNTER.next_serial();
-                    if let Some(toplevel) = first.window.toplevel() {
-                        toplevel.with_pending_state(|state| {
-                            state.states.set(xdg_toplevel::State::Activated);
-                            state.states.set(xdg_toplevel::State::Maximized);
-                            state.size = Some((PHONE_W, self.active_phone_app_height()).into());
-                        });
-                        toplevel.send_configure();
-                        let surf = toplevel.wl_surface().clone();
-                        if let Some(keyboard) = self.seat.get_keyboard() {
-                            keyboard.set_focus(self, Some(surf), serial);
-                        }
-                    }
+            }
+            Some(NavigationTarget::PrevApp) => {
+                if self.phone_tasks.len() > 1 {
+                    let task = self.phone_tasks.pop().unwrap();
+                    self.phone_tasks.insert(0, task);
+                }
+            }
+            _ => return,
+        }
+        self.shell_state.mode = PhoneMode::App;
+        self.shell_state.overview_index = 0;
+        self.shell_state.overview_scroll = 0.0;
+        self.overview_scroll = 0.0;
+        let _ = self.shell_state.save();
+        self.publish_phone_tasks();
+        if let Some(first) = self.phone_tasks.first() {
+            let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+            if let Some(toplevel) = first.window.toplevel() {
+                toplevel.with_pending_state(|state| {
+                    state.states.set(xdg_toplevel::State::Activated);
+                    state.states.set(xdg_toplevel::State::Maximized);
+                    state.size = Some((PHONE_W, self.active_phone_app_height()).into());
+                });
+                toplevel.send_configure();
+                let surf = toplevel.wl_surface().clone();
+                if let Some(keyboard) = self.seat.get_keyboard() {
+                    keyboard.set_focus(self, Some(surf), serial);
                 }
             }
         }
@@ -1115,8 +1126,22 @@ impl PenumbraServerState {
             }
 
             if new_state != self.shell_state {
-                // If compositor is actively tracking touch dragging in Overview, do not overwrite in-memory gesture coordinates
-                if self.shell_state.mode == PhoneMode::Overview && new_state.mode == PhoneMode::Overview && self.shell_state.is_dragging {
+                if self.is_native {
+                    // In native mode the compositor owns navigation/overview/drawer-drag state;
+                    // only accept shell-owned modal/lock/close flags so stale IPC snapshots
+                    // cannot revert an in-flight app switch or re-show Overview behind an app.
+                    self.shell_state.is_locked = new_state.is_locked;
+                    self.shell_state.power_dialog_open = new_state.power_dialog_open;
+                    self.shell_state.volume_modal_open = new_state.volume_modal_open;
+                    if !self.shell_state.drawer_dragging && !new_state.drawer_open {
+                        self.shell_state.drawer_open = false;
+                        self.shell_state.drawer_progress = 0.0;
+                        self.shell_state.drawer_pull_dy = 0.0;
+                    }
+                } else if self.shell_state.mode == PhoneMode::Overview
+                    && new_state.mode == PhoneMode::Overview
+                    && self.shell_state.is_dragging
+                {
                     // Retain in-memory drag position
                 } else {
                     info!("Shell state changed: {:?}", new_state);

@@ -140,7 +140,7 @@ export component ShortcutTile inherits Rectangle {
                         width: 21px;
                         height: 21px;
                         border-radius: 6px;
-                        background: #2C2836;
+                        background: Theme.surface-container-highest;
                         clip: true;
                         if root.item.has-prev-1: Image {
                             source: root.item.preview-1;
@@ -159,7 +159,7 @@ export component ShortcutTile inherits Rectangle {
                         width: 21px;
                         height: 21px;
                         border-radius: 6px;
-                        background: #2C2836;
+                        background: Theme.surface-container-highest;
                         clip: true;
                         if root.item.has-prev-2: Image {
                             source: root.item.preview-2;
@@ -178,7 +178,7 @@ export component ShortcutTile inherits Rectangle {
                         width: 21px;
                         height: 21px;
                         border-radius: 6px;
-                        background: #2C2836;
+                        background: Theme.surface-container-highest;
                         clip: true;
                         if root.item.has-prev-3: Image {
                             source: root.item.preview-3;
@@ -197,7 +197,7 @@ export component ShortcutTile inherits Rectangle {
                         width: 21px;
                         height: 21px;
                         border-radius: 6px;
-                        background: #2C2836;
+                        background: Theme.surface-container-highest;
                         clip: true;
                         if root.item.has-prev-4: Image {
                             source: root.item.preview-4;
@@ -216,7 +216,7 @@ export component ShortcutTile inherits Rectangle {
                 text: root.tile-name;
                 font-size: 13px;
                 font-weight: 500;
-                color: #ffffff;
+                color: Theme.on-surface;
                 horizontal-alignment: center;
                 overflow: elide;
                 max-width: 82px;
@@ -265,25 +265,33 @@ export component ShortcutTile inherits Rectangle {
         }
     }
 
-    // Delete badge in top-right corner during edit mode
+    // Delete badge in top-right corner during edit mode (44x44px hit target)
     // Declared AFTER tile-ta so it takes event priority over the tile TouchArea
     if root.is-editing: delete-badge := Rectangle {
-        x: 61px + root.jiggle-x;
-        y: (root.show-label ? 1px : -2px) + root.jiggle-y;
-        width: 24px;
-        height: 24px;
-        border-radius: 12px;
-        background: #E53935;
-        border-width: 1.5px;
-        border-color: #ffffff;
+        x: 48px + root.jiggle-x;
+        y: (root.show-label ? -8px : -11px) + root.jiggle-y;
+        width: 44px;
+        height: 44px;
+        background: transparent;
         z: 200;
 
-        Icon {
-            name: "close";
-            icon-size: 12px;
-            icon-color: #ffffff;
+        Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
+            width: 22px;
+            height: 22px;
+            border-radius: 11px;
+            background: Theme.error;
+            border-width: 1.5px;
+            border-color: Theme.on-error;
+
+            Icon {
+                name: "close";
+                icon-size: 12px;
+                icon-color: Theme.on-error;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
         }
 
         badge-ta := TouchArea {

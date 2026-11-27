@@ -67,6 +67,8 @@ pub(crate) struct NavTouchTracker {
     pub grabbed_card: Option<usize>,
     pub is_vertical_dismiss: bool,
     pub is_horizontal_scrub: bool,
+    pub is_horizontal_quickswitch: bool,
+    pub is_vertical_nav: bool,
     pub tracker: penumbra_gestures::VelocityTracker,
 }
 
@@ -566,7 +568,20 @@ pub(crate) fn handle(
             // Navigation bar or Overview gesture tracking:
             // Intercept if touching the bottom navigation swipe area (matching navbar height exactly, y >= NAV_BAR_Y)
             // OR if already in Overview mode (where the entire screen is an interactive task switcher).
-            let is_nav_zone = pos.y >= NAV_BAR_Y as f64;
+                    let is_nav_zone = pos.y >= NAV_BAR_Y as f64;
+                    // Settle any pending horizontal app switch or Overview transition before starting a new gesture.
+                    if is_nav_zone {
+                        server.commit_pending_nav_switch();
+                    }
+                    if server.nav_spring.is_some()
+                        && server.nav_target == Some(penumbra_gestures::NavigationTarget::Overview)
+                    {
+                        server.nav_spring = None;
+                        server.nav_target = None;
+                        server.nav_gesture_progress = 0.0;
+                        server.nav_gesture_dy = 0.0;
+                        server.shell_state.mode = PhoneMode::Overview;
+                    }
                     let is_overview = server.shell_state.mode == PhoneMode::Overview;
                     let in_overview_zone = is_overview && pos.y >= STATUS_BAR_H as f64;
 
@@ -576,6 +591,8 @@ pub(crate) fn handle(
                             if is_overview {
                                 // Immediately stop any active coasting spring on contact
                                 server.overview_scroll_spring = None;
+                                server.nav_spring = None;
+                                server.nav_target = None;
                                 server.shell_state.is_dragging = false;
                                 server.shell_state.active_card_dy = 0.0;
                                 server.shell_state.overview_scroll = server.overview_scroll;
@@ -608,6 +625,8 @@ pub(crate) fn handle(
                                 grabbed_card,
                                 is_vertical_dismiss: false,
                                 is_horizontal_scrub: false,
+                                is_horizontal_quickswitch: false,
+                                is_vertical_nav: false,
                                 tracker,
                             });
                             if !is_overview {
@@ -617,6 +636,7 @@ pub(crate) fn handle(
                                 server.nav_gesture_dx = 0.0;
                                 server.nav_gesture_vy = 0.0;
                                 server.nav_spring = None;
+                                server.nav_target = None;
                                 server.shell_state.overview_index = 0;
                                 server.shell_state.overview_scroll = 0.0;
                                 server.overview_scroll = 0.0;
@@ -806,9 +826,16 @@ pub(crate) fn handle(
                         return;
                     }
 
-                    // Home screen or Active App mode:
-                    let is_horizontal_quickswitch = nav.start_mode == PhoneMode::App && dx.abs() > 24.0 && dx.abs() > dy.abs() * 1.2;
-                    if is_horizontal_quickswitch {
+                    // Home screen or Active App mode: lock axis once decided to prevent diagonal mode-flipping
+                    if !nav.is_horizontal_quickswitch && !nav.is_vertical_nav {
+                        if nav.start_mode == PhoneMode::App && dx.abs() > 20.0 && dx.abs() > dy.abs() * 1.2 {
+                            nav.is_horizontal_quickswitch = true;
+                        } else if dy.abs() > 14.0 && dy.abs() >= dx.abs() {
+                            nav.is_vertical_nav = true;
+                        }
+                    }
+
+                    if nav.is_horizontal_quickswitch {
                         server.nav_switch_active = true;
                         server.nav_switch_dx = dx;
                         server.nav_switch_vx = vx;
@@ -816,6 +843,7 @@ pub(crate) fn handle(
                         server.nav_gesture_progress = 0.0;
                     } else {
                         server.nav_switch_active = false;
+                        server.nav_switch_dx = 0.0;
                         server.nav_gesture_active = true;
                         let progress = penumbra_gestures::compute_normalized_progress(dy, PHONE_H as f64);
                         server.nav_gesture_progress = progress;
@@ -1045,10 +1073,18 @@ pub(crate) fn handle(
                         return;
                     }
 
-                    // Swipe up from bottom nav bar (from Home screen or Active App):
+                    // Swipe left/right or swipe up from bottom nav bar (from Home screen or Active App):
                     let switch_dx = server.nav_switch_dx;
-                    if server.nav_switch_active || (switch_dx.abs() > 20.0 && switch_dx.abs() > server.nav_gesture_dy.abs() * 1.1) {
+                    if nav.is_horizontal_quickswitch
+                        || server.nav_switch_active
+                        || (switch_dx.abs() > 20.0 && switch_dx.abs() > server.nav_gesture_dy.abs() * 1.1)
+                    {
                         server.nav_switch_active = false;
+                        server.nav_gesture_active = false;
+                        server.nav_gesture_progress = 0.0;
+                        server.nav_gesture_dy = 0.0;
+                        server.nav_spring = None;
+                        server.nav_target = None;
                         let target = penumbra_gestures::arbitrate_horizontal_release(switch_dx, vx, PHONE_W as f64);
                         let target_dx = match target {
                             penumbra_gestures::NavigationTarget::NextApp => -(PHONE_W as f64),
@@ -1073,10 +1109,16 @@ pub(crate) fn handle(
                         tracing::info!("Bottom-right keyboard button tapped -> toggling virtual keyboard");
                         server.nav_gesture_active = false;
                         server.nav_gesture_progress = 0.0;
+                        server.nav_switch_active = false;
+                        server.nav_switch_dx = 0.0;
                         return;
                     }
 
                     server.nav_gesture_active = false;
+                    server.nav_switch_active = false;
+                    server.nav_switch_dx = 0.0;
+                    server.nav_switch_spring = None;
+                    server.nav_switch_target = None;
                     let target = penumbra_gestures::arbitrate_release(
                         server.nav_gesture_progress,
                         vy,
@@ -1109,7 +1151,6 @@ pub(crate) fn handle(
                         server.overview_scroll_spring = Some(scroll_spring);
                         server.shell_state.overview_index = target_idx as usize;
                         server.shell_state.overview_scroll = target_idx;
-                        server.shell_state.mode = PhoneMode::Overview;
                         let _ = server.shell_state.save();
                     }
                     return;
