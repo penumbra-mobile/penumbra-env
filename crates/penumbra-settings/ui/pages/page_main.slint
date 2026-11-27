@@ -3,9 +3,7 @@ import { Icon } from "../icon.slint";
 import { SettingsTile } from "../components/settings_tile.slint";
 import { SettingsSectionCard } from "../components/settings_section.slint";
 
-// ==============================================================================
 // Data Structure: SearchResultData
-// ==============================================================================
 // Representation of a filtered settings query result item.
 export struct SearchResultData {
     category: string,
@@ -15,9 +13,7 @@ export struct SearchResultData {
     target-page: string,
 }
 
-// ==============================================================================
 // Component: PageMain
-// ==============================================================================
 // Root overview catalog and dynamic settings search experience for Penumbra Settings.
 // Adheres strictly to Android 17 / Pixel Material You design philosophy:
 // 1. Clean top-aligned search capsule — no giant "Settings" text.
@@ -42,9 +38,7 @@ export component PageMain inherits Rectangle {
     // Current installed applications count / summary.
     in property <string> apps-summary: "Installed apps";
 
-    // --------------------------------------------------------------------------
     // Search State
-    // --------------------------------------------------------------------------
     // Whether the user is currently in search mode.
     in-out property <bool> is-searching: false;
     // Current search query typed by the user.
@@ -69,9 +63,7 @@ export component PageMain inherits Rectangle {
         padding: 0px;
         spacing: 0px;
 
-        // ======================================================================
         // Top Bar: Morphs between Search Pill (Root) and Active Search Header
-        // ======================================================================
         Rectangle {
             height: root.is-searching ? 64px : 68px;
             background: Theme.base-surface;
@@ -88,7 +80,7 @@ export component PageMain inherits Rectangle {
                     height: 44px;
                     border-radius: 22px;
                     y: (parent.height - self.height) / 2;
-                    background: back-touch.pressed ? #282a30 : transparent;
+                    background: back-touch.pressed ? Theme.surface-high : transparent;
 
                     Icon {
                         name: "chevron-left";
@@ -121,7 +113,7 @@ export component PageMain inherits Rectangle {
                         color: Theme.on-surface;
                         vertical-alignment: center;
                         single-line: true;
-                        selection-background-color: #a8c7fa.with-alpha(0.35);
+                        selection-background-color: Theme.primary.with-alpha(0.35);
 
                         edited => {
                             root.search-query-changed(self.text);
@@ -143,7 +135,7 @@ export component PageMain inherits Rectangle {
                     height: 40px;
                     border-radius: 20px;
                     y: (parent.height - self.height) / 2;
-                    background: clear-touch.pressed ? #282a30 : transparent;
+                    background: clear-touch.pressed ? Theme.surface-high : transparent;
 
                     Icon {
                         name: "close";
@@ -173,7 +165,7 @@ export component PageMain inherits Rectangle {
 
                 search-pill := Rectangle {
                     height: 52px;
-                    background: #1e2025;
+                    background: Theme.surface-container-high;
                     border-radius: 26px;
 
                     HorizontalLayout {
@@ -184,14 +176,14 @@ export component PageMain inherits Rectangle {
                         Icon {
                             name: "search";
                             icon-size: 20px;
-                            icon-color: #c9c5d0;
+                            icon-color: Theme.on-surface;
                             y: (parent.height - self.height) / 2;
                         }
 
                         Text {
                             text: @tr("Search settings...");
                             font-size: 16px;
-                            color: #938f99;
+                            color: Theme.on-surface-variant;
                             vertical-alignment: center;
                             horizontal-alignment: left;
                             horizontal-stretch: 1;
@@ -218,7 +210,6 @@ export component PageMain inherits Rectangle {
             }
         }
 
-        // ======================================================================
         // Body: Viewport Content
         Rectangle {
             vertical-stretch: 1;
@@ -239,7 +230,6 @@ export component PageMain inherits Rectangle {
                 for result[idx] in root.search-results: VerticalLayout {
                     spacing: 4px;
 
-                    // Category header in accent blue (#a8c7fa)
                     if result.show-category-header: HorizontalLayout {
                         padding-left: 8px;
                         padding-top: idx == 0 ? 4px : 14px;
@@ -249,7 +239,7 @@ export component PageMain inherits Rectangle {
                             text: result.category;
                             font-size: 14px;
                             font-weight: 500;
-                            color: #a8c7fa;
+                            color: Theme.subheader;
                             horizontal-alignment: left;
                         }
                     }
@@ -258,7 +248,7 @@ export component PageMain inherits Rectangle {
                     res-card := Rectangle {
                         min-height: 64px;
                         border-radius: 18px;
-                        background: res-touch.pressed ? #282a30 : #1e2025;
+                        background: res-touch.pressed ? Theme.surface-high : Theme.surface-container-high;
 
                         animate background { duration: 120ms; easing: ease-out; }
 
@@ -322,9 +312,7 @@ export component PageMain inherits Rectangle {
                 padding-bottom: 96px;
                 spacing: 12px;
 
-                // --------------------------------------------------------------
                 // Card Group 1: Network & Connected devices
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -368,9 +356,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 2: Apps & Notifications
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -402,9 +388,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 3: Sound & Modes
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -436,9 +420,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 4: Display & Wallpaper
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -470,9 +452,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 5: Security & Privacy
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -492,9 +472,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 6: Storage & Battery
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;
@@ -526,9 +504,7 @@ export component PageMain inherits Rectangle {
                     }
                 }
 
-                // --------------------------------------------------------------
                 // Card Group 6: System & About Phone
-                // --------------------------------------------------------------
                 SettingsSectionCard {
                     VerticalLayout {
                         padding-top: 4px;

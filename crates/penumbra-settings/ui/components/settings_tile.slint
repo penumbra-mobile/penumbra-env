@@ -1,31 +1,18 @@
 import { Theme } from "../theme.slint";
 import { Icon } from "../icon.slint";
 
-// ==============================================================================
-// Component: M3Switch
-// ==============================================================================
-// Tactile toggle switch adhering to Material 3 Expressive mobile guidelines.
-//
-// Layout & Sizing Constraints:
-// - Physical dimension: 50px wide by 28px tall, bounded by 14px continuous border radius.
-// - Sliding thumb: 20px circle with 4px resting inset padding on either side.
-// - Animated transitions: Background track hue and thumb position transition over
-//   180ms using an `ease-out` timing curve for instant tactile feedback.
 export component M3Switch inherits Rectangle {
-    // Current on/off boolean state of the switch.
     in-out property <bool> checked: false;
-    // Whether the switch is interactive; when false, dims and ignores touch gestures.
     in property <bool> enabled: true;
-    // Emitted whenever the user toggles the switch with the new boolean state.
     callback toggled(bool);
 
     width: 52px;
     height: 32px;
     border-radius: 16px;
-    background: !root.enabled ? #49454f.with-alpha(0.3)
-        : (root.checked ? Theme.primary : #36343b);
+    background: !root.enabled ? Theme.surface-variant.with-alpha(0.3)
+        : (root.checked ? Theme.primary : Theme.surface-highest);
     border-width: root.checked ? 0px : 1px;
-    border-color: #79747e;
+    border-color: Theme.outline-variant;
 
     animate background { duration: 180ms; easing: ease-out; }
 
@@ -36,7 +23,7 @@ export component M3Switch inherits Rectangle {
         width: root.checked ? 24px : 18px;
         height: root.checked ? 24px : 18px;
         border-radius: 12px;
-        background: root.checked ? Theme.on-primary : #938f99;
+        background: root.checked ? Theme.on-primary : Theme.on-surface-variant;
 
         animate x { duration: 180ms; easing: ease-out; }
         animate width { duration: 180ms; easing: ease-out; }
@@ -54,39 +41,17 @@ export component M3Switch inherits Rectangle {
     }
 }
 
-// ==============================================================================
-// Component: SettingsTile
-// ==============================================================================
-// Universal interactive list item row designed according to Android 17 specifications.
-//
-// Layout & Geometry:
-// - Height: 72px allowing ample breathing room and comfortable touch targeting.
-// - Icon Badge: 40px diameter circle with solid background color matching tier.
-// - Title: 16px, font-weight: 500, #e6e0e9.
-// - Subtitle: 13px, #938f99.
-// - Trailing indicator: 14px chevron (#938f99) or M3Switch.
 export component SettingsTile inherits Rectangle {
-    // Optional semantic icon name rendered inside a circular badge (e.g. "wifi").
     in property <string> icon-name: "";
-    // Background color of the 40px circular badge (Pixel category color).
     in property <color> icon-bg: root.icon-tint.with-alpha(0.18);
-    // Foreground tint color applied to the icon vector stroke.
     in property <color> icon-tint: #ffffff;
-    // Primary title text displayed in natural medium typography.
     in property <string> title: "";
-    // Secondary subtitle text displaying active status or configuration summaries.
     in property <string> subtitle: "";
-    // Optional trailing metadata text (e.g. "Connected", "98%").
     in property <string> trailing-text: "";
-    // Whether to render a right-facing navigation chevron ("chevron-right").
     in property <bool> show-chevron: false;
-    // Whether this tile functions as a toggle row containing an M3Switch.
     in property <bool> is-switch: false;
-    // Checked state of the switch when `is-switch` is true.
     in-out property <bool> switch-checked: false;
-    // Whether to render the bottom hairline divider.
     in property <bool> show-divider: true;
-    // Flag indicating this tile is the top element of a grouped section card.
     in property <bool> is-first: false;
     // Flag indicating this tile is the bottom element of a grouped section card.
     in property <bool> is-last: false;

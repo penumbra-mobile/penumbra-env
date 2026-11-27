@@ -1237,9 +1237,7 @@ pub fn setup_app(
         });
     }
 
-    // -----------------------------------------------------------------------
     // 10. Mobile Network / ModemManager / APN & eSIM (LPA)
-    // -----------------------------------------------------------------------
     let active_modem_path = Arc::new(std::sync::Mutex::new(String::new()));
     let active_sim_path = Arc::new(std::sync::Mutex::new(String::new()));
 

@@ -29,9 +29,7 @@ pub struct SearchEntry {
 
 /// Global settings search catalog indexed for fast retrieval across all UI sections.
 pub static SEARCH_CATALOG: &[SearchEntry] = &[
-    // =========================================================================
     // Network & internet
-    // =========================================================================
     SearchEntry {
         category: "Network & internet",
         title: "Wi-Fi",
@@ -96,9 +94,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "esim lpa lpac euicc eid profile activation code",
     },
 
-    // =========================================================================
     // Connected devices (Bluetooth)
-    // =========================================================================
     SearchEntry {
         category: "Bluetooth",
         title: "Bluetooth",
@@ -142,9 +138,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "cast screen display mirror wireless external tv projector",
     },
 
-    // =========================================================================
     // Apps & Notifications
-    // =========================================================================
     SearchEntry {
         category: "Apps",
         title: "Default apps",
@@ -174,9 +168,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "notification history log past missed alerts conversations",
     },
 
-    // =========================================================================
     // Display
-    // =========================================================================
     SearchEntry {
         category: "Display",
         title: "Brightness level",
@@ -234,9 +226,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "font size text scale zoom dpi accessibility display",
     },
 
-    // =========================================================================
     // Sound & vibration
-    // =========================================================================
     SearchEntry {
         category: "Sound & vibration",
         title: "Media volume",
@@ -273,9 +263,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "vibration haptics tactile feedback buzz ring call touch",
     },
 
-    // =========================================================================
     // Battery
-    // =========================================================================
     SearchEntry {
         category: "Battery",
         title: "Battery level & status",
@@ -298,9 +286,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "battery percentage status bar icon show percent charge",
     },
 
-    // =========================================================================
     // Storage
-    // =========================================================================
     SearchEntry {
         category: "Storage",
         title: "Storage & free space",
@@ -316,9 +302,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "memory ram swap system cache memory usage",
     },
 
-    // =========================================================================
     // About phone
-    // =========================================================================
     SearchEntry {
         category: "About phone",
         title: "Device name",
@@ -376,9 +360,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "license open source apache mit copyright legal notices",
     },
 
-    // =========================================================================
     // Keyboard & Input Methods
-    // =========================================================================
     SearchEntry {
         category: "Keyboard",
         title: "On-screen keyboard",
@@ -401,9 +383,7 @@ pub static SEARCH_CATALOG: &[SearchEntry] = &[
         keywords: "auto-hide retract keyboard physical connected external",
     },
 
-    // =========================================================================
     // Security & privacy
-    // =========================================================================
     SearchEntry {
         category: "Security & privacy",
         title: "Screen lock",

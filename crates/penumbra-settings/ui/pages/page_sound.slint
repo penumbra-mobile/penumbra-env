@@ -254,9 +254,7 @@ export component PageSound inherits Rectangle {
     callback toggle-dnd(bool);
     callback toggle-vibrate-calls(bool);
 
-    // =========================================================================
     // SUBPAGE 0: MAIN SOUND PANEL (cc-sound-panel.blp 1:1)
-    // =========================================================================
     if root.subpage == "main": Flickable {
         width: parent.width;
         height: parent.height;
@@ -514,9 +512,7 @@ export component PageSound inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // SUBPAGE 1: VOLUME LEVELS (cc-volume-levels-page.blp 1:1)
-    // =========================================================================
     if root.subpage == "volume-levels": Flickable {
         width: parent.width;
         height: parent.height;
@@ -542,9 +538,9 @@ export component PageSound inherits Rectangle {
                     horizontal-stretch: 1;
                 }
                 Rectangle {
-                    height: 32px; border-radius: 16px; background: Theme.surface-high;
+                    height: 44px; border-radius: 22px; background: Theme.surface-high;
                     HorizontalLayout {
-                        padding-left: 12px; padding-right: 12px;
+                        padding-left: 14px; padding-right: 14px;
                         Text { text: @tr("Refresh"); font-size: 12px; font-weight: 600; color: Theme.primary; vertical-alignment: center; }
                     }
                     TouchArea { clicked => { root.refresh-audio(); } }
@@ -592,9 +588,7 @@ export component PageSound inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // SUBPAGE 2: ALERT SOUND CHOOSER (cc-alert-chooser-page.blp 1:1)
-    // =========================================================================
     if root.subpage == "alert-sound": Flickable {
         width: parent.width;
         height: parent.height;
@@ -649,9 +643,7 @@ export component PageSound inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // SUBPAGE 3: PHONE RINGTONE CHOOSER
-    // =========================================================================
     if root.subpage == "ringtone": Flickable {
         width: parent.width;
         height: parent.height;
@@ -706,9 +698,7 @@ export component PageSound inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // SUBPAGE 4: NOTIFICATION SOUND CHOOSER
-    // =========================================================================
     if root.subpage == "notification-sound": Flickable {
         width: parent.width;
         height: parent.height;
@@ -763,9 +753,7 @@ export component PageSound inherits Rectangle {
         }
     }
 
-    // =========================================================================
     // MODALS (Test Speakers, Output/Input Device & Configuration Pickers)
-    // =========================================================================
     if root.modal != "": Rectangle {
         width: parent.width;
         height: parent.height;

@@ -132,9 +132,7 @@ component ShapeOptionChip inherits Rectangle {
     }
 }
 
-// ==============================================================================
 // Component: PageAppearance (Wallpaper & style)
-// ==============================================================================
 export component PageAppearance inherits Rectangle {
     in-out property <string> accent-color: "blue"; // "blue", "lavender", "mint", "rose", "amber"
     in-out property <bool> dark-theme: true;
@@ -569,17 +567,17 @@ export component PageAppearance inherits Rectangle {
                     HorizontalLayout {
                         spacing: 8px;
                         Rectangle {
-                            height: 28px;
-                            border-radius: 14px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: Theme.surface-container-high;
                             border-width: 1px;
                             border-color: Theme.specular-rim;
                             HorizontalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
+                                padding-left: 14px;
+                                padding-right: 14px;
                                 Text {
                                     text: @tr("Rescan");
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     font-weight: 600;
                                     color: Theme.primary;
                                     vertical-alignment: center;
@@ -588,15 +586,15 @@ export component PageAppearance inherits Rectangle {
                             TouchArea { clicked => { root.rescan-wallpapers(); } }
                         }
                         if root.current-wallpaper-path != "": Rectangle {
-                            height: 28px;
-                            border-radius: 14px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: #5c2020;
                             HorizontalLayout {
-                                padding-left: 10px;
-                                padding-right: 10px;
+                                padding-left: 14px;
+                                padding-right: 14px;
                                 Text {
                                     text: @tr("Clear");
-                                    font-size: 11px;
+                                    font-size: 12px;
                                     font-weight: 600;
                                     color: #ffb4ab;
                                     vertical-alignment: center;
@@ -623,15 +621,15 @@ export component PageAppearance inherits Rectangle {
                                 vertical-alignment: center;
                             }
                             Rectangle {
-                                height: 28px;
-                                border-radius: 14px;
+                                height: 44px;
+                                border-radius: 22px;
                                 background: root.preview-accent;
                                 HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 12px;
+                                    padding-left: 14px;
+                                    padding-right: 14px;
                                     Text {
                                         text: @tr("+ Add folder");
-                                        font-size: 11px;
+                                        font-size: 12px;
                                         font-weight: 700;
                                         color: root.preview-on-accent;
                                         vertical-alignment: center;

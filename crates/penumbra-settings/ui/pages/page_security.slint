@@ -80,9 +80,7 @@ export component PageSecurity inherits Rectangle {
                 }
             }
 
-            // =================================================================
             // VIEW 1: Main Security Settings Page
-            // =================================================================
             if (!root.show-pin-setup && !root.show-password-setup): VerticalLayout {
                 spacing: 20px;
 
@@ -196,9 +194,7 @@ export component PageSecurity inherits Rectangle {
                 }
             }
 
-            // =================================================================
             // VIEW 2: Set PIN Subview
-            // =================================================================
             if root.show-pin-setup: VerticalLayout {
                 spacing: 16px;
 
@@ -322,9 +318,7 @@ export component PageSecurity inherits Rectangle {
                 }
             }
 
-            // =================================================================
             // VIEW 3: Set Password Subview
-            // =================================================================
             if root.show-password-setup: VerticalLayout {
                 spacing: 16px;
 

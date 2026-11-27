@@ -6,9 +6,7 @@ import { DisplayCanvas, DisplayItemData } from "../components/display_canvas.sli
 
 export { DisplayItemData }
 
-// ==============================================================================
 // Component: BrightnessSliderCard
-// ==============================================================================
 component BrightnessSliderCard inherits Rectangle {
     in-out property <float> value: 0.75;
     callback changed(float);
@@ -92,9 +90,7 @@ struct TimeoutOption {
     seconds: int,
 }
 
-// ==============================================================================
 // Component: PageDisplay
-// ==============================================================================
 export component PageDisplay inherits Rectangle {
     // Current display backlight level (0.05 to 1.0).
     in-out property <float> brightness: 0.75;
@@ -107,9 +103,7 @@ export component PageDisplay inherits Rectangle {
     // Real screen display resolution summary.
     in property <string> display-resolution: "1920 × 1080";
 
-    // --------------------------------------------------------------------------
     // Multi-Display Convergence Properties (COSMIC Adapted)
-    // --------------------------------------------------------------------------
     in-out property <[DisplayItemData]> displays: [
         {
             id: "DSI-1",

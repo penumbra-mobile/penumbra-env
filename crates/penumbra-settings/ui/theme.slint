@@ -1,6 +1,4 @@
-// ==============================================================================
 // Penumbra Settings: Design System & Theming Tokens
-// ==============================================================================
 // Implements the Material 3 Expressive design token system tailored specifically
 // for mobile form factors and deep OLED pitch-black power savings.
 //
@@ -13,12 +11,9 @@
 //    and a delicate 1px specular rim border (`specular-rim`).
 // 3. Continuous Squircle-like Radii: 20px card radii and pill shapes follow modern
 //    handheld ergonomic guidelines for comfortable thumb interaction.
-// ==============================================================================
 
 export global Theme {
-    // --------------------------------------------------------------------------
     // Surface & Background Roles (Android 17 Deep Night Palette)
-    // --------------------------------------------------------------------------
     // Root window background: Deep dark night base matching Pixel screenshots.
     out property <color> base-surface: #111318;
     // Lowest elevation recessed surface.
@@ -34,9 +29,7 @@ export global Theme {
     // Inactive track and disabled surface tone.
     out property <color> surface-variant: #44474f;
 
-    // --------------------------------------------------------------------------
     // Accent & Semantic Roles (Material You Dynamic Palette)
-    // --------------------------------------------------------------------------
     // Primary accent hue used for active toggles, highlights, and focus states.
     out property <color> primary: #d0bcff;
     // High-contrast text/icon color layered over `primary`.
@@ -50,9 +43,7 @@ export global Theme {
     // High-contrast text/icon color layered over `secondary`.
     out property <color> on-secondary: #332d41;
 
-    // --------------------------------------------------------------------------
     // Content & Typography Colors
-    // --------------------------------------------------------------------------
     // Primary text: soft white/cream with natural luminance.
     out property <color> on-surface: #e6e0e9;
     // Secondary text & subtitles: warm lavender/grey.
@@ -64,9 +55,7 @@ export global Theme {
     // Hairline divider color.
     out property <color> outline-variant: #44474f;
 
-    // --------------------------------------------------------------------------
     // Hardware & Status Indicators
-    // --------------------------------------------------------------------------
     // Positive state (connected Wi-Fi, paired Bluetooth, good battery health).
     out property <color> success: #48E885;
     // Alert / advisory state (battery saver active, charging caution).
@@ -74,16 +63,12 @@ export global Theme {
     // Critical state (disconnected, hardware error, critical battery).
     out property <color> danger: #E74C3C;
 
-    // --------------------------------------------------------------------------
     // Hairlines & Dividers
-    // --------------------------------------------------------------------------
     out property <color> specular-rim: transparent;
     out property <color> specular-rim-active: #ffffff1f;
     out property <color> divider: #ffffff0a;
 
-    // --------------------------------------------------------------------------
     // Corner Radii Scale (Android 17 Standard: 26px Base)
-    // --------------------------------------------------------------------------
     // Base 26px border radius used for capsule search bar and container cards.
     out property <length> radius-pill: 26px;
     out property <length> radius-card: 26px;
@@ -91,9 +76,7 @@ export global Theme {
     out property <length> radius-small: 14px;
     out property <length> radius-badge: 20px;
 
-    // --------------------------------------------------------------------------
     // Typography Scale (Google Sans / M3 Expressive)
-    // --------------------------------------------------------------------------
     // Asymmetrical top headline on main start screen.
     out property <length> font-headline: 32px;
     // Subpage app-bar title.

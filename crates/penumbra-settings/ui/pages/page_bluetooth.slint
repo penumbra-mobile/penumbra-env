@@ -3,9 +3,7 @@ import { Icon } from "../icon.slint";
 import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
 
-// ==============================================================================
 // Data Structure: BtDeviceData
-// ==============================================================================
 // Represents a remote Bluetooth device discovered or managed via BlueZ.
 export struct BtDeviceData {
     // Advertised friendly name or fallback hardware address of the device.
@@ -22,9 +20,7 @@ export struct BtDeviceData {
     battery: int,
 }
 
-// ==============================================================================
 // Component: PageBluetooth
-// ==============================================================================
 // Bluetooth adapter and peripheral management subpage inspired by GNOME Settings.
 export component PageBluetooth inherits Flickable {
     // Current Bluetooth adapter power state.

@@ -80,9 +80,7 @@ export component PageMobile inherits Rectangle {
             padding-bottom: 48px;
             spacing: 14px;
 
-            // --------------------------------------------------------------
             // 1. Modem & SIM Status Card
-            // --------------------------------------------------------------
             SettingsSectionCard {
                 VerticalLayout {
                     padding: 16px;
@@ -188,9 +186,7 @@ export component PageMobile inherits Rectangle {
                 }
             }
 
-            // --------------------------------------------------------------
             // 2. Mobile Data & Roaming Toggles
-            // --------------------------------------------------------------
             SettingsSectionHeader { title: @tr("Mobile Data"); }
             SettingsSectionCard {
                 VerticalLayout {
@@ -249,9 +245,7 @@ export component PageMobile inherits Rectangle {
                 }
             }
 
-            // --------------------------------------------------------------
             // 3. Preferred Network Mode (gnome-control-center wwan)
-            // --------------------------------------------------------------
             SettingsSectionHeader { title: @tr("Preferred Network Mode"); }
             SettingsSectionCard {
                 HorizontalLayout {
@@ -264,9 +258,9 @@ export component PageMobile inherits Rectangle {
                         { id: "4g_only", label: @tr("4G Only") },
                         { id: "3g_2g", label: @tr("3G / 2G") },
                     ]: Rectangle {
-                        height: 36px;
+                        height: 44px;
                         horizontal-stretch: 1;
-                        border-radius: 18px;
+                        border-radius: 22px;
                         background: root.network-mode == mode.id ? Theme.primary : Theme.surface-container-high;
                         border-width: 1px;
                         border-color: root.network-mode == mode.id ? Theme.primary : Theme.specular-rim;
@@ -289,20 +283,18 @@ export component PageMobile inherits Rectangle {
                 }
             }
 
-            // --------------------------------------------------------------
             // 4. Access Point Names (APNs)
-            // --------------------------------------------------------------
             HorizontalLayout {
                 alignment: space-between;
                 SettingsSectionHeader { title: @tr("Access Point Names (APNs)"); }
                 Rectangle {
-                    width: 80px;
-                    height: 28px;
-                    border-radius: 14px;
+                    width: 96px;
+                    height: 44px;
+                    border-radius: 22px;
                     background: Theme.primary-container;
                     Text {
                         text: @tr("+ Add APN");
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: 700;
                         color: Theme.on-primary-container;
                         horizontal-alignment: center;
@@ -496,9 +488,9 @@ export component PageMobile inherits Rectangle {
                         alignment: end;
 
                         if root.edit-apn-path != "": Rectangle {
-                            width: 72px;
-                            height: 36px;
-                            border-radius: 18px;
+                            width: 76px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: #5c2020;
                             Text {
                                 text: @tr("Delete");
@@ -517,9 +509,9 @@ export component PageMobile inherits Rectangle {
                         }
 
                         Rectangle {
-                            width: 72px;
-                            height: 36px;
-                            border-radius: 18px;
+                            width: 76px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: Theme.surface-highest;
                             Text {
                                 text: @tr("Cancel");
@@ -535,9 +527,9 @@ export component PageMobile inherits Rectangle {
                         }
 
                         Rectangle {
-                            width: 72px;
-                            height: 36px;
-                            border-radius: 18px;
+                            width: 76px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: Theme.primary;
                             Text {
                                 text: @tr("Save");
@@ -564,20 +556,18 @@ export component PageMobile inherits Rectangle {
                 }
             }
 
-            // --------------------------------------------------------------
             // 5. eSIM Manager (inspired by lpa-gtk / lpac)
-            // --------------------------------------------------------------
             HorizontalLayout {
                 alignment: space-between;
                 SettingsSectionHeader { title: @tr("eSIM Manager (LPA)"); }
                 Rectangle {
-                    width: 68px;
-                    height: 28px;
-                    border-radius: 14px;
+                    width: 80px;
+                    height: 44px;
+                    border-radius: 22px;
                     background: Theme.surface-container-high;
                     Text {
                         text: @tr("Refresh");
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: 600;
                         color: Theme.on-surface;
                         horizontal-alignment: center;

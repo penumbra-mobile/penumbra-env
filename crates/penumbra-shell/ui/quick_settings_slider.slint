@@ -13,9 +13,7 @@ export struct TileData {
     enabled: bool,
 }
 
-// =========================================================================
 // Android 17 Marquee / Horizontal Scrolling Text Component
-// =========================================================================
 export component MarqueeText inherits Rectangle {
     in property <string> text;
     in property <length> font-size: 14px;
@@ -57,9 +55,7 @@ export component MarqueeText inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Material 3 Expressive QSTile Component
-// =========================================================================
 export component QSTile inherits Rectangle {
     in property <string> title: "Internet";
     in property <string> subtitle: "Connected";
@@ -189,9 +185,7 @@ export component QSTile inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Modern Slate Editor Tile Item (Android 17 1:1)
-// =========================================================================
 component EditTileItem inherits Rectangle {
     in property <string> title: "Tile";
     in property <string> subtitle: "Off";
@@ -297,9 +291,7 @@ component EditTileItem inherits Rectangle {
 
 
 
-// =========================================================================
 // Android 17 / Pixel Expressive Media Player Card
-// =========================================================================
 export component MediaCard inherits Rectangle {
     in property <string> title: "";
     in property <string> artist: "";
@@ -439,18 +431,18 @@ export component MediaCard inherits Rectangle {
 
         // Bottom Controls: Replay 10s, Seekbar, Forward 10s, Speed 1x, Next
         HorizontalLayout {
-            spacing: 8px;
+            spacing: 4px;
             alignment: center;
-            height: 28px;
+            height: 44px;
 
             // Skip previous
             TouchArea {
-                width: 24px;
-                height: 24px;
+                width: 44px;
+                height: 44px;
                 clicked => { root.prev(); }
                 Icon {
                     name: "skip-prev";
-                    icon-size: 16px;
+                    icon-size: 18px;
                     icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
@@ -459,12 +451,12 @@ export component MediaCard inherits Rectangle {
 
             // Replay 10
             TouchArea {
-                width: 24px;
-                height: 24px;
+                width: 44px;
+                height: 44px;
                 clicked => { root.seek-back(); }
                 Icon {
                     name: "replay-10";
-                    icon-size: 16px;
+                    icon-size: 18px;
                     icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
@@ -475,6 +467,7 @@ export component MediaCard inherits Rectangle {
             Rectangle {
                 horizontal-stretch: 1;
                 height: 16px;
+                y: (parent.height - self.height) / 2;
                 background: transparent;
 
                 Rectangle {
@@ -507,12 +500,12 @@ export component MediaCard inherits Rectangle {
 
             // Forward 10
             TouchArea {
-                width: 24px;
-                height: 24px;
+                width: 44px;
+                height: 44px;
                 clicked => { root.seek-forward(); }
                 Icon {
                     name: "forward-10";
-                    icon-size: 16px;
+                    icon-size: 18px;
                     icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
@@ -521,12 +514,12 @@ export component MediaCard inherits Rectangle {
 
             // Skip next
             TouchArea {
-                width: 24px;
-                height: 24px;
+                width: 44px;
+                height: 44px;
                 clicked => { root.next(); }
                 Icon {
                     name: "skip-next";
-                    icon-size: 16px;
+                    icon-size: 18px;
                     icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
@@ -536,9 +529,7 @@ export component MediaCard inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Android 17 Material 3 Expressive Squircle Tile (Row 3 4-button row)
-// =========================================================================
 export component QSSquircleTile inherits Rectangle {
     in property <string> icon-name;
     in property <bool> is-active: false;
@@ -581,9 +572,7 @@ export component QSSquircleTile inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Capsule-Shaped Brightness Slider
-// =========================================================================
 component SliderPill inherits Rectangle {
     in-out property <float> value: 0.75;
     in property <string> icon-name: "brightness";
@@ -715,9 +704,7 @@ component SliderPill inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Material 3 Expressive Header / Action Icon Button
-// =========================================================================
 component HeaderIconButton inherits Rectangle {
     in property <string> icon-name;
     in property <bool> is-accent: false;
@@ -725,9 +712,9 @@ component HeaderIconButton inherits Rectangle {
 
     property <bool> is-down: false;
 
-    width: 38px;
-    height: 38px;
-    border-radius: root.is-down ? 14px : 19px;
+    width: 44px;
+    height: 44px;
+    border-radius: root.is-down ? 16px : 22px;
     background: root.is-accent ? (root.is-down ? Theme.primary-container : Theme.primary) : (root.is-down ? Theme.surface-container-highest : Theme.surface-container-high);
     border-width: 1px;
     border-color: root.is-accent ? Theme.specular-rim-active : Theme.specular-rim;
@@ -751,9 +738,7 @@ component HeaderIconButton inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Material 3 Expressive Pill Action Button (Reset, Done)
-// =========================================================================
 component PillButton inherits Rectangle {
     in property <string> text;
     in property <string> icon-name;
@@ -800,9 +785,7 @@ component PillButton inherits Rectangle {
     }
 }
 
-// =========================================================================
 // Circular Icon Button ($48px round button)
-// =========================================================================
 export component SmallButton inherits Rectangle {
     in property <string> label;
     in property <string> icon;
@@ -845,9 +828,7 @@ export component SmallButton inherits Rectangle {
     }
 }
 
-// =========================================================================
 // QuickSettingsSlider: Dual-Tier Material 3 Expressive SystemUI Shade
-// =========================================================================
 export component QuickSettingsSlider inherits Rectangle {
     in-out property <length> slide-offset-y: -915px;
     in property <float> expansion-progress: 0.0;
@@ -937,9 +918,7 @@ export component QuickSettingsSlider inherits Rectangle {
         };
     }
 
-    // =========================================================================
     // The Floating Drawer Chassis (Y = -screen_height * (1.0 - t))
-    // =========================================================================
     chassis := Rectangle {
         x: 0px;
         y: root.slide-offset-y;
@@ -1019,9 +998,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
             }
 
-            // =====================================================================
             // FLOATING STATUS PILLS (At the top of the shade card, starting from y: 8px)
-            // =====================================================================
             floating-status-bar := HorizontalLayout {
                 x: root.pad;
                 y: 8px;
@@ -1113,9 +1090,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 }
             }
 
-            // =================================================================
             // SCREEN 1: NOTIFICATIONS SCREEN
-            // =================================================================
             notifications-screen := Rectangle {
                 x: root.is-full-qs ? -parent.width : 0px;
                 y: 0px;
@@ -1231,9 +1206,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 }
             }
 
-            // =================================================================
             // SCREEN 2: QUICK SETTINGS SCREEN
-            // =================================================================
             qs-screen := Rectangle {
                 x: root.is-full-qs ? 0px : parent.width;
                 y: 0px;
@@ -1358,9 +1331,7 @@ export component QuickSettingsSlider inherits Rectangle {
             }
         }
 
-        // =====================================================================
         // VIEW B: MODERN SLATE EDITOR (1:1 with Android 17 / Pixel SystemUI)
-        // =====================================================================
         slate-editor-view := Rectangle {
             x: 0px;
             y: root.edit-mode ? 0px : 30px;

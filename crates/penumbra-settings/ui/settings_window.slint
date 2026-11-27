@@ -16,9 +16,7 @@ import { PageSecurity } from "pages/page_security.slint";
 
 export { WifiApData, ApnEntryData, ESimProfileData, BtDeviceData, SearchResultData, VirtualKeyboardData, PhysicalKeyboardData, DisplayItemData, WallpaperEntry, AudioDeviceData, AudioProfileData, AudioStreamData }
 
-// ==============================================================================
 // Component: SettingsWindow
-// ==============================================================================
 // Convergent Universal Settings Application Window.
 // Dynamically adapts between:
 // - Mobile Phone mode (width < 720px): Single-column tactile touch drilldown
@@ -33,20 +31,14 @@ export component SettingsWindow inherits Window {
     background: Theme.base-surface;
     default-font-family: "Droid Sans";
 
-    // --------------------------------------------------------------------------
     // Convergence Geometry Property
-    // --------------------------------------------------------------------------
     property <bool> is-desktop: root.width >= 720px;
 
-    // --------------------------------------------------------------------------
     // Navigation State
-    // --------------------------------------------------------------------------
     in-out property <string> active-page: "main";
     property <bool> is-subpage: root.active-page != "main";
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Wi-Fi (NetworkManager)
-    // --------------------------------------------------------------------------
     in-out property <bool> wifi-enabled: true;
     in property <string> connected-ssid: "";
     in property <int> signal-strength: 0;
@@ -60,9 +52,7 @@ export component SettingsWindow inherits Window {
     callback start-hotspot(string, string);
     callback stop-hotspot();
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Mobile / Modem / APN / eSIM
-    // --------------------------------------------------------------------------
     in property <string> mobile-status: "Mobile data, APNs & eSIM";
     in property <bool> mobile-modem-present: false;
     in property <bool> mobile-sim-present: false;
@@ -96,9 +86,7 @@ export component SettingsWindow inherits Window {
     callback esim-delete-profile(string);
     callback esim-download-profile(string);
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Bluetooth (BlueZ)
-    // --------------------------------------------------------------------------
     in-out property <bool> bt-enabled: true;
     in-out property <bool> bt-discoverable: false;
     in property <string> adapter-name: "Bluetooth";
@@ -110,9 +98,7 @@ export component SettingsWindow inherits Window {
     callback toggle-bt-discoverable(bool);
     callback rename-bt-adapter(string);
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Display & Convergence
-    // --------------------------------------------------------------------------
     in-out property <float> brightness: 0.75;
     in-out property <bool> adaptive-brightness: true;
     in-out property <bool> dark-theme: true;
@@ -184,9 +170,7 @@ export component SettingsWindow inherits Window {
     callback rescan-wallpapers();
     callback cancel-wifi-connection();
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Battery & Power (UPower / COSMIC Power Profiles)
-    // --------------------------------------------------------------------------
     in property <int> battery-pct: 86;
     in property <bool> is-charging: false;
     in property <string> battery-state-text: "About 14 hr left";
@@ -194,9 +178,7 @@ export component SettingsWindow inherits Window {
     in-out property <string> power-profile: "balanced"; // "power-saver", "balanced", "performance"
     callback power-profile-changed(string);
 
-    // --------------------------------------------------------------------------
     // Reactive Hardware Properties - Audio & Sound (GNOME 1:1 PipeWire/PulseAudio)
-    // --------------------------------------------------------------------------
     in property <[AudioDeviceData]> audio-output-devices: [];
     in property <[AudioDeviceData]> audio-input-devices: [];
     in property <[AudioProfileData]> audio-output-profiles: [];
@@ -240,17 +222,13 @@ export component SettingsWindow inherits Window {
     callback stop-sound-preview();
     callback refresh-audio();
 
-    // --------------------------------------------------------------------------
     // Search State & Query Callbacks
-    // --------------------------------------------------------------------------
     in property <[SearchResultData]> search-results: [];
     callback search-query-changed(string);
     callback search-focused();
     callback search-unfocused();
 
-    // --------------------------------------------------------------------------
     // Real Hardware & System Telemetry Properties
-    // --------------------------------------------------------------------------
     in property <string> device-name: "Fairphone 4";
     in property <string> device-model: "FP4 (SM6350)";
     in property <string> os-version: "Penumbra Mobile OS (Edge)";
@@ -267,25 +245,19 @@ export component SettingsWindow inherits Window {
     in property <string> storage-summary: "84 GB free of 128 GB";
     in property <string> apps-summary: "29 apps installed";
 
-    // --------------------------------------------------------------------------
     // Keyboards
-    // --------------------------------------------------------------------------
     in property <[VirtualKeyboardData]> virtual-keyboards: [];
     in property <[PhysicalKeyboardData]> physical-keyboards: [];
     in-out property <bool> hide-on-physical-keyboard: true;
 
-    // --------------------------------------------------------------------------
     // Security & Lock
-    // --------------------------------------------------------------------------
     in property <string> active-lock-type: "swipe";
     in property <bool> has-fingerprint: false;
     in-out property <bool> fingerprint-enabled: false;
     in property <int> auto-lock-timeout: 30;
     in-out property <bool> hide-sensitive-notifications: false;
 
-    // --------------------------------------------------------------------------
     // Navigation Callbacks
-    // --------------------------------------------------------------------------
     callback navigate-to(string);
     callback navigate-back();
     callback toggle-wifi(bool);
@@ -338,9 +310,7 @@ export component SettingsWindow inherits Window {
         root.active-page == "security" ? "Security & Lock" :
         "Settings";
 
-    // ==========================================================================
     // Convergent Layout Root
-    // ==========================================================================
 
     if root.is-desktop: HorizontalLayout {
         width: 100%;

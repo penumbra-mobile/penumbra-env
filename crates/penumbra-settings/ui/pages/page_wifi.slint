@@ -3,9 +3,7 @@ import { Icon } from "../icon.slint";
 import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
 import { SettingsSectionCard, SettingsSectionHeader } from "../components/settings_section.slint";
 
-// ==============================================================================
 // Data Structure: WifiApData
-// ==============================================================================
 // Represents a single scanned wireless access point discovered via NetworkManager.
 export struct WifiApData {
     // Human-readable broadcast SSID of the access point.
@@ -20,9 +18,7 @@ export struct WifiApData {
     saved: bool,
 }
 
-// ==============================================================================
 // Component: PageWifi
-// ==============================================================================
 // Wi-Fi network configuration subpage adhering strictly to Android 17 design.
 export component PageWifi inherits Rectangle {
     // Current wireless adapter power state.
@@ -182,9 +178,9 @@ export component PageWifi inherits Rectangle {
                             if root.connection-status == "connecting"
                                 || root.connection-status == "authenticating"
                                 || root.connection-status == "configuring_ip": Rectangle {
-                                height: 32px;
+                                height: 44px;
                                 horizontal-stretch: 1;
-                                border-radius: 16px;
+                                border-radius: 22px;
                                 background: #5c2020;
                                 Text {
                                     text: @tr("Cancel");
@@ -197,9 +193,9 @@ export component PageWifi inherits Rectangle {
                                 TouchArea { clicked => { root.cancel-connection(); } }
                             }
                             if root.connection-status == "failed": Rectangle {
-                                height: 32px;
+                                height: 44px;
                                 horizontal-stretch: 1;
-                                border-radius: 16px;
+                                border-radius: 22px;
                                 background: Theme.primary;
                                 Text {
                                     text: @tr("Scan & Retry");

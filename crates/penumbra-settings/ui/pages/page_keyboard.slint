@@ -3,9 +3,7 @@ import { Icon } from "../icon.slint";
 import { SettingsTile, M3Switch } from "../components/settings_tile.slint";
 import { SettingsSectionCard } from "../components/settings_section.slint";
 
-// ==============================================================================
 // Data Structure: VirtualKeyboardData
-// ==============================================================================
 // Representation of a KDE-compliant virtual keyboard detected from .desktop files.
 export struct VirtualKeyboardData {
     name: string,
@@ -14,18 +12,14 @@ export struct VirtualKeyboardData {
     is-active: bool,
 }
 
-// ==============================================================================
 // Data Structure: PhysicalKeyboardData
-// ==============================================================================
 // Representation of an active physical input keyboard detected via /proc/bus/input/devices.
 export struct PhysicalKeyboardData {
     name: string,
     bus: string,
 }
 
-// ==============================================================================
 // Component: PageKeyboard
-// ==============================================================================
 // Settings subpage for managing On-Screen Virtual Keyboards and Physical Keyboards.
 // Adheres strictly to Android 17 / Pixel Material You design standards:
 // 1. Tonal elevation cards with 24-28px continuous squircle corner radii.
@@ -68,9 +62,7 @@ export component PageKeyboard inherits Rectangle {
             padding-bottom: 96px;
             spacing: 14px;
 
-            // ==================================================================
             // Section 1: On-Screen Virtual Keyboards
-            // ==================================================================
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
@@ -220,9 +212,7 @@ export component PageKeyboard inherits Rectangle {
                 }
             }
 
-            // ==================================================================
             // Section 2: Physical Hardware Keyboards
-            // ==================================================================
             SettingsSectionCard {
                 VerticalLayout {
                     padding-top: 4px;
@@ -343,9 +333,7 @@ export component PageKeyboard inherits Rectangle {
                 }
             }
 
-            // ==================================================================
             // Section 3: KDE Virtual Keyboard Specification Info Card
-            // ==================================================================
             SettingsSectionCard {
                 VerticalLayout {
                     padding: 18px;
