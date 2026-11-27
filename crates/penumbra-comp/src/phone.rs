@@ -55,6 +55,56 @@ pub fn runtime_path(name: &str) -> PathBuf {
     PathBuf::from(dir).join(name)
 }
 
+/// Reads `(mobile_buffer_scale, external_scales)` from `~/.config/penumbra/displays.toml`
+/// without requiring `penumbra-services` as a dependency of `penumbra-comp`.
+/// Defaults to `(2, [])` (2x HiDPI mobile shell, 1x external desktop).
+pub fn read_displays_scale_config() -> (i32, Vec<(String, f64)>) {
+    let path = if let Ok(cfg) = std::env::var("XDG_CONFIG_HOME") {
+        PathBuf::from(cfg).join("penumbra/displays.toml")
+    } else if let Ok(home) = std::env::var("HOME") {
+        PathBuf::from(home).join(".config/penumbra/displays.toml")
+    } else {
+        PathBuf::from("/etc/penumbra/displays.toml")
+    };
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return (2, Vec::new());
+    };
+    let mut mobile_scale = 2i32;
+    let mut externals = Vec::new();
+    let mut cur_id = String::new();
+    let mut cur_conn = String::new();
+    let mut cur_scale: Option<f64> = None;
+    let flush = |id: &str, conn: &str, scale: Option<f64>, mobile: &mut i32, exts: &mut Vec<(String, f64)>| {
+        if let Some(s) = scale {
+            if id == "DSI-1" || conn.starts_with("DSI") {
+                *mobile = (s.round() as i32).clamp(1, 3);
+            } else if !conn.is_empty() {
+                exts.push((conn.to_string(), s.clamp(1.0, 3.0)));
+            }
+        }
+    };
+    for line in text.lines() {
+        let t = line.trim();
+        if t == "[[outputs]]" {
+            flush(&cur_id, &cur_conn, cur_scale, &mut mobile_scale, &mut externals);
+            cur_id.clear();
+            cur_conn.clear();
+            cur_scale = None;
+        } else if let Some((k, v)) = t.split_once('=') {
+            let k = k.trim();
+            let v = v.trim().trim_matches('"');
+            match k {
+                "id" => cur_id = v.to_string(),
+                "connector" => cur_conn = v.to_string(),
+                "scale" => cur_scale = v.parse::<f64>().ok(),
+                _ => {}
+            }
+        }
+    }
+    flush(&cur_id, &cur_conn, cur_scale, &mut mobile_scale, &mut externals);
+    (mobile_scale, externals)
+}
+
 /// Navigation state of the phone output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PhoneMode {

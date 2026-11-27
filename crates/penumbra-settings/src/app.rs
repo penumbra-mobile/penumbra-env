@@ -689,6 +689,8 @@ pub fn setup_app(
             if let Some(output) = cfg.outputs.get_mut(idx as usize) {
                 output.scale = scale_pct as f64 / 100.0;
                 let _ = cfg.save();
+                let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
+                let _ = std::fs::write(std::path::PathBuf::from(runtime_dir).join("penumbra-display-reload"), "1");
             }
             if let Some(ui) = weak.upgrade() {
                 let display_items: Vec<DisplayItemData> = cfg

@@ -43,7 +43,7 @@ impl Default for DisplayOutputInfo {
             width: 1080,
             height: 2340,
             refresh_rate_hz: 60,
-            scale: 2.62,
+            scale: 2.0,
             orientation_deg: 0,
             available_modes: vec![DisplayModeInfo {
                 width: 1080,
@@ -151,6 +151,26 @@ impl DisplaysConfig {
         let toml_str = toml::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
         fs::write(path, toml_str)
+    }
+
+    /// Integer HiDPI buffer scale for the internal mobile display (`DSI-1`), clamped to `1..=3`.
+    pub fn mobile_buffer_scale(&self) -> i32 {
+        let raw = self
+            .outputs
+            .iter()
+            .find(|o| o.id == "DSI-1" || o.connector.starts_with("DSI"))
+            .map(|o| o.scale)
+            .unwrap_or(2.0);
+        (raw.round() as i32).clamp(1, 3)
+    }
+
+    /// Configured scale factor for an external desktop output (defaults to `1.0`).
+    pub fn external_scale(&self, connector: &str) -> f64 {
+        self.outputs
+            .iter()
+            .find(|o| o.connector == connector || o.id == connector)
+            .map(|o| o.scale.clamp(1.0, 3.0))
+            .unwrap_or(1.0)
     }
 
     /// Helper to find or add an external display into the arrangement.

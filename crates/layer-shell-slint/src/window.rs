@@ -25,6 +25,8 @@ pub struct LayerWindow {
     layer_surface: LayerSurface,
     /// Current window dimensions in physical pixels.
     size: Cell<PhysicalSize>,
+    /// Current window dimensions in Wayland logical coordinates.
+    logical_size: Cell<(u32, u32)>,
     /// Display output scaling factor (DPI multiplier).
     scale_factor: Cell<f32>,
     /// Flag indicating whether the window has received its initial configure sequence.
@@ -57,13 +59,15 @@ impl LayerWindow {
         namespace: String,
     ) -> Rc<Self> {
         let renderer = SoftwareRenderer::new();
-        let initial_size = PhysicalSize::new(initial_width, initial_height);
-        // Shells lay out at 1:1; panel scaling happens in the compositor.
         let scale_factor = std::env::var("PENUMBRA_SCALE_FACTOR")
             .ok()
             .and_then(|value| value.parse::<f32>().ok())
             .filter(|value| value.is_finite() && *value > 0.0)
             .unwrap_or(1.0);
+        let initial_size = PhysicalSize::new(
+            ((initial_width as f32) * scale_factor).round() as u32,
+            ((initial_height as f32) * scale_factor).round() as u32,
+        );
 
         Rc::new_cyclic(|weak_adapter: &Weak<Self>| {
             // Slint window requires a Weak<dyn WindowAdapter>
@@ -75,6 +79,7 @@ impl LayerWindow {
                 renderer,
                 layer_surface,
                 size: Cell::new(initial_size),
+                logical_size: Cell::new((initial_width, initial_height)),
                 scale_factor: Cell::new(scale_factor),
                 configured: Cell::new(false),
                 needs_redraw: Cell::new(true),
@@ -136,31 +141,46 @@ impl LayerWindow {
 
     /// Updates the display scale factor and notifies Slint of the change.
     pub fn set_scale_factor(&self, factor: f32) {
+        let factor = factor.max(1.0);
         if (self.scale_factor.get() - factor).abs() > f32::EPSILON {
             self.scale_factor.set(factor);
+            let (lw, lh) = self.logical_size.get();
+            let phys_size = PhysicalSize::new(
+                ((lw as f32) * factor).round() as u32,
+                ((lh as f32) * factor).round() as u32,
+            );
+            self.size.set(phys_size);
             self.dispatch_event(WindowEvent::ScaleFactorChanged {
                 scale_factor: factor,
+            });
+            self.dispatch_event(WindowEvent::Resized {
+                size: phys_size.to_logical(factor),
             });
             self.request_redraw();
         }
     }
 
-    /// Handles a Wayland configure event from the compositor.
+    /// Handles a Wayland configure event from the compositor (logical coordinates).
     pub fn on_configure(&self, width: u32, height: u32) {
-        let (current_w, current_h) = (self.size.get().width, self.size.get().height);
-        let new_w = if width > 0 { width } else { current_w };
-        let new_h = if height > 0 { height } else { current_h };
+        let (cur_lw, cur_lh) = self.logical_size.get();
+        let new_lw = if width > 0 { width } else { cur_lw };
+        let new_lh = if height > 0 { height } else { cur_lh };
+        self.logical_size.set((new_lw, new_lh));
 
-        let new_size = PhysicalSize::new(new_w, new_h);
+        let scale = self.scale_factor.get();
+        let new_size = PhysicalSize::new(
+            ((new_lw as f32) * scale).round() as u32,
+            ((new_lh as f32) * scale).round() as u32,
+        );
         if self.size.get() != new_size || !self.configured.get() {
             debug!(
-                "Configuring LayerWindow surface geometry: {}x{}",
-                new_w, new_h
+                "Configuring LayerWindow surface geometry: {}x{} logical ({}x{} physical @ {}x)",
+                new_lw, new_lh, new_size.width, new_size.height, scale
             );
             self.size.set(new_size);
             self.configured.set(true);
             self.dispatch_event(WindowEvent::Resized {
-                size: new_size.to_logical(self.scale_factor.get()),
+                size: new_size.to_logical(scale),
             });
         }
 
@@ -230,6 +250,8 @@ impl LayerWindow {
         self.renderer.render(pixels, width as usize);
 
         let wl_surface = self.layer_surface.wl_surface();
+        let buf_scale = self.scale_factor().round().max(1.0) as i32;
+        wl_surface.set_buffer_scale(buf_scale);
 
         // Attach the rendered SHM buffer
         if let Err(e) = buffer.attach_to(wl_surface) {
@@ -256,8 +278,8 @@ impl LayerWindow {
 
     /// Normalizes and dispatches a pointer event to this window.
     pub fn process_pointer_event(&self, event: &smithay_client_toolkit::seat::pointer::PointerEvent) {
-        let scale = self.scale_factor();
-        let slint_events = self.input_processor.borrow_mut().process_pointer_event(event, scale);
+        // Wayland pointer events are already in surface-local logical coordinates.
+        let slint_events = self.input_processor.borrow_mut().process_pointer_event(event, 1.0);
         for slint_event in slint_events {
             self.dispatch_event(slint_event);
         }
@@ -265,8 +287,8 @@ impl LayerWindow {
 
     /// Handles touch down on this window.
     pub fn process_touch_down(&self, id: i32, pos: (f64, f64)) {
-        let scale = self.scale_factor();
-        let slint_events = self.input_processor.borrow_mut().touch_down(id, pos, scale);
+        // Wayland touch coordinates are already in surface-local logical coordinates.
+        let slint_events = self.input_processor.borrow_mut().touch_down(id, pos, 1.0);
         for slint_event in slint_events {
             self.dispatch_event(slint_event);
         }
@@ -274,8 +296,7 @@ impl LayerWindow {
 
     /// Handles touch motion on this window.
     pub fn process_touch_motion(&self, id: i32, pos: (f64, f64)) {
-        let scale = self.scale_factor();
-        let slint_events = self.input_processor.borrow_mut().touch_motion(id, pos, scale);
+        let slint_events = self.input_processor.borrow_mut().touch_motion(id, pos, 1.0);
         for slint_event in slint_events {
             self.dispatch_event(slint_event);
         }
@@ -283,8 +304,7 @@ impl LayerWindow {
 
     /// Handles touch up on this window.
     pub fn process_touch_up(&self, id: i32) {
-        let scale = self.scale_factor();
-        let slint_events = self.input_processor.borrow_mut().touch_up(id, scale);
+        let slint_events = self.input_processor.borrow_mut().touch_up(id, 1.0);
         for slint_event in slint_events {
             self.dispatch_event(slint_event);
         }
@@ -292,8 +312,7 @@ impl LayerWindow {
 
     /// Handles touch cancel on this window.
     pub fn process_touch_cancel(&self) {
-        let scale = self.scale_factor();
-        let slint_events = self.input_processor.borrow_mut().touch_cancel(scale);
+        let slint_events = self.input_processor.borrow_mut().touch_cancel(1.0);
         for slint_event in slint_events {
             self.dispatch_event(slint_event);
         }

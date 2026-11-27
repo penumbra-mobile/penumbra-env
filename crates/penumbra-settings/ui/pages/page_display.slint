@@ -288,18 +288,82 @@ export component PageDisplay inherits Rectangle {
                             background: Theme.outline-variant;
                         }
 
-                        // Fractional Scaling Presets
+                        // Scaling Presets (different presets for Mobile DSI-1 vs External Desktop)
                         VerticalLayout {
-                            spacing: 6px;
-
-                            Text {
-                                text: @tr("Scale");
-                                font-size: 14px;
-                                font-weight: 500;
-                                color: Theme.on-surface;
-                            }
+                            spacing: 8px;
+                            property <bool> is-mobile-display: cur.id == "DSI-1" || cur.connector == "DSI-1";
+                            property <int> default-scale: is-mobile-display ? 200 : 100;
 
                             HorizontalLayout {
+                                alignment: space-between;
+
+                                Text {
+                                    text: is-mobile-display ? @tr("Mobile shell scale") : @tr("Desktop display scale");
+                                    font-size: 14px;
+                                    font-weight: 500;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
+
+                                if cur.scale_pct != default-scale: Rectangle {
+                                    height: 36px;
+                                    border-radius: 18px;
+                                    background: Theme.surface-high;
+                                    border-width: 1px;
+                                    border-color: Theme.outline-variant;
+
+                                    HorizontalLayout {
+                                        padding-left: 12px;
+                                        padding-right: 12px;
+                                        Text {
+                                            text: @tr("Default ({}%)", default-scale);
+                                            font-size: 12px;
+                                            font-weight: 600;
+                                            color: Theme.primary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+
+                                    TouchArea {
+                                        clicked => {
+                                            root.display-scale-selected(root.selected-display-index, default-scale);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if is-mobile-display: HorizontalLayout {
+                                spacing: 8px;
+
+                                for scale in [150, 200, 250, 300]: Rectangle {
+                                    property <bool> is-active: cur.scale_pct == scale;
+                                    height: 44px;
+                                    horizontal-stretch: 1;
+                                    border-radius: 12px;
+                                    background: is-active ? Theme.primary : (mscale-touch.pressed ? Theme.surface-highest : Theme.surface-high);
+                                    border-width: is-active ? 0px : 1px;
+                                    border-color: is-active ? transparent : Theme.outline-variant;
+
+                                    animate background { duration: 100ms; easing: ease-out; }
+
+                                    Text {
+                                        x: (parent.width - self.width) / 2;
+                                        y: (parent.height - self.height) / 2;
+                                        text: scale + "%";
+                                        font-size: 13px;
+                                        font-weight: is-active ? 700 : 500;
+                                        color: is-active ? Theme.on-primary : Theme.on-surface;
+                                    }
+
+                                    mscale-touch := TouchArea {
+                                        clicked => {
+                                            root.display-scale-selected(root.selected-display-index, scale);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !is-mobile-display: HorizontalLayout {
                                 spacing: 8px;
 
                                 for scale in [100, 125, 150, 175, 200]: Rectangle {
@@ -307,7 +371,7 @@ export component PageDisplay inherits Rectangle {
                                     height: 44px;
                                     horizontal-stretch: 1;
                                     border-radius: 12px;
-                                    background: is-active ? Theme.primary : (scale-touch.pressed ? #282a30 : Theme.surface-high);
+                                    background: is-active ? Theme.primary : (scale-touch.pressed ? Theme.surface-highest : Theme.surface-high);
                                     border-width: is-active ? 0px : 1px;
                                     border-color: is-active ? transparent : Theme.outline-variant;
 

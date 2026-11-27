@@ -311,10 +311,22 @@ impl NativeState {
             let my_layout = layout.iter().find(|d| d.id == discovered_conn.name);
             let out_pos = my_layout.map(|l| (l.position.x, l.position.y)).unwrap_or((PHONE_W, 0));
 
+            let (_, ext_scales) = phone::read_displays_scale_config();
+            let ext_scale = ext_scales
+                .iter()
+                .find(|(c, _)| c == &discovered_conn.name)
+                .map(|(_, s)| *s)
+                .unwrap_or(1.0);
+            let smithay_scale = if (ext_scale - ext_scale.round()).abs() < 0.01 {
+                Scale::Integer(ext_scale.round() as i32)
+            } else {
+                Scale::Fractional(ext_scale)
+            };
+
             output_ext.change_current_state(
                 Some(mode_ext),
                 Some(smithay::utils::Transform::Normal),
-                Some(Scale::Integer(1)),
+                Some(smithay_scale),
                 Some(out_pos.into()),
             );
             self.server.space.map_output(&output_ext, out_pos);
@@ -1311,10 +1323,11 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
             model: "Phone DSI Mobile".to_string(),
         },
     );
-    // Output A advertises the logical phone canvas so layer-shell arrangement matches the design
-    // (nav bar at y 883, full-width chrome). The panel itself keeps its DRM mode for scanout.
+    // Output A advertises the logical phone canvas at HiDPI buffer scale so layer-shell
+    // arrangement keeps the 412x915 layout while Slint and apps render crisp 2x/3x buffers.
+    let (mobile_scale, _) = phone::read_displays_scale_config();
     let mode_a = Mode {
-        size: (PHONE_W, PHONE_H).into(),
+        size: (PHONE_W * mobile_scale, PHONE_H * mobile_scale).into(),
         refresh: mode.vrefresh() as i32 * 1000,
     };
     output_a.create_global::<PenumbraServerState>(&dh);
@@ -1322,7 +1335,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
     output_a.change_current_state(
         Some(mode_a),
         Some(smithay::utils::Transform::Normal),
-        Some(Scale::Integer(1)),
+        Some(Scale::Integer(mobile_scale)),
         Some((0, 0).into()),
     );
     let mut space = smithay::desktop::space::Space::default();

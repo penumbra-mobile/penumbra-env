@@ -1150,6 +1150,45 @@ impl PenumbraServerState {
             }
         }
 
+        // Consume display scale reload trigger from penumbra-settings
+        let disp_reload_path = runtime_path("penumbra-display-reload");
+        if disp_reload_path.exists() {
+            let _ = std::fs::remove_file(&disp_reload_path);
+            let (mobile_scale, ext_scales) = phone::read_displays_scale_config();
+            let refresh = self
+                .output_a
+                .current_mode()
+                .map(|m| m.refresh)
+                .unwrap_or(60_000);
+            let new_mode_a = smithay::output::Mode {
+                size: (PHONE_W * mobile_scale, PHONE_H * mobile_scale).into(),
+                refresh,
+            };
+            self.output_a.set_preferred(new_mode_a);
+            self.output_a.change_current_state(
+                Some(new_mode_a),
+                None,
+                Some(smithay::output::Scale::Integer(mobile_scale)),
+                None,
+            );
+            layer_map_for_output(&self.output_a).arrange();
+            for (name, ext_out) in &self.external_outputs {
+                let ext_scale = ext_scales
+                    .iter()
+                    .find(|(c, _)| c == name)
+                    .map(|(_, s)| *s)
+                    .unwrap_or(1.0);
+                let s = if (ext_scale - ext_scale.round()).abs() < 0.01 {
+                    smithay::output::Scale::Integer(ext_scale.round() as i32)
+                } else {
+                    smithay::output::Scale::Fractional(ext_scale)
+                };
+                ext_out.change_current_state(None, None, Some(s), None);
+                layer_map_for_output(ext_out).arrange();
+            }
+            info!(mobile_scale, "Reloaded mobile & external display scaling from displays.toml");
+        }
+
         // Consume one-shot commands (rename is atomic w.r.t. concurrent appends).
         let cmd_path = runtime_path(phone::SHELL_CMD_FILE);
         let processing = cmd_path.with_extension("processing");
