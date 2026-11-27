@@ -61,9 +61,9 @@ component QwertyKey inherits Rectangle {
     callback clicked();
 
     width: root.key-width;
-    height: 42px;
-    border-radius: 8px;
-    background: touch.pressed ? #48464f : (root.is-accent ? Theme.primary : #2a2831);
+    height: 44px;
+    border-radius: 10px;
+    background: touch.pressed ? Theme.surface-bright : (root.is-accent ? Theme.primary : Theme.surface-container-high);
 
     animate background { duration: 90ms; easing: ease-out; }
 
@@ -92,38 +92,41 @@ component QwertyKey inherits Rectangle {
 export component VirtualKeyboard inherits Rectangle {
     in-out property <string> mode: "pin"; // "pin" or "qwerty"
     in-out property <bool> shift-active: false;
+    in-out property <bool> symbols-active: false;
 
     callback key-pressed(string);
     callback backspace-pressed();
     callback enter-pressed();
     callback close-requested();
 
-    background: #141218;
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
+    background: Theme.surface;
+    border-top-left-radius: 28px;
+    border-top-right-radius: 28px;
     border-width: 1px;
-    border-color: #2e2b36;
+    border-color: Theme.outline-variant;
 
     VerticalLayout {
-        padding-top: 12px;
-        padding-bottom: 16px;
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 10px;
+        padding-top: 10px;
+        padding-bottom: 14px;
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 8px;
 
         // Top Keyboard Bar (Mode switcher & Close)
         HorizontalLayout {
-            height: 32px;
+            height: 44px;
             alignment: space-between;
-            padding-left: 8px;
-            padding-right: 8px;
+            padding-left: 6px;
+            padding-right: 6px;
 
             // Switch between PIN dialer and QWERTY
             Rectangle {
-                width: 90px;
-                height: 30px;
-                border-radius: 15px;
-                background: switch-touch.pressed ? #32303a : #22202a;
+                width: 108px;
+                height: 44px;
+                border-radius: 22px;
+                background: switch-touch.pressed ? Theme.surface-container-highest : Theme.surface-container;
+                border-width: 1px;
+                border-color: Theme.outline-variant;
 
                 HorizontalLayout {
                     spacing: 6px;
@@ -131,7 +134,7 @@ export component VirtualKeyboard inherits Rectangle {
 
                     Icon {
                         name: root.mode == "pin" ? "keyboard" : "dialpad";
-                        icon-size: 14px;
+                        icon-size: 16px;
                         icon-color: Theme.primary;
                         y: (parent.height - self.height) / 2;
                     }
@@ -139,7 +142,7 @@ export component VirtualKeyboard inherits Rectangle {
                     Text {
                         text: root.mode == "pin" ? "QWERTY" : "PIN (123)";
                         font-size: 12px;
-                        font-weight: 500;
+                        font-weight: 600;
                         color: Theme.primary;
                         vertical-alignment: center;
                     }
@@ -154,15 +157,15 @@ export component VirtualKeyboard inherits Rectangle {
 
             // Dismiss Keyboard button
             Rectangle {
-                width: 32px;
-                height: 30px;
-                border-radius: 15px;
-                background: close-touch.pressed ? #32303a : transparent;
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
+                background: close-touch.pressed ? Theme.surface-container-highest : transparent;
 
                 Icon {
                     name: "chevron-down";
-                    icon-size: 18px;
-                    icon-color: #c4c6d0;
+                    icon-size: 20px;
+                    icon-color: Theme.on-surface-variant;
                     x: (parent.width - self.width) / 2;
                     y: (parent.height - self.height) / 2;
                 }
@@ -175,9 +178,7 @@ export component VirtualKeyboard inherits Rectangle {
             }
         }
 
-        // ---------------------------------------------------------------------
         // MODE A: Numeric PIN Dialer (3x4)
-        // ---------------------------------------------------------------------
         if root.mode == "pin": VerticalLayout {
             alignment: center;
             spacing: 10px;
@@ -186,27 +187,27 @@ export component VirtualKeyboard inherits Rectangle {
             HorizontalLayout {
                 spacing: 20px;
                 alignment: center;
-                DialpadButton { number: "1"; letters: ""; clicked => { root.key-pressed("1"); } }
-                DialpadButton { number: "2"; letters: "ABC"; clicked => { root.key-pressed("2"); } }
-                DialpadButton { number: "3"; letters: "DEF"; clicked => { root.key-pressed("3"); } }
+                DialpadButton { number: "1"; clicked => { root.key-pressed("1"); } }
+                DialpadButton { number: "2"; clicked => { root.key-pressed("2"); } }
+                DialpadButton { number: "3"; clicked => { root.key-pressed("3"); } }
             }
 
             // Row 2
             HorizontalLayout {
                 spacing: 20px;
                 alignment: center;
-                DialpadButton { number: "4"; letters: "GHI"; clicked => { root.key-pressed("4"); } }
-                DialpadButton { number: "5"; letters: "JKL"; clicked => { root.key-pressed("5"); } }
-                DialpadButton { number: "6"; letters: "MNO"; clicked => { root.key-pressed("6"); } }
+                DialpadButton { number: "4"; clicked => { root.key-pressed("4"); } }
+                DialpadButton { number: "5"; clicked => { root.key-pressed("5"); } }
+                DialpadButton { number: "6"; clicked => { root.key-pressed("6"); } }
             }
 
             // Row 3
             HorizontalLayout {
                 spacing: 20px;
                 alignment: center;
-                DialpadButton { number: "7"; letters: "PQRS"; clicked => { root.key-pressed("7"); } }
-                DialpadButton { number: "8"; letters: "TUV"; clicked => { root.key-pressed("8"); } }
-                DialpadButton { number: "9"; letters: "WXYZ"; clicked => { root.key-pressed("9"); } }
+                DialpadButton { number: "7"; clicked => { root.key-pressed("7"); } }
+                DialpadButton { number: "8"; clicked => { root.key-pressed("8"); } }
+                DialpadButton { number: "9"; clicked => { root.key-pressed("9"); } }
             }
 
             // Row 4
@@ -214,14 +215,12 @@ export component VirtualKeyboard inherits Rectangle {
                 spacing: 20px;
                 alignment: center;
                 DialpadButton { is-action: true; action-icon: "backspace"; clicked => { root.backspace-pressed(); } }
-                DialpadButton { number: "0"; letters: "+"; clicked => { root.key-pressed("0"); } }
+                DialpadButton { number: "0"; clicked => { root.key-pressed("0"); } }
                 DialpadButton { is-action: true; action-icon: "arrow-right"; action-color: Theme.primary; clicked => { root.enter-pressed(); } }
             }
         }
 
-        // ---------------------------------------------------------------------
         // MODE B: Full Compact QWERTY
-        // ---------------------------------------------------------------------
         if root.mode == "qwerty": VerticalLayout {
             spacing: 6px;
             alignment: center;
@@ -242,8 +241,8 @@ export component VirtualKeyboard inherits Rectangle {
                 QwertyKey { label: "0"; clicked => { root.key-pressed("0"); } }
             }
 
-            // Row 2: QWERTYUIOP
-            HorizontalLayout {
+            // Row 2: QWERTYUIOP or Symbols 1
+            if !root.symbols-active: HorizontalLayout {
                 spacing: 4px;
                 alignment: center;
                 QwertyKey { label: root.shift-active ? "Q" : "q"; clicked => { root.key-pressed(self.label); } }
@@ -257,9 +256,23 @@ export component VirtualKeyboard inherits Rectangle {
                 QwertyKey { label: root.shift-active ? "O" : "o"; clicked => { root.key-pressed(self.label); } }
                 QwertyKey { label: root.shift-active ? "P" : "p"; clicked => { root.key-pressed(self.label); } }
             }
+            if root.symbols-active: HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: "!"; clicked => { root.key-pressed("!"); } }
+                QwertyKey { label: "@"; clicked => { root.key-pressed("@"); } }
+                QwertyKey { label: "#"; clicked => { root.key-pressed("#"); } }
+                QwertyKey { label: "$"; clicked => { root.key-pressed("$"); } }
+                QwertyKey { label: "%"; clicked => { root.key-pressed("%"); } }
+                QwertyKey { label: "^"; clicked => { root.key-pressed("^"); } }
+                QwertyKey { label: "&"; clicked => { root.key-pressed("&"); } }
+                QwertyKey { label: "*"; clicked => { root.key-pressed("*"); } }
+                QwertyKey { label: "("; clicked => { root.key-pressed("("); } }
+                QwertyKey { label: ")"; clicked => { root.key-pressed(")"); } }
+            }
 
-            // Row 3: ASDFGHJKL
-            HorizontalLayout {
+            // Row 3: ASDFGHJKL or Symbols 2
+            if !root.symbols-active: HorizontalLayout {
                 spacing: 4px;
                 alignment: center;
                 QwertyKey { label: root.shift-active ? "A" : "a"; clicked => { root.key-pressed(self.label); } }
@@ -272,9 +285,22 @@ export component VirtualKeyboard inherits Rectangle {
                 QwertyKey { label: root.shift-active ? "K" : "k"; clicked => { root.key-pressed(self.label); } }
                 QwertyKey { label: root.shift-active ? "L" : "l"; clicked => { root.key-pressed(self.label); } }
             }
+            if root.symbols-active: HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: "-"; clicked => { root.key-pressed("-"); } }
+                QwertyKey { label: "_"; clicked => { root.key-pressed("_"); } }
+                QwertyKey { label: "="; clicked => { root.key-pressed("="); } }
+                QwertyKey { label: "+"; clicked => { root.key-pressed("+"); } }
+                QwertyKey { label: "["; clicked => { root.key-pressed("["); } }
+                QwertyKey { label: "]"; clicked => { root.key-pressed("]"); } }
+                QwertyKey { label: "{"; clicked => { root.key-pressed("{"); } }
+                QwertyKey { label: "}"; clicked => { root.key-pressed("}"); } }
+                QwertyKey { label: "\\"; clicked => { root.key-pressed("\\"); } }
+            }
 
-            // Row 4: Shift, ZXCVBNM, Backspace
-            HorizontalLayout {
+            // Row 4: Shift / Symbols 3, ZXCVBNM, Backspace
+            if !root.symbols-active: HorizontalLayout {
                 spacing: 4px;
                 alignment: center;
                 QwertyKey {
@@ -296,34 +322,53 @@ export component VirtualKeyboard inherits Rectangle {
                     clicked => { root.backspace-pressed(); }
                 }
             }
+            if root.symbols-active: HorizontalLayout {
+                spacing: 4px;
+                alignment: center;
+                QwertyKey { label: "|"; clicked => { root.key-pressed("|"); } }
+                QwertyKey { label: ";"; clicked => { root.key-pressed(";"); } }
+                QwertyKey { label: ":"; clicked => { root.key-pressed(":"); } }
+                QwertyKey { label: "'"; clicked => { root.key-pressed("'"); } }
+                QwertyKey { label: "\""; clicked => { root.key-pressed("\""); } }
+                QwertyKey { label: ","; clicked => { root.key-pressed(","); } }
+                QwertyKey { label: "."; clicked => { root.key-pressed("."); } }
+                QwertyKey { label: "/"; clicked => { root.key-pressed("/"); } }
+                QwertyKey { label: "?"; clicked => { root.key-pressed("?"); } }
+                QwertyKey {
+                    icon-name: "backspace";
+                    key-width: 44px;
+                    clicked => { root.backspace-pressed(); }
+                }
+            }
 
-            // Row 5: Symbols, Space, Enter
+            // Row 5: ?123/ABC switch, Quick Symbols, Space, Enter
             HorizontalLayout {
                 spacing: 6px;
                 alignment: center;
                 QwertyKey {
-                    label: "@";
-                    key-width: 36px;
-                    clicked => { root.key-pressed("@"); }
+                    label: root.symbols-active ? "ABC" : "?123";
+                    key-width: 56px;
+                    is-accent: root.symbols-active;
+                    clicked => { root.symbols-active = !root.symbols-active; }
                 }
                 QwertyKey {
-                    label: ".";
+                    label: root.symbols-active ? "<" : "@";
                     key-width: 36px;
-                    clicked => { root.key-pressed("."); }
+                    clicked => { root.key-pressed(self.label); }
                 }
                 QwertyKey {
                     label: "Space";
-                    key-width: 170px;
+                    key-width: 146px;
                     clicked => { root.key-pressed(" "); }
                 }
                 QwertyKey {
-                    label: "-";
+                    label: root.symbols-active ? ">" : ".";
                     key-width: 36px;
-                    clicked => { root.key-pressed("-"); }
+                    clicked => { root.key-pressed(self.label); }
                 }
                 QwertyKey {
                     icon-name: "arrow-right";
-                    key-width: 52px;
+                    key-width: 56px;
                     is-accent: true;
                     clicked => { root.enter-pressed(); }
                 }

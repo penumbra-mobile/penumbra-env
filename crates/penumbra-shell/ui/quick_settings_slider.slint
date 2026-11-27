@@ -609,7 +609,7 @@ component SliderPill inherits Rectangle {
         fill-bar := Rectangle {
             x: 0px;
             y: 0px;
-            width: Math.clamp(parent.width * Math.clamp(root.value, 0.05, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), parent.width * 0.05, parent.width);
+            width: Math.clamp(parent.width * Math.clamp(root.value, 0.05, 1.0) + (root.stretch-offset > 0px ? root.stretch-offset : 0px), 44px, parent.width);
             height: parent.height;
             background: Theme.primary;
             border-radius: 22px;
@@ -621,6 +621,7 @@ component SliderPill inherits Rectangle {
 
             // M3E vertical pill handle inside endcap
             Rectangle {
+                visible: parent.width >= 32px;
                 x: parent.width - 10px;
                 y: (parent.height - self.height) / 2;
                 width: 4px;
@@ -632,6 +633,10 @@ component SliderPill inherits Rectangle {
         }
 
         HorizontalLayout {
+            x: 0px;
+            y: 0px;
+            width: 100%;
+            height: 100%;
             padding-left: 16px;
             padding-right: 16px;
             alignment: space-between;
@@ -639,18 +644,22 @@ component SliderPill inherits Rectangle {
             HorizontalLayout {
                 spacing: 10px;
                 alignment: center;
-                Rectangle {
-                    width: 20px;
-                    height: 20px;
-                    Icon {
-                        name: "brightness";
-                        icon-size: 18px;
-                        icon-color: root.value > 0.12 ? Theme.on-primary : Theme.on-surface;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 20px;
+                        height: 20px;
+                        Icon {
+                            name: "brightness";
+                            icon-size: 18px;
+                            icon-color: root.value > 0.12 ? Theme.on-primary : Theme.on-surface;
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                        }
                     }
                 }
                 Text {
+                    height: 100%;
                     text: root.label;
                     font-size: 13px;
                     font-weight: 700;
@@ -661,6 +670,7 @@ component SliderPill inherits Rectangle {
 
             // Clean numerical percentage display on right
             Text {
+                height: 100%;
                 text: "\{Math.round(Math.clamp(root.value, 0.05, 1.0) * 100.0)}%";
                 font-size: 12px;
                 font-weight: 700;
@@ -1175,9 +1185,9 @@ export component QuickSettingsSlider inherits Rectangle {
 
                     // Clear All Rounded Pill Button
                     Rectangle {
-                        height: 38px;
+                        height: 44px;
                         width: 124px;
-                        border-radius: 19px;
+                        border-radius: 22px;
                         background: clear-btn-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-high;
                         border-width: 1px;
                         border-color: Theme.specular-rim;
@@ -1220,23 +1230,12 @@ export component QuickSettingsSlider inherits Rectangle {
                     easing: cubic-bezier(0.05, 0.7, 0.1, 1.0);
                 }
 
-                // Battery Until Sub-indicator (1:1 Android 17 / Pixel SystemUI)
-                Text {
-                    x: parent.width - root.pad - 120px;
-                    y: 38px;
-                    text: @tr("Until 02:00");
-                    font-size: 10px;
-                    font-weight: 600;
-                    color: Theme.on-surface-variant;
-                    horizontal-alignment: right;
-                }
-
                 // Subheader Action Bar: Avatar, Edit Pencil, Settings Gear, Power Button
                 HorizontalLayout {
                     x: root.pad;
-                    y: 50px;
+                    y: 44px;
                     width: parent.width - 2 * root.pad;
-                    height: 38px;
+                    height: 44px;
                     alignment: space-between;
 
                     HorizontalLayout {
@@ -1244,19 +1243,22 @@ export component QuickSettingsSlider inherits Rectangle {
                         alignment: center;
 
                         // Avatar Circle
-                        Rectangle {
-                            width: 34px;
-                            height: 34px;
-                            border-radius: 17px;
-                            background: Theme.surface-container-highest;
-                            border-width: 1px;
-                            border-color: Theme.specular-rim-active;
-                            Icon {
-                                name: "account";
-                                icon-size: 18px;
-                                icon-color: Theme.primary;
-                                x: (parent.width - self.width) / 2;
-                                y: (parent.height - self.height) / 2;
+                        VerticalLayout {
+                            alignment: center;
+                            Rectangle {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 18px;
+                                background: Theme.surface-container-highest;
+                                border-width: 1px;
+                                border-color: Theme.specular-rim-active;
+                                Icon {
+                                    name: "account";
+                                    icon-size: 18px;
+                                    icon-color: Theme.primary;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
                             }
                         }
 
@@ -1283,7 +1285,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 // Live MPRIS2 Media Applet (shown only when a real player is active)
                 if root.media-active: MediaCard {
                     x: root.pad;
-                    y: 94px;
+                    y: 100px;
                     width: parent.width - 2 * root.pad;
                     title: root.media-title;
                     artist: root.media-artist;
@@ -1300,7 +1302,7 @@ export component QuickSettingsSlider inherits Rectangle {
                 // Brightness Slider
                 SliderPill {
                     x: root.pad;
-                    y: root.media-active ? 236px : 94px;
+                    y: root.media-active ? 242px : 100px;
                     width: parent.width - 2 * root.pad;
                     value <=> root.brightness;
                     label: @tr("Brightness");
@@ -1310,9 +1312,9 @@ export component QuickSettingsSlider inherits Rectangle {
                 // Quick Settings Tiles Flickable Grid (Dynamic, real tiles only)
                 Flickable {
                     x: root.pad;
-                    y: root.media-active ? 292px : 150px;
+                    y: root.media-active ? 298px : 156px;
                     width: parent.width - 2 * root.pad;
-                    height: parent.height - (root.media-active ? 292px : 150px) - 64px;
+                    height: parent.height - (root.media-active ? 298px : 156px) - 64px;
                     content-height: Math.ceil(root.active-tiles.length / 2) * 72px + 24px;
                     interactive: self.content-height > self.height;
 

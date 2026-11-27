@@ -21,9 +21,7 @@ export struct DesktopDockApp {
     is-active: bool,
 }
 
-// ===========================================================================
-// 0. DESKTOP WALLPAPER + RIGHT-CLICK CONTEXT MENU (Layer::Background)
-// ===========================================================================
+// Wallpaper + right-click context menu (Layer::Background)
 component DesktopMenuRow inherits Rectangle {
     in property <string> label;
     in property <string> icon-name;
@@ -79,7 +77,7 @@ export component DesktopWallpaperWindow inherits Window {
     if !root.has-wallpaper: Rectangle {
         width: 100%;
         height: 100%;
-        background: @linear-gradient(135deg, #10131a 0%, #192234 55%, #12151e 100%);
+        background: DesktopTheme.surface;
     }
 
     if root.has-wallpaper: Image {
@@ -154,13 +152,10 @@ export component DesktopWallpaperWindow inherits Window {
     }
 }
 
-// ===========================================================================
-// 1. TOP DESKTOP PANEL (ZwlrLayerSurfaceV1 Layer::Top, height 36px)
-// ===========================================================================
+// Top desktop panel (Layer::Top, 36px)
 export component DesktopPanelWindow inherits Window {
     in-out property <int> active-workspace: 1;
     in-out property <int> total-workspaces: 4;
-    in-out property <string> active-window-title: "Penumbra Desktop";
     in-out property <string> time-text: "15:45";
     in-out property <string> date-text: "Thu, Oct 29";
     in-out property <float> battery-pct: 100.0;
@@ -168,14 +163,12 @@ export component DesktopPanelWindow inherits Window {
     in-out property <bool> wifi-connected: true;
     in-out property <string> wifi-ssid: "Wi-Fi";
     in-out property <int> wifi-signal: 4;
-    in-out property <int> volume-pct: 80;
     in-out property <bool> launcher-active: false;
     in-out property <string> active-applet: "";
 
     callback toggle-launcher();
     callback switch-workspace(int);
     callback open-applet(string); // "time", "network", "audio", "battery", "power"
-    callback power-clicked();
     callback time-clicked();
 
     height: DesktopTheme.panel-height;
@@ -185,7 +178,6 @@ export component DesktopPanelWindow inherits Window {
         width: 100%;
         height: 100%;
         background: DesktopTheme.panel-bg;
-        // Subtle bottom border line
         Rectangle {
             y: parent.height - 1px;
             width: 100%;
@@ -193,23 +185,22 @@ export component DesktopPanelWindow inherits Window {
             background: DesktopTheme.border-subtle;
         }
 
-        // --- LEFT WING (COSMIC Panel: Workspaces + Applications) ---
+        // Left: workspaces and applications launcher
         HorizontalLayout {
-            x: 8px;
+            x: 10px;
             y: (parent.height - self.height) / 2;
-            height: 24px;
-            spacing: 4px;
+            height: 26px;
+            spacing: 6px;
             alignment: start;
 
-                // Workspaces Strip (COSMIC Panel Workspaces Button)
                 HorizontalLayout {
                     spacing: 2px;
                     alignment: center;
 
                     for ws in [1, 2, 3, 4]: Rectangle {
-                        width: 24px;
-                        height: 22px;
-                        border-radius: 6px;
+                        width: 26px;
+                        height: 26px;
+                        border-radius: 8px;
                         background: ws == root.active-workspace
                             ? DesktopTheme.primary-container
                             : (ws-touch.has-hover ? DesktopTheme.hover-tint : transparent);
@@ -233,10 +224,9 @@ export component DesktopPanelWindow inherits Window {
                     }
                 }
 
-                // Applications Button (COSMIC Panel App Button)
                 Rectangle {
-                    height: 22px;
-                    border-radius: 6px;
+                    height: 26px;
+                    border-radius: 8px;
                     background: root.launcher-active
                         ? DesktopTheme.primary-container
                         : (launcher-touch.has-hover ? DesktopTheme.hover-tint : transparent);
@@ -244,8 +234,8 @@ export component DesktopPanelWindow inherits Window {
                     animate background { duration: 100ms; }
 
                     HorizontalLayout {
-                        padding-left: 8px;
-                        padding-right: 8px;
+                        padding-left: 10px;
+                        padding-right: 10px;
                         spacing: 5px;
                         alignment: center;
 
@@ -266,12 +256,12 @@ export component DesktopPanelWindow inherits Window {
                 }
         }
 
-        // --- CENTER (COSMIC Applet Time) ---
+        // Center: date and clock
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            height: 22px;
-            border-radius: 6px;
+            height: 26px;
+            border-radius: 8px;
             background: root.active-applet == "time"
                 ? DesktopTheme.primary-container
                 : (clock-touch.has-hover ? DesktopTheme.hover-tint : transparent);
@@ -301,22 +291,23 @@ export component DesktopPanelWindow inherits Window {
             }
         }
 
-        // --- RIGHT WING (COSMIC Tray Applets: Audio, Network, Battery, Power) ---
+        // Right: audio, network, battery, power applets
         HorizontalLayout {
-            x: parent.width - self.width - 8px;
+            x: parent.width - self.width - 10px;
             y: (parent.height - self.height) / 2;
-            height: 24px;
-            spacing: 2px;
+            height: 26px;
+            spacing: 4px;
             alignment: end;
 
-                // Audio Applet
                 Rectangle {
                     width: 28px;
-                    height: 22px;
-                    border-radius: 6px;
+                    height: 26px;
+                    border-radius: 8px;
                     background: root.active-applet == "audio"
                         ? DesktopTheme.primary-container
                         : (aud-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+
+                    animate background { duration: 100ms; }
 
                     DesktopIcon {
                         name: "volume";
@@ -331,14 +322,15 @@ export component DesktopPanelWindow inherits Window {
                     }
                 }
 
-                // Network Applet
                 Rectangle {
                     width: 28px;
-                    height: 22px;
-                    border-radius: 6px;
+                    height: 26px;
+                    border-radius: 8px;
                     background: root.active-applet == "network"
                         ? DesktopTheme.primary-container
                         : (net-touch.has-hover ? DesktopTheme.hover-tint : transparent);
+
+                    animate background { duration: 100ms; }
 
                     DesktopIcon {
                         name: "wifi";
@@ -355,24 +347,27 @@ export component DesktopPanelWindow inherits Window {
                     }
                 }
 
-                // Battery Applet
                 Rectangle {
-                    height: 22px;
-                    border-radius: 6px;
+                    height: 26px;
+                    border-radius: 8px;
                     background: root.active-applet == "battery"
                         ? DesktopTheme.primary-container
                         : (bat-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
+                    animate background { duration: 100ms; }
+
                     HorizontalLayout {
-                        padding-left: 6px;
-                        padding-right: 6px;
+                        padding-left: 7px;
+                        padding-right: 7px;
                         spacing: 4px;
                         alignment: center;
 
                         DesktopIcon {
                             name: "battery";
                             icon-size: 14px;
-                            icon-color: root.battery-pct < 20.0 ? DesktopTheme.error : DesktopTheme.on-surface;
+                            icon-color: root.is-charging
+                                ? DesktopTheme.success
+                                : (root.battery-pct < 20.0 ? DesktopTheme.error : DesktopTheme.on-surface);
                         }
 
                         Text {
@@ -389,19 +384,20 @@ export component DesktopPanelWindow inherits Window {
                     }
                 }
 
-                // Power Applet
                 Rectangle {
                     width: 28px;
-                    height: 22px;
-                    border-radius: 6px;
+                    height: 26px;
+                    border-radius: 8px;
                     background: root.active-applet == "power"
                         ? DesktopTheme.error
                         : (power-touch.has-hover ? DesktopTheme.hover-tint : transparent);
 
+                    animate background { duration: 100ms; }
+
                     DesktopIcon {
                         name: "power";
                         icon-size: 14px;
-                        icon-color: root.active-applet == "power" ? #000000 : DesktopTheme.on-surface;
+                        icon-color: root.active-applet == "power" ? DesktopTheme.surface : DesktopTheme.on-surface;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
                     }
@@ -409,7 +405,6 @@ export component DesktopPanelWindow inherits Window {
                     power-touch := TouchArea {
                         clicked => {
                             root.open-applet("power");
-                            root.power-clicked();
                         }
                     }
                 }
@@ -417,9 +412,7 @@ export component DesktopPanelWindow inherits Window {
     }
 }
 
-// ===========================================================================
-// 2. DESKTOP DOCK (ZwlrLayerSurfaceV1 Layer::Top, height 64px, Anchor::Bottom)
-// ===========================================================================
+// Bottom dock (Layer::Top, 64px)
 export component DesktopDockWindow inherits Window {
     in-out property <[DesktopDockApp]> dock-apps: [];
     in-out property <bool> launcher-active: false;
@@ -433,22 +426,20 @@ export component DesktopDockWindow inherits Window {
     HorizontalLayout {
         alignment: center;
 
-        // Centered Floating Material 3 Expressive Glass Dock
         Rectangle {
             height: 58px;
             y: 3px;
-            border-radius: 22px;
+            border-radius: 20px;
             background: DesktopTheme.dock-bg;
             border-width: 1px;
             border-color: DesktopTheme.specular-rim;
 
             HorizontalLayout {
                 padding-left: 10px;
-                padding-right: 12px;
+                padding-right: 10px;
                 spacing: 8px;
                 alignment: center;
 
-                // Apps Drawer Button
                 Rectangle {
                     width: 48px;
                     height: 48px;
@@ -476,7 +467,6 @@ export component DesktopDockWindow inherits Window {
                     }
                 }
 
-                // Subtle divider between Apps button and pinned/open apps
                 if root.dock-apps.length > 0: Rectangle {
                     width: 1px;
                     height: 28px;
@@ -494,14 +484,13 @@ export component DesktopDockWindow inherits Window {
 
                     animate background, border-radius { duration: 120ms; }
 
-                    // Real XDG App Icon (with vector fallback)
                     if app.has-icon: Image {
                         source: app.icon;
                         width: 34px;
                         height: 34px;
                         image-fit: contain;
                         x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2 - (app.is-running ? 2px : 0px);
+                        y: (parent.height - self.height) / 2;
                     }
 
                     if !app.has-icon: DesktopIcon {
@@ -509,17 +498,16 @@ export component DesktopDockWindow inherits Window {
                         icon-size: 24px;
                         icon-color: app.is-active ? DesktopTheme.on-primary-container : DesktopTheme.on-surface;
                         x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2 - (app.is-running ? 2px : 0px);
+                        y: (parent.height - self.height) / 2;
                     }
 
-                    // Running / Active Application Indicator Pill
                     if app.is-running: Rectangle {
                         width: app.is-active ? 16px : 5px;
                         height: 4px;
                         border-radius: 2px;
                         background: app.is-active ? DesktopTheme.primary : DesktopTheme.on-surface-muted;
                         x: (parent.width - self.width) / 2;
-                        y: parent.height - 6px;
+                        y: parent.height - 5px;
                         animate width { duration: 140ms; }
                     }
 
@@ -534,9 +522,7 @@ export component DesktopDockWindow inherits Window {
     }
 }
 
-// ===========================================================================
-// 3. DESKTOP LAUNCHER (ZwlrLayerSurfaceV1 Layer::Overlay)
-// ===========================================================================
+// Application launcher overlay (Layer::Overlay)
 export component DesktopLauncherWindow inherits Window {
     in-out property <bool> is-open: false;
     in-out property <string> search-text: "";
@@ -573,13 +559,12 @@ export component DesktopLauncherWindow inherits Window {
             }
         }
 
-        // Floating Modal COSMIC App Library Grid Chassis
         Rectangle {
-            width: 780px;
-            height: 560px;
+            width: Math.min(780px, parent.width - 48px);
+            height: Math.min(560px, parent.height - 112px);
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2 + (root.is-open ? 0px : 18px);
-            border-radius: 22px;
+            border-radius: 18px;
             background: DesktopTheme.modal-bg;
             border-width: 1px;
             border-color: DesktopTheme.specular-rim;
@@ -591,12 +576,10 @@ export component DesktopLauncherWindow inherits Window {
                 padding: 20px;
                 spacing: 16px;
 
-                // --- Header: Search Bar & Close ---
                 HorizontalLayout {
                     spacing: 12px;
                     alignment: space-between;
 
-                    // Search Pill Input
                     Rectangle {
                         height: 44px;
                         horizontal-stretch: 1;
@@ -656,15 +639,10 @@ export component DesktopLauncherWindow inherits Window {
                                         }
                                     }
                                 }
-
-                                TouchArea {
-                                    clicked => { search-input.focus(); }
-                                }
                             }
                         }
                     }
 
-                    // Close Button Pill
                     Rectangle {
                         width: 44px;
                         height: 44px;
@@ -689,7 +667,6 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Inline Calculator Result (cosmic-launcher `=expr` style) ---
                 if root.calc-result != "": Rectangle {
                     height: 44px;
                     border-radius: 12px;
@@ -718,7 +695,6 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Category Filter Tabs ---
                 HorizontalLayout {
                     spacing: 6px;
                     height: 32px;
@@ -726,7 +702,7 @@ export component DesktopLauncherWindow inherits Window {
 
                     for cat in ["All", "Internet", "Utilities", "System", "Development", "Office", "Multimedia"]: Rectangle {
                         height: 30px;
-                        border-radius: 15px;
+                        border-radius: 10px;
                         background: cat == root.active-category ? DesktopTheme.primary : (cat-touch.has-hover ? DesktopTheme.hover-tint : DesktopTheme.surface);
                         border-width: 1px;
                         border-color: cat == root.active-category ? DesktopTheme.primary : DesktopTheme.border-subtle;
@@ -762,28 +738,37 @@ export component DesktopLauncherWindow inherits Window {
                     }
                 }
 
-                // --- Application Results: 5-Column App Library Grid ---
                 Rectangle {
                     vertical-stretch: 1;
                     clip: true;
 
-                    Flickable {
+                    if root.apps.length == 0: Text {
                         width: 100%;
                         height: 100%;
-                        content-height: Math.max(1, Math.ceil(root.apps.length / 5)) * 116px + 16px;
+                        text: @tr("No matching applications");
+                        font-size: DesktopTheme.font-body;
+                        color: DesktopTheme.on-surface-muted;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    if root.apps.length > 0: Flickable {
+                        width: 100%;
+                        height: 100%;
+                        content-height: grid-container.height;
 
                         grid-container := Rectangle {
                             width: parent.width;
-                            height: Math.max(1, Math.ceil(root.apps.length / 5)) * 116px + 16px;
-
-                            property <length> col-w: parent.width / 5;
+                            property <int> cols: Math.max(1, Math.floor(parent.width / 136px));
+                            property <length> col-w: parent.width / grid-container.cols;
+                            height: Math.max(1, Math.ceil(root.apps.length / grid-container.cols)) * 116px + 16px;
 
                             for app[idx] in root.apps: Rectangle {
-                                x: Math.mod(idx, 5) * grid-container.col-w + (grid-container.col-w - self.width) / 2;
-                                y: Math.floor(idx / 5) * 116px;
-                                width: 132px;
+                                x: Math.mod(idx, grid-container.cols) * grid-container.col-w + (grid-container.col-w - self.width) / 2;
+                                y: Math.floor(idx / grid-container.cols) * 116px;
+                                width: 128px;
                                 height: 106px;
-                                border-radius: card-touch.pressed ? 16px : 20px;
+                                border-radius: card-touch.pressed ? 14px : 16px;
                                 background: card-touch.has-hover ? DesktopTheme.hover-tint : transparent;
                                 border-width: 1px;
                                 border-color: card-touch.has-hover ? DesktopTheme.border-subtle : transparent;
@@ -798,7 +783,6 @@ export component DesktopLauncherWindow inherits Window {
                                     spacing: 8px;
                                     alignment: center;
 
-                                    // Fixed 58px Squircle Icon Slot (centered horizontally)
                                     HorizontalLayout {
                                         alignment: center;
                                         Rectangle {
@@ -811,7 +795,7 @@ export component DesktopLauncherWindow inherits Window {
                                                 height: card-touch.pressed ? 52px : 56px;
                                                 x: (parent.width - self.width) / 2;
                                                 y: (parent.height - self.height) / 2;
-                                                border-radius: 18px;
+                                                border-radius: 16px;
                                                 background: DesktopTheme.surface;
                                                 border-width: 1px;
                                                 border-color: DesktopTheme.specular-rim;

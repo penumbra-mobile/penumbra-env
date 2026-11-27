@@ -70,12 +70,18 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // -----------------------------------------------------------------------
     // 1. Layer-Shell Configurations
     // -----------------------------------------------------------------------
+    let initial_notch = penumbra_services::DisplaysConfig::load().notch;
+    let top_bar_h = if initial_notch.enabled {
+        (initial_notch.y + initial_notch.height + 6).max(42) as u32
+    } else {
+        42
+    };
     let top_bar_config = LayerConfig::default()
         .with_namespace("penumbra-top-bar")
         .with_layer(Layer::Top)
         .with_anchor(Anchor::Top | Anchor::Left | Anchor::Right)
-        .with_size(0, 42)
-        .with_exclusive_zone(42)
+        .with_size(0, top_bar_h)
+        .with_exclusive_zone(top_bar_h as i32)
         .with_keyboard_interactivity(KeyboardInteractivity::None);
 
     let qs_config_layer = LayerConfig::default()
@@ -108,6 +114,11 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize platform with TopBar config
     layer_shell_slint::init(top_bar_config)?;
     let top_bar = TopBarWindow::new()?;
+    top_bar.set_notch_enabled(initial_notch.enabled);
+    top_bar.set_notch_x(initial_notch.x);
+    top_bar.set_notch_y(initial_notch.y);
+    top_bar.set_notch_width(initial_notch.width);
+    top_bar.set_notch_height(initial_notch.height);
     let top_bar_weak = top_bar.as_weak();
 
     // Enqueue QuickSettings config and instantiate
@@ -140,6 +151,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     lockscreen.set_has_fingerprint(FingerprintManager::has_sensor());
     lockscreen.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && FingerprintManager::has_sensor());
     lockscreen.set_is_locked(false);
+    sync_lockscreen_wallpaper(&lockscreen);
     layer_shell_slint::sync_input_region(
         "penumbra-lockscreen",
         logical_w as i32,
@@ -721,6 +733,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     }).collect::<Vec<_>>();
     let notifs_model = Rc::new(VecModel::from(notifs_items));
     qs.set_notifications(ModelRc::from(Rc::clone(&notifs_model)));
+    top_bar.set_notification_count(notifs_model.row_count() as i32);
     tracing::debug!("SystemUI init: notifications model ready");
 
     // Connect real org.freedesktop.Notifications service
@@ -737,7 +750,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         let notifs = Rc::clone(&notifs_model);
         let store = Rc::clone(&notifs_store);
+        let tb = top_bar_weak.clone();
         _notif_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
+            let mut changed = false;
             while let Ok(item) = notif_sync_rx.try_recv() {
                 let data = NotificationData {
                     id: item.id.clone().into(),
@@ -749,6 +764,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 notifs.insert(0, data);
                 store.borrow_mut().items.insert(0, item);
                 let _ = store.borrow().save();
+                changed = true;
+            }
+            if changed {
+                if let Some(bar) = tb.upgrade() {
+                    bar.set_notification_count(notifs.row_count() as i32);
+                }
             }
         });
     }
@@ -756,24 +777,32 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     {
         let notifs = Rc::clone(&notifs_model);
         let store = Rc::clone(&notifs_store);
+        let tb = top_bar_weak.clone();
         qs.on_notification_dismissed(move |idx| {
             let i = idx as usize;
             if i < notifs.row_count() {
                 info!("QuickSettings: Notification at index {idx} dismissed");
                 notifs.remove(i);
                 store.borrow_mut().dismiss_at(i);
+                if let Some(bar) = tb.upgrade() {
+                    bar.set_notification_count(notifs.row_count() as i32);
+                }
             }
         });
     }
     {
         let notifs = Rc::clone(&notifs_model);
         let store = Rc::clone(&notifs_store);
+        let tb = top_bar_weak.clone();
         qs.on_clear_notifications(move || {
             info!("QuickSettings: Cleared all notifications");
             while notifs.row_count() > 0 {
                 notifs.remove(0);
             }
             store.borrow_mut().clear();
+            if let Some(bar) = tb.upgrade() {
+                bar.set_notification_count(0);
+            }
         });
     }
 
@@ -1014,9 +1043,8 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     // 10. Navigation Bar Callbacks
     // -----------------------------------------------------------------------
     nav_bar.on_keyboard_toggle_clicked(|| {
-        let path = runtime_path("penumbra-keyboard-cmd");
-        let _ = std::fs::write(path, "toggle");
-        info!("Navigation: Toggled virtual keyboard");
+        penumbra_services::osk::toggle_configured_osk();
+        info!("Navigation: Toggled active virtual keyboard");
     });
 
     nav_bar.on_touch_down(|_, _| {});
@@ -1099,6 +1127,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 b.clear();
             }
             if let Some(ls) = lock_weak.upgrade() {
+                sync_lockscreen_wallpaper(&ls);
                 ls.set_lock_type(sec_cfg.lock_type.as_str().into());
                 ls.set_has_fingerprint(FingerprintManager::has_sensor());
                 ls.set_fingerprint_enabled(sec_cfg.fingerprint_enabled && FingerprintManager::has_sensor());
@@ -1256,7 +1285,21 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let q = qs_weak.clone();
         let lk = lockscreen_weak.clone();
         let mut last_lang = penumbra_services::i18n::active_lang_code();
+        let disp_cfg_path = penumbra_services::DisplaysConfig::config_path();
+        let mut last_disp_mtime = std::fs::metadata(&disp_cfg_path).and_then(|m| m.modified()).ok();
         let mut update_time = move || {
+            let cur_disp_mtime = std::fs::metadata(&disp_cfg_path).and_then(|m| m.modified()).ok();
+            if cur_disp_mtime != last_disp_mtime {
+                last_disp_mtime = cur_disp_mtime;
+                let notch = penumbra_services::DisplaysConfig::load().notch;
+                if let Some(bar) = tb.upgrade() {
+                    bar.set_notch_enabled(notch.enabled);
+                    bar.set_notch_x(notch.x);
+                    bar.set_notch_y(notch.y);
+                    bar.set_notch_width(notch.width);
+                    bar.set_notch_height(notch.height);
+                }
+            }
             let cur_lang = penumbra_services::i18n::active_lang_code();
             if cur_lang != last_lang {
                 let _ = slint::select_bundled_translation(if cur_lang == "en" { "" } else { &cur_lang });
@@ -1836,4 +1879,29 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     top_bar.run()?;
 
     Ok(())
+}
+
+/// Loads the active user wallpaper (or default fallback) onto the lockscreen surface.
+fn sync_lockscreen_wallpaper(lock: &LockscreenWindow) {
+    let cfg = penumbra_shell::config::load_layout_config(&[]);
+    let mut candidates = Vec::new();
+    if !cfg.wallpaper_path.is_empty() {
+        candidates.push(cfg.wallpaper_path);
+    }
+    candidates.extend([
+        "/usr/share/penumbra/assets/wallpaper.jpg".to_string(),
+        "assets/wallpaper.jpg".to_string(),
+        "/usr/share/wallpapers/penumbra/wallpaper.jpg".to_string(),
+    ]);
+    for path in candidates {
+        let p = std::path::Path::new(&path);
+        if p.exists() {
+            if let Ok(img) = slint::Image::load_from_path(p) {
+                lock.set_has_wallpaper(true);
+                lock.set_wallpaper_image(img);
+                return;
+            }
+        }
+    }
+    lock.set_has_wallpaper(false);
 }

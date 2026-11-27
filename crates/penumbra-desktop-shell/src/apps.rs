@@ -27,8 +27,9 @@ pub fn load_slint_icon(path: Option<&Path>) -> (slint::Image, bool) {
     (slint::Image::default(), false)
 }
 
-/// Reads currently open external desktop windows written by `penumbra-comp`.
-pub fn read_open_desktop_windows() -> Vec<(String, String)> {
+/// Reads currently open external desktop windows written by `penumbra-comp`:
+/// `(app_id, title, is_focused)`.
+pub fn read_open_desktop_windows() -> Vec<(String, String, bool)> {
     let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let path = Path::new(&dir).join("penumbra-desktop-windows");
     let Ok(content) = std::fs::read_to_string(path) else {
@@ -41,8 +42,11 @@ pub fn read_open_desktop_windows() -> Vec<(String, String)> {
             if line.is_empty() {
                 return None;
             }
-            let (app_id, title) = line.split_once('\t').unwrap_or((line, ""));
-            Some((app_id.trim().to_string(), title.trim().to_string()))
+            let mut parts = line.split('\t');
+            let app_id = parts.next().unwrap_or("").trim().to_string();
+            let title = parts.next().unwrap_or("").trim().to_string();
+            let is_focused = parts.next().is_some_and(|f| f.trim() == "1");
+            Some((app_id, title, is_focused))
         })
         .collect()
 }

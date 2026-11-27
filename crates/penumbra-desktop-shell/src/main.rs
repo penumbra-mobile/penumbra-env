@@ -103,7 +103,7 @@ fn build_dock_entries(
     favorite_ids: &[String],
     all_apps: &[AppInfo],
     icon_cache: &HashMap<String, (slint::Image, bool)>,
-    open_windows: &[(String, String)],
+    open_windows: &[(String, String, bool)],
 ) -> Vec<DesktopDockApp> {
     let mut entries = Vec::new();
     let mut matched_open = vec![false; open_windows.len()];
@@ -127,28 +127,34 @@ fn build_dock_entries(
         };
 
         let mut is_running = false;
-        for (idx, (win_app_id, win_title)) in open_windows.iter().enumerate() {
+        let mut is_active = false;
+        for (idx, (win_app_id, win_title, win_focused)) in open_windows.iter().enumerate() {
             let win_lower = win_app_id.to_lowercase();
+            let win_base = win_lower.strip_suffix(".desktop").unwrap_or(&win_lower);
             let title_lower = win_title.to_lowercase();
             let id_lower = id.to_lowercase();
+            let id_base = id_lower.strip_suffix(".desktop").unwrap_or(&id_lower);
             let name_lower = name.to_lowercase();
             let exec_bin = app_opt
                 .and_then(|a| a.exec.split_whitespace().next())
                 .map(|b| b.rsplit('/').next().unwrap_or(b).to_lowercase())
                 .unwrap_or_default();
-            if (!win_lower.is_empty()
-                && (win_lower == id_lower
-                    || id_lower.contains(&win_lower)
-                    || win_lower.contains(&id_lower)
-                    || win_lower == exec_bin
-                    || win_lower == name_lower))
+            if (!win_base.is_empty()
+                && (win_base == id_base
+                    || id_base.contains(win_base)
+                    || win_base.contains(id_base)
+                    || win_base == exec_bin
+                    || win_base == name_lower))
                 || (!title_lower.is_empty()
                     && (title_lower.contains(&name_lower)
                         || name_lower.contains(&title_lower)
-                        || title_lower.contains(&id_lower)
-                        || id_lower.contains(&title_lower)))
+                        || title_lower.contains(id_base)
+                        || id_base.contains(&title_lower)))
             {
                 is_running = true;
+                if *win_focused {
+                    is_active = true;
+                }
                 matched_open[idx] = true;
             }
         }
@@ -160,13 +166,13 @@ fn build_dock_entries(
             icon,
             has_icon,
             is_running,
-            is_active: is_running,
+            is_active,
         });
     }
 
     // Append open apps that are not already in the phone dock favorites
     let mut seen_extra = std::collections::HashSet::new();
-    for (idx, (win_app_id, win_title)) in open_windows.iter().enumerate() {
+    for (idx, (win_app_id, win_title, win_focused)) in open_windows.iter().enumerate() {
         if matched_open[idx] {
             continue;
         }
@@ -193,7 +199,7 @@ fn build_dock_entries(
                 icon,
                 has_icon,
                 is_running: true,
-                is_active: true,
+                is_active: *win_focused,
             });
         } else {
             let label = if !win_app_id.is_empty() {
@@ -210,7 +216,7 @@ fn build_dock_entries(
                 icon,
                 has_icon,
                 is_running: true,
-                is_active: true,
+                is_active: *win_focused,
             });
         }
     }
@@ -249,12 +255,11 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let run_dock = !args.panel_only && !args.launcher_only;
     let run_launcher = !args.panel_only && !args.dock_only;
 
-    // 1. Base LayerConfig for initialization
     let primary_config = if run_panel {
-        LayerConfig::top_bar(30)
+        LayerConfig::top_bar(36)
             .with_namespace("penumbra-desktop-panel")
             .with_output(&args.output)
-            .with_exclusive_zone(30)
+            .with_exclusive_zone(36)
     } else if run_dock {
         LayerConfig::bottom_panel(64)
             .with_namespace("penumbra-desktop-dock")
@@ -300,29 +305,39 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         let out_term = args.output.clone();
+        let apps_term = all_apps.clone();
         wp_win.on_open_terminal(move || {
-            let app = find_app_for_id(&[], "terminal").cloned().unwrap_or(AppInfo {
-                id: "terminal".into(),
-                name: "Terminal".into(),
-                exec: "kgx".into(),
-                category: "System".into(),
-                icon_name: "terminal".into(),
-                icon_path: None,
-                terminal: false,
-            });
+            let app = ["terminal", "foot", "kgx", "alacritty", "kitty", "konsole"]
+                .iter()
+                .find_map(|id| find_app_for_id(&apps_term, id))
+                .cloned()
+                .unwrap_or(AppInfo {
+                    id: "terminal".into(),
+                    name: "Terminal".into(),
+                    exec: "kgx".into(),
+                    category: "System".into(),
+                    icon_name: "terminal".into(),
+                    icon_path: None,
+                    terminal: false,
+                });
             let _ = spawn_desktop_app(&app, Some(&out_term));
         });
         let out_files = args.output.clone();
+        let apps_files = all_apps.clone();
         wp_win.on_open_files(move || {
-            let app = AppInfo {
-                id: "files".into(),
-                name: "Files".into(),
-                exec: "nautilus".into(),
-                category: "Utilities".into(),
-                icon_name: "folder".into(),
-                icon_path: None,
-                terminal: false,
-            };
+            let app = ["files", "nautilus", "org.gnome.nautilus", "thunar", "dolphin", "pcmanfm"]
+                .iter()
+                .find_map(|id| find_app_for_id(&apps_files, id))
+                .cloned()
+                .unwrap_or(AppInfo {
+                    id: "files".into(),
+                    name: "Files".into(),
+                    exec: "nautilus".into(),
+                    category: "Utilities".into(),
+                    icon_name: "folder".into(),
+                    icon_path: None,
+                    terminal: false,
+                });
             let _ = spawn_desktop_app(&app, Some(&out_files));
         });
         wp_win.on_open_settings(|page| {
@@ -543,13 +558,12 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     let popover_handle = popover_opt.as_ref().map(|p| p.as_weak());
 
-    // 4. Optional Top Desktop Panel
     let panel_opt = if run_panel {
         layer_shell_slint::set_next_window_config(
-            LayerConfig::top_bar(30)
+            LayerConfig::top_bar(36)
                 .with_namespace("penumbra-desktop-panel")
                 .with_output(&args.output)
-                .with_exclusive_zone(30),
+                .with_exclusive_zone(36),
         );
 
         let panel = DesktopPanelWindow::new()?;
@@ -600,8 +614,6 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             }
         });
 
-        panel.on_power_clicked(|| {});
-
         panel.show()?;
         Some(panel)
     } else {
@@ -636,17 +648,19 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             info!("Dock app clicked: {}", app_id);
             let open_wins = read_open_desktop_windows();
             let q = app_id.as_str().to_lowercase();
-            let is_open = open_wins.iter().any(|(wid, title)| {
+            let q_base = q.strip_suffix(".desktop").unwrap_or(&q);
+            let is_open = open_wins.iter().any(|(wid, title, _)| {
                 let wl = wid.to_lowercase();
+                let wl_base = wl.strip_suffix(".desktop").unwrap_or(&wl);
                 let tl = title.to_lowercase();
-                (!wl.is_empty() && (wl == q || q.contains(&wl) || wl.contains(&q)))
-                    || (!tl.is_empty() && (tl.contains(&q) || q.contains(&tl)))
+                (!wl_base.is_empty() && (wl_base == q_base || q_base.contains(wl_base) || wl_base.contains(q_base)))
+                    || (!tl.is_empty() && (tl.contains(q_base) || q_base.contains(&tl)))
             });
             if is_open {
                 let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
                 let _ = std::fs::write(
                     format!("{}/penumbra-desktop-cmd", dir),
-                    format!("focus_app:{}\n", app_id),
+                    format!("toggle_app:{}\n", app_id),
                 );
                 return;
             }
@@ -701,7 +715,6 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
             last_lang = cur_lang;
         }
         let snap = telemetry_mgr_timer.snapshot();
-        let vol_pct = (read_volume_ratio() * 100.0).round() as i32;
         if let Some(ref weak) = panel_weak_timer {
             if let Some(p) = weak.upgrade() {
                 p.set_time_text(snap.time_str.clone().into());
@@ -711,7 +724,6 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
                 p.set_wifi_connected(snap.wifi_connected);
                 p.set_wifi_ssid(snap.wifi_ssid.clone().into());
                 p.set_wifi_signal(snap.wifi_signal);
-                p.set_volume_pct(vol_pct);
             }
         }
         if let Some(ref pw) = pop_weak_timer {
@@ -740,7 +752,7 @@ fn run_shell(args: CliArgs) -> Result<(), Box<dyn std::error::Error>> {
     let favs_sync = favorite_dock_ids.clone();
     let apps_sync = all_apps.clone();
     let cache_sync = icon_cache.clone();
-    let last_open_windows = Rc::new(std::cell::RefCell::new(Vec::<(String, String)>::new()));
+    let last_open_windows = Rc::new(std::cell::RefCell::new(Vec::<(String, String, bool)>::new()));
     let dock_sync_timer = Timer::default();
     dock_sync_timer.start(TimerMode::Repeated, Duration::from_millis(200), move || {
         let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());

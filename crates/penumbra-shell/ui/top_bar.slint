@@ -1,8 +1,9 @@
 import { Theme } from "theme.slint";
+import { Icon } from "icon.slint";
 
 export component TopBarWindow inherits Window {
     title: "Penumbra Top Bar";
-    height: 42px;
+    height: root.notch-enabled ? Math.max(42px, (root.notch-y + root.notch-height + 6) * 1px) : 42px;
     background: transparent;
     default-font-family: "Droid Sans";
 
@@ -25,6 +26,18 @@ export component TopBarWindow inherits Window {
     in-out property <bool> docked: false;
     in-out property <float> shade-progress: 0.0;
     in-out property <bool> solid: false;
+    in-out property <int> notification-count: 0;
+
+    // Mobile Panel Camera Notch Cutout (logical px)
+    in-out property <bool> notch-enabled: false;
+    in-out property <int> notch-x: 146;
+    in-out property <int> notch-y: 0;
+    in-out property <int> notch-width: 120;
+    in-out property <int> notch-height: 36;
+
+    property <bool> notch-is-left: root.notch-enabled && (root.notch-x * 1px) < 72px;
+    property <bool> notch-is-right: root.notch-enabled && ((root.notch-x + root.notch-width) * 1px) > (root.width - 72px);
+    property <bool> notch-is-center: root.notch-enabled && !notch-is-left && !notch-is-right;
 
     callback top-bar-pulled-down(float /* dy */, bool /* is_qs */);
     callback top-bar-released(bool /* is_qs */);
@@ -77,7 +90,7 @@ export component TopBarWindow inherits Window {
         animate background { duration: 150ms; }
         opacity: Math.clamp(1.0 - root.shade-progress * 5.0, 0.0, 1.0);
 
-        HorizontalLayout {
+        if !root.notch-enabled: HorizontalLayout {
             x: 0px;
             y: 0px;
             width: parent.width;
@@ -289,7 +302,7 @@ export component TopBarWindow inherits Window {
         }
 
         // Center: Wall Clock (dark halo + drop shadow for legibility over bright wallpapers)
-        if !root.solid: Text {
+        if !root.notch-enabled && !root.solid: Text {
             x: -0.8px;
             y: 0px;
             width: parent.width;
@@ -301,7 +314,7 @@ export component TopBarWindow inherits Window {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
-        if !root.solid: Text {
+        if !root.notch-enabled && !root.solid: Text {
             x: 0.8px;
             y: 0px;
             width: parent.width;
@@ -313,7 +326,7 @@ export component TopBarWindow inherits Window {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
-        if !root.solid: Text {
+        if !root.notch-enabled && !root.solid: Text {
             x: 0px;
             y: -0.8px;
             width: parent.width;
@@ -325,7 +338,7 @@ export component TopBarWindow inherits Window {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
-        if !root.solid: Text {
+        if !root.notch-enabled && !root.solid: Text {
             x: 0px;
             y: 1.5px;
             width: parent.width;
@@ -337,7 +350,7 @@ export component TopBarWindow inherits Window {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
-        Text {
+        if !root.notch-enabled: Text {
             x: 0px;
             y: 0px;
             width: parent.width;
@@ -348,6 +361,252 @@ export component TopBarWindow inherits Window {
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
+        }
+
+        // Notch-aware Top Bar Layout:
+        // Left zone: Clock + notification/alarm/DND icons
+        // Right zone: Remaining status icons (Privacy, Cellular, Wi-Fi, VPN, Dock, Bluetooth, Battery)
+        if root.notch-enabled: Rectangle {
+            x: root.notch-is-left ? ((root.notch-x + root.notch-width) * 1px + 8px) : 14px;
+            y: 0px;
+            width: root.notch-is-center
+                ? Math.max(0px, (root.notch-x * 1px) - 20px)
+                : (root.notch-is-left
+                    ? Math.max(0px, (root.width - (root.notch-x + root.notch-width) * 1px - 22px) * 0.45)
+                    : Math.max(0px, (root.notch-x * 1px - 22px) * 0.45));
+            height: parent.height;
+            clip: true;
+
+            HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                spacing: 6px;
+                alignment: start;
+
+                // Clock
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        text: root.time-text;
+                        color: Theme.on-surface;
+                        font-size: Theme.font-body;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Notification bell + count
+                if root.notification-count > 0: VerticalLayout {
+                    alignment: center;
+                    HorizontalLayout {
+                        spacing: 2px;
+                        alignment: center;
+                        VerticalLayout {
+                            alignment: center;
+                            Icon {
+                                name: "notifications";
+                                icon-size: 14px;
+                                icon-color: Theme.on-surface;
+                            }
+                        }
+                        if root.notification-count > 1: Text {
+                            text: root.notification-count > 9 ? "9+" : "\{root.notification-count}";
+                            color: Theme.primary;
+                            font-size: 10px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                if root.alarm-active: VerticalLayout {
+                    alignment: center;
+                    Path {
+                        width: 14px;
+                        height: 14px;
+                        viewbox-width: 24;
+                        viewbox-height: 24;
+                        commands: "M12 5 A 8 8 0 1 1 11.99 5 Z M12 9 V13 L15 15 M5 3 L2 6 M19 3 L22 6";
+                        stroke: Theme.primary;
+                        stroke-width: 2.1px;
+                        stroke-line-cap: round;
+                        stroke-line-join: round;
+                        fill: transparent;
+                    }
+                }
+
+                if root.dnd-active: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/do_not_disturb_on.svg");
+                        colorize: Theme.on-surface;
+                    }
+                }
+            }
+        }
+
+        if root.notch-enabled: Rectangle {
+            x: root.notch-is-center
+                ? ((root.notch-x + root.notch-width) * 1px + 6px)
+                : (root.notch-is-left
+                    ? ((root.notch-x + root.notch-width) * 1px + 8px + (root.width - (root.notch-x + root.notch-width) * 1px - 22px) * 0.45)
+                    : (14px + (root.notch-x * 1px - 22px) * 0.45));
+            y: 0px;
+            width: root.notch-is-center
+                ? Math.max(0px, parent.width - ((root.notch-x + root.notch-width) * 1px + 20px))
+                : (root.notch-is-right
+                    ? Math.max(0px, (root.notch-x * 1px - 22px) * 0.55)
+                    : Math.max(0px, (root.width - (root.notch-x + root.notch-width) * 1px - 22px) * 0.55));
+            height: parent.height;
+            clip: true;
+
+            HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                spacing: 5px;
+                alignment: end;
+
+                if root.privacy-active: VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 14px;
+                        height: 10px;
+                        border-radius: 5px;
+                        background: Theme.privacy-green;
+                    }
+                }
+
+                if root.wwan-present: HorizontalLayout {
+                    spacing: 3px;
+                    alignment: center;
+
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            width: 14px;
+                            height: 14px;
+                            source: root.wwan-signal >= 75 ? @image-url("icons/signal_cellular_4_bar.svg")
+                                  : root.wwan-signal >= 50 ? @image-url("icons/signal_cellular_3_bar.svg")
+                                  : root.wwan-signal >= 25 ? @image-url("icons/signal_cellular_2_bar.svg")
+                                  : @image-url("icons/signal_cellular_1_bar.svg");
+                            colorize: Theme.on-surface;
+                        }
+                    }
+
+                    if root.wwan-tech != "": VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            height: 14px;
+                            border-radius: 7px;
+                            background: Theme.surface-container-highest.with-alpha(0.9);
+                            HorizontalLayout {
+                                padding-left: 4px;
+                                padding-right: 4px;
+                                alignment: center;
+                                Text {
+                                    text: root.wwan-tech;
+                                    color: Theme.on-surface;
+                                    font-size: 8.5px;
+                                    font-weight: 700;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if root.wifi-connected: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: root.wifi-signal >= 65 ? @image-url("icons/wifi.svg")
+                              : root.wifi-signal >= 25 ? @image-url("icons/wifi_2_bar.svg")
+                              : @image-url("icons/wifi_1_bar.svg");
+                        colorize: Theme.on-surface;
+                    }
+                }
+
+                if root.vpn-active: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/vpn_key.svg");
+                        colorize: Theme.primary;
+                    }
+                }
+
+                if root.docked: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: @image-url("icons/dock.svg");
+                        colorize: Theme.primary;
+                    }
+                }
+
+                if root.bt-powered: VerticalLayout {
+                    alignment: center;
+                    Image {
+                        width: 14px;
+                        height: 14px;
+                        source: root.bt-connected ? @image-url("icons/bluetooth_connected.svg")
+                              : @image-url("icons/bluetooth.svg");
+                        colorize: root.bt-connected ? Theme.primary : Theme.on-surface;
+                    }
+                }
+
+                // Battery Pill
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 18px;
+                        border-radius: 9px;
+                        background: root.is-charging
+                            ? Theme.privacy-green.with-alpha(0.24)
+                            : (root.battery-pct < 20.0
+                                ? Theme.error.with-alpha(0.24)
+                                : Theme.surface-container-highest.with-alpha(0.88));
+
+                        HorizontalLayout {
+                            padding-left: 5px;
+                            padding-right: 4px;
+                            spacing: 2px;
+                            alignment: center;
+
+                            Text {
+                                text: "\{Math.round(root.battery-pct)}%";
+                                color: root.battery-pct < 20.0 ? Theme.error
+                                     : (root.is-charging ? Theme.privacy-green : Theme.on-surface);
+                                font-size: 10px;
+                                font-weight: 700;
+                                vertical-alignment: center;
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                Image {
+                                    width: 12px;
+                                    height: 12px;
+                                    source: root.is-charging
+                                        ? @image-url("icons/battery_charging_full.svg")
+                                        : @image-url("icons/battery_full.svg");
+                                    colorize: root.battery-pct < 20.0 ? Theme.error
+                                            : (root.is-charging ? Theme.privacy-green : Theme.on-surface);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

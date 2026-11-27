@@ -64,9 +64,7 @@ export component GreeterWindow inherits Window {
     callback reboot-requested();
     callback poweroff-requested();
 
-    // -------------------------------------------------------------------------
     // 1. Wallpaper & Atmospheric Scrim Layers (Full Window Canvas)
-    // -------------------------------------------------------------------------
     Image {
         width: 100%;
         height: 100%;
@@ -81,9 +79,7 @@ export component GreeterWindow inherits Window {
         background: @linear-gradient(180deg, #09070f77, #09070fee);
     }
 
-    // -------------------------------------------------------------------------
     // 2. Main Interface Layout Stack
-    // -------------------------------------------------------------------------
     VerticalLayout {
         padding: 0px;
         spacing: 0px;
@@ -91,33 +87,15 @@ export component GreeterWindow inherits Window {
         // TOP SYSTEM BAR
         HorizontalLayout {
             height: 60px;
-            padding-left: 20px;
-            padding-right: 20px;
-            padding-top: 10px;
+            padding-left: 16px;
+            padding-right: 16px;
+            padding-top: 8px;
             alignment: space-between;
 
-            // Brand Badge Pill
+            // Left Spacer (clean mobile top bar without uppercase brand badge)
             Rectangle {
-                height: 34px;
-                border-radius: 17px;
-                background: #14111dd0;
-                border-width: 1px;
-                border-color: #3b354d66;
-
-                HorizontalLayout {
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    alignment: center;
-
-                    Text {
-                        text: "PENUMBRA";
-                        font-size: 11px;
-                        font-weight: 800;
-                        letter-spacing: 2.2px;
-                        color: #c4bece;
-                        vertical-alignment: center;
-                    }
-                }
+                width: 44px;
+                background: transparent;
             }
 
             // Right Status & Actions Cluster
@@ -126,44 +104,47 @@ export component GreeterWindow inherits Window {
                 alignment: end;
 
                 // Status Capsule (WiFi + Battery)
-                if (root.has-wifi || root.has-battery): Rectangle {
-                    height: 34px;
-                    border-radius: 17px;
-                    background: #14111dd0;
-                    border-width: 1px;
-                    border-color: #3b354d66;
+                if (root.has-wifi || root.has-battery): VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 16px;
+                        background: Theme.surface-container-low.with-alpha(0.85);
+                        border-width: 1px;
+                        border-color: Theme.outline-variant.with-alpha(0.5);
 
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        spacing: 10px;
-                        alignment: center;
-
-                        if root.has-wifi: HorizontalLayout {
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 10px;
                             alignment: center;
-                            Icon {
-                                name: "wifi";
-                                icon-size: 15px;
-                                icon-color: #e2dded;
-                                y: (parent.height - self.height) / 2;
-                            }
-                        }
 
-                        if root.has-battery: HorizontalLayout {
-                            spacing: 5px;
-                            alignment: center;
-                            Icon {
-                                name: "battery";
-                                icon-size: 15px;
-                                icon-color: #e2dded;
-                                y: (parent.height - self.height) / 2;
+                            if root.has-wifi: HorizontalLayout {
+                                alignment: center;
+                                Icon {
+                                    name: "wifi";
+                                    icon-size: 15px;
+                                    icon-color: Theme.on-surface;
+                                    y: (parent.height - self.height) / 2;
+                                }
                             }
-                            Text {
-                                text: root.battery-text;
-                                font-size: 12px;
-                                font-weight: 600;
-                                color: #e2dded;
-                                vertical-alignment: center;
+
+                            if root.has-battery: HorizontalLayout {
+                                spacing: 5px;
+                                alignment: center;
+                                Icon {
+                                    name: "battery";
+                                    icon-size: 15px;
+                                    icon-color: Theme.on-surface;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                Text {
+                                    text: root.battery-text;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
                     }
@@ -171,12 +152,12 @@ export component GreeterWindow inherits Window {
 
                 // Power Dialog Button
                 Rectangle {
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 17px;
-                    background: pwr-touch.pressed ? #3d354f : #14111dd0;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 22px;
+                    background: pwr-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-low.with-alpha(0.85);
                     border-width: 1px;
-                    border-color: #3b354d66;
+                    border-color: Theme.outline-variant.with-alpha(0.5);
 
                     animate background { duration: 100ms; }
 
@@ -285,15 +266,15 @@ export component GreeterWindow inherits Window {
                         HorizontalLayout {
                             alignment: center;
                             Rectangle {
-                                height: 28px;
-                                border-radius: 14px;
-                                background: user-btn-touch.pressed ? #2f283e : #1f1b29cc;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: user-btn-touch.pressed ? Theme.surface-container-highest : Theme.surface-container.with-alpha(0.85);
                                 border-width: 1px;
-                                border-color: #3b344e;
+                                border-color: Theme.outline-variant;
 
                                 HorizontalLayout {
-                                    padding-left: 12px;
-                                    padding-right: 12px;
+                                    padding-left: 16px;
+                                    padding-right: 16px;
                                     spacing: 6px;
                                     alignment: center;
 
@@ -301,14 +282,14 @@ export component GreeterWindow inherits Window {
                                         text: root.current-display-name != "" ? root.current-display-name : (root.current-username != "" ? root.current-username : "Select User");
                                         font-size: 16px;
                                         font-weight: 700;
-                                        color: #ffffff;
+                                        color: Theme.on-surface;
                                         vertical-alignment: center;
                                     }
 
                                     Icon {
                                         name: "chevron-down";
                                         icon-size: 14px;
-                                        icon-color: #b8b2c4;
+                                        icon-color: Theme.on-surface-variant;
                                         y: (parent.height - self.height) / 2;
                                     }
                                 }
@@ -325,11 +306,11 @@ export component GreeterWindow inherits Window {
                         HorizontalLayout {
                             alignment: center;
                             Rectangle {
-                                height: 26px;
-                                border-radius: 13px;
-                                background: sess-touch.pressed ? #322b42 : #1b1725cc;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: sess-touch.pressed ? Theme.surface-container-highest : Theme.surface-container-low.with-alpha(0.85);
                                 border-width: 1px;
-                                border-color: #3b344e;
+                                border-color: Theme.outline-variant;
 
                                 HorizontalLayout {
                                     padding-left: 10px;
@@ -338,24 +319,24 @@ export component GreeterWindow inherits Window {
                                     alignment: center;
 
                                     Icon {
-                                        name: "check";
-                                        icon-size: 12px;
+                                        name: "desktop";
+                                        icon-size: 14px;
                                         icon-color: Theme.primary;
                                         y: (parent.height - self.height) / 2;
                                     }
 
                                     Text {
                                         text: root.current-session-name;
-                                        font-size: 12px;
+                                        font-size: 13px;
                                         font-weight: 500;
-                                        color: #c9c3d4;
+                                        color: Theme.on-surface;
                                         vertical-alignment: center;
                                     }
 
                                     if root.sessions.length > 1: Icon {
                                         name: "chevron-down";
-                                        icon-size: 12px;
-                                        icon-color: #8c8599;
+                                        icon-size: 14px;
+                                        icon-color: Theme.on-surface-variant;
                                         y: (parent.height - self.height) / 2;
                                     }
                                 }
@@ -438,10 +419,10 @@ export component GreeterWindow inherits Window {
                             VerticalLayout {
                                 alignment: center;
                                 Rectangle {
-                                    width: 32px;
-                                    height: 32px;
-                                    border-radius: 16px;
-                                    background: revert-u-btn.pressed ? #3b344e : transparent;
+                                    width: 44px;
+                                    height: 44px;
+                                    border-radius: 22px;
+                                    background: revert-u-btn.pressed ? Theme.surface-container-highest : transparent;
 
                                     Icon {
                                         name: "close";
@@ -470,17 +451,17 @@ export component GreeterWindow inherits Window {
                     // Password Input Pill Capsule
                     Rectangle {
                         width: 320px;
-                        height: 54px;
-                        border-radius: 27px;
-                        background: #181423ee;
+                        height: 56px;
+                        border-radius: 28px;
+                        background: Theme.surface-container.with-alpha(0.92);
                         border-width: 1.5px;
-                        border-color: root.error-message != "" ? Theme.error : (root.focused-field == "password" || root.password-input != "" ? Theme.primary : #463e5b);
+                        border-color: root.error-message != "" ? Theme.error : (root.focused-field == "password" || root.password-input != "" ? Theme.primary : Theme.outline-variant);
 
                         animate border-color { duration: 120ms; }
 
                         HorizontalLayout {
                             padding-left: 18px;
-                            padding-right: 8px;
+                            padding-right: 6px;
                             spacing: 10px;
 
                             // Leading Lock Icon (Vertically Centered)
@@ -489,31 +470,22 @@ export component GreeterWindow inherits Window {
                                 Icon {
                                     name: "lock";
                                     icon-size: 18px;
-                                    icon-color: root.focused-field == "password" || root.password-input != "" ? Theme.primary : #827b91;
+                                    icon-color: root.focused-field == "password" || root.password-input != "" ? Theme.primary : Theme.on-surface-variant;
                                 }
                             }
 
-                            // Text Input Area with Dynamic Placeholder
+                            // Password Display + Hidden Hardware-Keyboard Input (no stuck '|' cursor at index 0)
                             Rectangle {
                                 horizontal-stretch: 1;
-
-                                if root.password-input == "": Text {
-                                    text: "Password";
-                                    font-size: 15px;
-                                    color: #7b7489;
-                                    vertical-alignment: center;
-                                    x: 0px;
-                                    y: 0px;
-                                    width: 100%;
-                                    height: 100%;
-                                }
+                                clip: true;
 
                                 pw-input := TextInput {
-                                    width: 100%;
-                                    height: 100%;
-                                    font-size: 16px;
-                                    color: #ffffff;
-                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 1px;
+                                    height: 1px;
+                                    opacity: 0.01;
+                                    color: transparent;
                                     text <=> root.password-input;
                                     input-type: root.password-masked ? password : text;
                                     enabled: !root.is-authenticating;
@@ -523,6 +495,42 @@ export component GreeterWindow inherits Window {
                                             root.login-requested(root.current-username, root.password-input);
                                         }
                                     }
+                                }
+
+                                if root.password-input == "": Text {
+                                    text: "Password";
+                                    font-size: 15px;
+                                    color: Theme.on-surface-variant;
+                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+
+                                if root.password-input != "" && !root.password-masked: Text {
+                                    text: root.password-input;
+                                    font-size: 16px;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: 100%;
+                                    height: 100%;
+                                    overflow: elide;
+                                }
+
+                                if root.password-input != "" && root.password-masked: Text {
+                                    text: "••••••••••••••••••••••••••••••••";
+                                    font-size: 18px;
+                                    letter-spacing: 2px;
+                                    color: Theme.on-surface;
+                                    vertical-alignment: center;
+                                    x: 0px;
+                                    y: 0px;
+                                    width: Math.min(parent.width, (root.password-input.character-count) * 11px);
+                                    height: 100%;
+                                    overflow: clip;
                                 }
 
                                 TouchArea {
@@ -538,15 +546,15 @@ export component GreeterWindow inherits Window {
                             VerticalLayout {
                                 alignment: center;
                                 Rectangle {
-                                    width: 36px;
-                                    height: 36px;
-                                    border-radius: 18px;
-                                    background: mask-touch.pressed ? #3b344e : transparent;
+                                    width: 44px;
+                                    height: 44px;
+                                    border-radius: 22px;
+                                    background: mask-touch.pressed ? Theme.surface-container-highest : transparent;
 
                                     Icon {
                                         name: root.password-masked ? "eye" : "eye-off";
                                         icon-size: 18px;
-                                        icon-color: #b8b2c4;
+                                        icon-color: Theme.on-surface-variant;
                                         x: (parent.width - self.width) / 2;
                                         y: (parent.height - self.height) / 2;
                                     }
@@ -563,17 +571,17 @@ export component GreeterWindow inherits Window {
                             VerticalLayout {
                                 alignment: center;
                                 Rectangle {
-                                    width: 38px;
-                                    height: 38px;
-                                    border-radius: 19px;
-                                    background: submit-touch.pressed ? #d8e2ff : (root.password-input != "" ? Theme.primary : #262134);
+                                    width: 44px;
+                                    height: 44px;
+                                    border-radius: 22px;
+                                    background: submit-touch.pressed ? Theme.primary-container : (root.password-input != "" ? Theme.primary : Theme.surface-container-high);
 
                                     animate background { duration: 100ms; }
 
                                     Icon {
                                         name: "arrow-right";
                                         icon-size: 20px;
-                                        icon-color: root.password-input != "" ? Theme.on-primary : #625c70;
+                                        icon-color: root.password-input != "" ? Theme.on-primary : Theme.outline;
                                         x: (parent.width - self.width) / 2;
                                         y: (parent.height - self.height) / 2;
                                     }
@@ -594,11 +602,11 @@ export component GreeterWindow inherits Window {
                     HorizontalLayout {
                         alignment: center;
                         Rectangle {
-                            height: 36px;
-                            border-radius: 18px;
-                            background: kb-btn-touch.pressed ? #322b40 : (root.is-keyboard-visible ? #262033 : #191524cc);
+                            height: 44px;
+                            border-radius: 22px;
+                            background: kb-btn-touch.pressed ? Theme.surface-container-highest : (root.is-keyboard-visible ? Theme.primary-container : Theme.surface-container.with-alpha(0.85));
                             border-width: 1px;
-                            border-color: root.is-keyboard-visible ? Theme.primary : #3b344e;
+                            border-color: root.is-keyboard-visible ? Theme.primary : Theme.outline-variant;
 
                             HorizontalLayout {
                                 padding-left: 14px;
@@ -683,9 +691,7 @@ export component GreeterWindow inherits Window {
             vertical-stretch: root.is-keyboard-visible ? 1 : 3;
         }
 
-        // ---------------------------------------------------------------------
         // 3. Bottom Keyboard Drawer
-        // ---------------------------------------------------------------------
         if root.is-keyboard-visible: VirtualKeyboard {
             key-pressed(char) => {
                 if root.focused-field == "username" {
@@ -714,9 +720,7 @@ export component GreeterWindow inherits Window {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Modal: User Picker
-    // -------------------------------------------------------------------------
     if root.is-user-picker-visible: Rectangle {
         background: #000000b0;
         TouchArea { clicked => { root.is-user-picker-visible = false; } }
@@ -729,20 +733,38 @@ export component GreeterWindow inherits Window {
 
                 Rectangle {
                     width: 320px;
-                    background: #1c1827;
-                    border-radius: 24px;
+                    background: Theme.surface-container;
+                    border-radius: 28px;
                     border-width: 1px;
-                    border-color: #3f3852;
+                    border-color: Theme.outline-variant;
 
                     VerticalLayout {
                         padding: 20px;
                         spacing: 12px;
 
-                        Text {
-                            text: "Select User";
-                            font-size: 16px;
-                            font-weight: 600;
-                            color: #ffffff;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Select User";
+                                font-size: 16px;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                                vertical-alignment: center;
+                            }
+                            Rectangle {
+                                width: 44px;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: u-close.pressed ? Theme.surface-container-highest : transparent;
+                                Icon {
+                                    name: "close";
+                                    icon-size: 18px;
+                                    icon-color: Theme.on-surface-variant;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                u-close := TouchArea { clicked => { root.is-user-picker-visible = false; } }
+                            }
                         }
 
                         for user[idx] in root.users: Rectangle {
@@ -841,9 +863,7 @@ export component GreeterWindow inherits Window {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Modal: Session Picker
-    // -------------------------------------------------------------------------
     if root.is-session-picker-visible: Rectangle {
         background: #000000b0;
         TouchArea { clicked => { root.is-session-picker-visible = false; } }
@@ -856,20 +876,38 @@ export component GreeterWindow inherits Window {
 
                 Rectangle {
                     width: 320px;
-                    background: #1c1827;
-                    border-radius: 24px;
+                    background: Theme.surface-container;
+                    border-radius: 28px;
                     border-width: 1px;
-                    border-color: #3f3852;
+                    border-color: Theme.outline-variant;
 
                     VerticalLayout {
                         padding: 20px;
                         spacing: 12px;
 
-                        Text {
-                            text: "Select Desktop Session";
-                            font-size: 16px;
-                            font-weight: 600;
-                            color: #ffffff;
+                        HorizontalLayout {
+                            alignment: space-between;
+                            Text {
+                                text: "Select Desktop Session";
+                                font-size: 16px;
+                                font-weight: 600;
+                                color: Theme.on-surface;
+                                vertical-alignment: center;
+                            }
+                            Rectangle {
+                                width: 44px;
+                                height: 44px;
+                                border-radius: 22px;
+                                background: s-close.pressed ? Theme.surface-container-highest : transparent;
+                                Icon {
+                                    name: "close";
+                                    icon-size: 18px;
+                                    icon-color: Theme.on-surface-variant;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+                                s-close := TouchArea { clicked => { root.is-session-picker-visible = false; } }
+                            }
                         }
 
                         for sess[idx] in root.sessions: Rectangle {
@@ -922,9 +960,7 @@ export component GreeterWindow inherits Window {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Modal: Power Dialog
-    // -------------------------------------------------------------------------
     if root.is-power-dialog-visible: PowerDialog {
         suspend-requested => {
             root.is-power-dialog-visible = false;
@@ -943,9 +979,7 @@ export component GreeterWindow inherits Window {
         }
     }
 
-    // -------------------------------------------------------------------------
     // Floating Pill: Volume HUD Overlay
-    // -------------------------------------------------------------------------
     if root.is-volume-hud-visible: Rectangle {
         y: 70px;
         width: 190px;

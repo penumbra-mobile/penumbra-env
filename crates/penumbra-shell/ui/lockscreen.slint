@@ -100,6 +100,8 @@ export component Lockscreen inherits Rectangle {
     in property <bool> is-charging: false;
     in property <bool> wifi-connected: true;
     in property <int> wifi-signal: 3;
+    in property <bool> has-wallpaper: false;
+    in property <image> wallpaper-image;
 
     // Security properties
     in-out property <string> lock-type: "none"; // "none", "pin", "password"
@@ -133,11 +135,31 @@ export component Lockscreen inherits Rectangle {
     callback keyboard-show-requested();
     callback keyboard-hide-requested();
 
+    // Wallpaper & Atmospheric Scrim Layer (shown behind both cover and challenge)
+    if root.has-wallpaper: Image {
+        width: 100%;
+        height: 100%;
+        source: root.wallpaper-image;
+        image-fit: cover;
+    }
+
+    if !root.has-wallpaper: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(180deg, Theme.primary-container.with-alpha(0.38), Theme.surface-container-lowest);
+    }
+
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        background: @linear-gradient(180deg, #0b0a0e55, #0b0a0ecc);
+    }
+
     // Challenge Layer (Behind/Revealed on swipe up)
     challenge-container := Rectangle {
         width: 100%;
         height: 100%;
-        background: Theme.surface;
+        background: root.has-wallpaper ? Theme.surface.with-alpha(0.84) : Theme.surface.with-alpha(0.94);
         opacity: root.in-challenge ? 1.0 : 0.0;
         animate opacity { duration: 180ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
@@ -202,27 +224,27 @@ export component Lockscreen inherits Rectangle {
                 HorizontalLayout {
                     alignment: center;
                     spacing: 24px;
-                    KeypadButton { number: "1"; letters: ""; clicked => { root.append-pin("1"); } }
-                    KeypadButton { number: "2"; letters: "ABC"; clicked => { root.append-pin("2"); } }
-                    KeypadButton { number: "3"; letters: "DEF"; clicked => { root.append-pin("3"); } }
+                    KeypadButton { number: "1"; clicked => { root.append-pin("1"); } }
+                    KeypadButton { number: "2"; clicked => { root.append-pin("2"); } }
+                    KeypadButton { number: "3"; clicked => { root.append-pin("3"); } }
                 }
 
                 // Row 2: 4, 5, 6
                 HorizontalLayout {
                     alignment: center;
                     spacing: 24px;
-                    KeypadButton { number: "4"; letters: "GHI"; clicked => { root.append-pin("4"); } }
-                    KeypadButton { number: "5"; letters: "JKL"; clicked => { root.append-pin("5"); } }
-                    KeypadButton { number: "6"; letters: "MNO"; clicked => { root.append-pin("6"); } }
+                    KeypadButton { number: "4"; clicked => { root.append-pin("4"); } }
+                    KeypadButton { number: "5"; clicked => { root.append-pin("5"); } }
+                    KeypadButton { number: "6"; clicked => { root.append-pin("6"); } }
                 }
 
                 // Row 3: 7, 8, 9
                 HorizontalLayout {
                     alignment: center;
                     spacing: 24px;
-                    KeypadButton { number: "7"; letters: "PQRS"; clicked => { root.append-pin("7"); } }
-                    KeypadButton { number: "8"; letters: "TUV"; clicked => { root.append-pin("8"); } }
-                    KeypadButton { number: "9"; letters: "WXYZ"; clicked => { root.append-pin("9"); } }
+                    KeypadButton { number: "7"; clicked => { root.append-pin("7"); } }
+                    KeypadButton { number: "8"; clicked => { root.append-pin("8"); } }
+                    KeypadButton { number: "9"; clicked => { root.append-pin("9"); } }
                 }
 
                 // Row 4: Backspace, 0, Submit
@@ -236,7 +258,6 @@ export component Lockscreen inherits Rectangle {
                     }
                     KeypadButton {
                         number: "0";
-                        letters: "+";
                         clicked => { root.append-pin("0"); }
                     }
                     KeypadButton {
@@ -276,9 +297,9 @@ export component Lockscreen inherits Rectangle {
                         }
 
                         Rectangle {
-                            width: 40px;
-                            height: 40px;
-                            border-radius: 20px;
+                            width: 44px;
+                            height: 44px;
+                            border-radius: 22px;
                             background: pw-touch.pressed ? Theme.surface-container-highest : transparent;
 
                             Icon {
@@ -397,9 +418,9 @@ export component Lockscreen inherits Rectangle {
 
                 // Emergency Call
                 Rectangle {
-                    height: 40px;
-                    width: 120px;
-                    border-radius: 20px;
+                    height: 44px;
+                    width: 124px;
+                    border-radius: 22px;
                     background: em-touch.pressed ? Theme.error-container : transparent;
 
                     Text {
@@ -420,9 +441,9 @@ export component Lockscreen inherits Rectangle {
 
                 // Cancel back to cover
                 Rectangle {
-                    height: 40px;
-                    width: 100px;
-                    border-radius: 20px;
+                    height: 44px;
+                    width: 104px;
+                    border-radius: 22px;
                     background: cancel-touch.pressed ? Theme.surface-container-highest : transparent;
 
                     Text {
@@ -450,7 +471,7 @@ export component Lockscreen inherits Rectangle {
         width: 100%;
         height: 100%;
         y: root.in-challenge ? -915px : root.drag-offset-y;
-        background: Theme.surface-container-lowest;
+        background: transparent;
 
         animate y { duration: root.is-dragging ? 0ms : 190ms; easing: cubic-bezier(0.05, 0.7, 0.1, 1.0); }
 
@@ -513,20 +534,38 @@ export component Lockscreen inherits Rectangle {
                 alignment: center;
                 spacing: 6px;
 
-                Text {
-                    text: root.time-str;
-                    font-size: 76px;
-                    font-weight: 700;
-                    color: Theme.on-surface;
-                    horizontal-alignment: center;
+                Rectangle {
+                    width: 100%;
+                    height: hero-time.preferred-height;
+                    background: transparent;
+
+                    Text {
+                        x: 0px; y: 2px; width: 100%;
+                        text: root.time-str; font-size: 76px; font-weight: 700;
+                        color: #00000088; horizontal-alignment: center;
+                    }
+                    hero-time := Text {
+                        x: 0px; y: 0px; width: 100%;
+                        text: root.time-str; font-size: 76px; font-weight: 700;
+                        color: Theme.on-surface; horizontal-alignment: center;
+                    }
                 }
 
-                Text {
-                    text: root.date-str;
-                    font-size: 18px;
-                    font-weight: 400;
-                    color: Theme.primary;
-                    horizontal-alignment: center;
+                Rectangle {
+                    width: 100%;
+                    height: hero-date.preferred-height;
+                    background: transparent;
+
+                    Text {
+                        x: 0px; y: 1.5px; width: 100%;
+                        text: root.date-str; font-size: 18px; font-weight: 500;
+                        color: #00000099; horizontal-alignment: center;
+                    }
+                    hero-date := Text {
+                        x: 0px; y: 0px; width: 100%;
+                        text: root.date-str; font-size: 18px; font-weight: 500;
+                        color: Theme.primary; horizontal-alignment: center;
+                    }
                 }
             }
 
@@ -592,14 +631,16 @@ export component Lockscreen inherits Rectangle {
 
             // Bottom Bar: Emergency Call
             HorizontalLayout {
-                height: 48px;
+                height: 52px;
                 alignment: start;
 
                 Rectangle {
-                    height: 38px;
-                    width: 110px;
-                    border-radius: 19px;
-                    background: root.em-pressed ? Theme.error-container : Theme.surface-container-high;
+                    height: 44px;
+                    width: 120px;
+                    border-radius: 22px;
+                    background: root.em-pressed ? Theme.error-container : Theme.surface-container-high.with-alpha(0.88);
+                    border-width: 1px;
+                    border-color: Theme.specular-rim;
 
                     Text {
                         text: @tr("Emergency");
@@ -668,9 +709,9 @@ export component Lockscreen inherits Rectangle {
         // Emergency button on Cover Page
         cover-em-touch := TouchArea {
             x: 24px;
-            y: parent.height - 72px;
-            width: 110px;
-            height: 38px;
+            y: parent.height - 76px;
+            width: 120px;
+            height: 44px;
             pointer-event(event) => {
                 if event.kind == PointerEventKind.down {
                     root.em-pressed = true;
@@ -700,6 +741,8 @@ export component LockscreenWindow inherits Window {
     in property <bool> is-charging: false;
     in property <bool> wifi-connected: true;
     in property <int> wifi-signal: 3;
+    in property <bool> has-wallpaper: false;
+    in property <image> wallpaper-image;
 
     in-out property <string> lock-type: "none";
     in-out property <bool> has-fingerprint: false;
@@ -735,6 +778,8 @@ export component LockscreenWindow inherits Window {
         is-charging: root.is-charging;
         wifi-connected: root.wifi-connected;
         wifi-signal: root.wifi-signal;
+        has-wallpaper: root.has-wallpaper;
+        wallpaper-image: root.wallpaper-image;
 
         lock-type <=> root.lock-type;
         has-fingerprint <=> root.has-fingerprint;

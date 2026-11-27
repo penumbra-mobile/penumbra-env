@@ -67,11 +67,9 @@ pub(crate) fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     };
 
-    // Wire keyboard toggle button on navigation bar
     bar.on_keyboard_toggle_clicked(|| {
-        let path = penumbra_shell::ipc::runtime_path("penumbra-keyboard-cmd");
-        let _ = std::fs::write(path, "toggle");
-        info!("Toggled virtual keyboard via navigation bar button");
+        penumbra_services::osk::toggle_configured_osk();
+        info!("Toggled active virtual keyboard via navigation bar button");
     });
 
     // 3. Navigation gesture tracking is handled natively by penumbra-comp with 120Hz libinput physics.
