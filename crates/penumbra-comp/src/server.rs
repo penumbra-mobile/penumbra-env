@@ -412,26 +412,28 @@ impl PenumbraServerState {
             }
         }
 
-        // 2. Top layer (e.g. status bar: penumbra-top-bar, nav bar, keyboard)
-        if let Some(l) = map_a.layer_under(Layer::Top, pos) {
-            let ns = l.namespace();
-            let is_penumbra_osk = ns == "penumbra-keyboard";
-            if is_penumbra_osk {
-                let keyboard_open = {
-                    let path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-state");
-                    std::fs::read_to_string(path).map(|c| c.contains("open=1")).unwrap_or(false)
-                };
-                if !keyboard_open {
-                    // Do not focus keyboard when keyboard is hidden
-                } else {
-                    let geo = map_a.layer_geometry(l).unwrap_or_default();
+        // 2. Top layer: prioritize open on-screen keyboard over nav bar, and let app drawer receive bottom touches
+        let (keyboard_open, osk_h_opt) = {
+            let path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-state");
+            let content = std::fs::read_to_string(path).unwrap_or_default();
+            let open = content.contains("open=1");
+            let h = content
+                .lines()
+                .find_map(|line| line.strip_prefix("height="))
+                .and_then(|v| v.trim().parse::<i32>().ok());
+            (open, h)
+        };
+        let effective_osk_h = osk_h_opt.unwrap_or(self.active_osk_height);
+        if keyboard_open && effective_osk_h > 0 && pos.y >= (PHONE_H - effective_osk_h) as f64 {
+            if let Some(l) = map_a.layers_on(Layer::Top).find(|l| l.namespace() == "penumbra-keyboard") {
+                let geo = map_a.layer_geometry(l).unwrap_or_default();
+                let local = (pos.x - geo.loc.x as f64, pos.y - geo.loc.y as f64);
+                if let Some((surf, surf_loc)) = l.surface_under(local, WindowSurfaceType::ALL) {
                     return Some((
-                        l.wl_surface().clone(),
-                        (geo.loc.x as f64, geo.loc.y as f64).into(),
+                        surf,
+                        ((geo.loc.x + surf_loc.x) as f64, (geo.loc.y + surf_loc.y) as f64).into(),
                     ));
                 }
-            } else {
-                let geo = map_a.layer_geometry(l).unwrap_or_default();
                 return Some((
                     l.wl_surface().clone(),
                     (geo.loc.x as f64, geo.loc.y as f64).into(),
@@ -439,15 +441,90 @@ impl PenumbraServerState {
             }
         }
 
-        // 3. Normal window (running phone app in the inset)
-        let in_app_inset = pos.y >= APP_Y as f64 && pos.y < NAV_BAR_Y as f64;
+        if let Some(l) = map_a.layer_under(Layer::Top, pos) {
+            let ns = l.namespace();
+            let skip_layer = (ns == "penumbra-keyboard"
+                && (!keyboard_open || effective_osk_h <= 0 || pos.y < (PHONE_H - effective_osk_h) as f64))
+                || (ns == "penumbra-nav-bar" && self.app_drawer_progress > 0.05);
+            if !skip_layer {
+                let geo = map_a.layer_geometry(l).unwrap_or_default();
+                let popups: Vec<_> =
+                    smithay::desktop::PopupManager::popups_for_surface(l.wl_surface()).collect();
+                for (popup, popup_offset) in popups.into_iter().rev() {
+                    let pop_loc = (geo.loc.x + popup_offset.x, geo.loc.y + popup_offset.y);
+                    let pop_rel = (pos.x - pop_loc.0 as f64, pos.y - pop_loc.1 as f64);
+                    if let Some((surf, surf_loc)) =
+                        smithay::desktop::utils::under_from_surface_tree(
+                            popup.wl_surface(),
+                            pop_rel.into(),
+                            (0, 0),
+                            WindowSurfaceType::ALL,
+                        )
+                    {
+                        return Some((
+                            surf,
+                            ((pop_loc.0 + surf_loc.x) as f64, (pop_loc.1 + surf_loc.y) as f64)
+                                .into(),
+                        ));
+                    }
+                }
+                let local = (pos.x - geo.loc.x as f64, pos.y - geo.loc.y as f64);
+                if let Some((surf, surf_loc)) = l.surface_under(local, WindowSurfaceType::ALL) {
+                    return Some((
+                        surf,
+                        ((geo.loc.x + surf_loc.x) as f64, (geo.loc.y + surf_loc.y) as f64).into(),
+                    ));
+                }
+                return Some((
+                    l.wl_surface().clone(),
+                    (geo.loc.x as f64, geo.loc.y as f64).into(),
+                ));
+            }
+        }
+
+        // 3. Normal window (running phone app in the inset, and its active popups)
         if self.phone_app_visible()
             && !self.shell_state.drawer_open
             && !self.shell_state.power_dialog_open
-            && in_app_inset
         {
-            if let Some(surface) = self.active_phone_surface() {
-                return Some((surface, (0.0, APP_Y as f64).into()));
+            if let Some(task) = self.phone_tasks.first() {
+                if let Some(toplevel) = task.window.toplevel() {
+                    let geo_loc = task.window.geometry().loc;
+                    let popups: Vec<_> =
+                        smithay::desktop::PopupManager::popups_for_surface(toplevel.wl_surface())
+                            .collect();
+                    for (popup, popup_offset) in popups.into_iter().rev() {
+                        let pop_loc = (popup_offset.x, APP_Y + popup_offset.y);
+                        let pop_rel = (pos.x - pop_loc.0 as f64, pos.y - pop_loc.1 as f64);
+                        if let Some((surf, surf_loc)) =
+                            smithay::desktop::utils::under_from_surface_tree(
+                                popup.wl_surface(),
+                                pop_rel.into(),
+                                (0, 0),
+                                WindowSurfaceType::ALL,
+                            )
+                        {
+                            return Some((
+                                surf,
+                                ((pop_loc.0 + surf_loc.x) as f64, (pop_loc.1 + surf_loc.y) as f64)
+                                    .into(),
+                            ));
+                        }
+                    }
+
+                    let in_app_inset = pos.y >= APP_Y as f64 && pos.y < NAV_BAR_Y as f64;
+                    if in_app_inset {
+                        let win_origin: Point<f64, smithay::utils::Logical> =
+                            ((-geo_loc.x) as f64, (APP_Y - geo_loc.y) as f64).into();
+                        let rel = pos - win_origin;
+                        if let Some((surf, surf_loc)) =
+                            task.window.surface_under(rel, WindowSurfaceType::ALL)
+                        {
+                            return Some((surf, win_origin + surf_loc.to_f64()));
+                        }
+                        return Some((toplevel.wl_surface().clone(), win_origin));
+                    }
+                }
             }
         }
 
@@ -519,6 +596,7 @@ impl PenumbraServerState {
     }
 
     /// Returns true if an `Overlay` or `Top` layer-shell surface accepts input at global `pos`.
+    #[cfg(feature = "native-drm")]
     pub(crate) fn has_desktop_top_or_overlay_at(
         &self,
         pos: Point<f64, smithay::utils::Logical>,
@@ -718,8 +796,8 @@ impl PenumbraServerState {
                     .and_then(|o| self.space.output_geometry(o))
                     .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
                 let geo_loc_y = window.geometry().loc.y;
-                let min_y = out_geo.loc.y + 30 + top_pad - geo_loc_y;
-                let max_y = (out_geo.loc.y + out_geo.size.h - 76 - 24 - geo_loc_y).max(min_y);
+                let min_y = out_geo.loc.y + 36 + top_pad - geo_loc_y;
+                let max_y = (out_geo.loc.y + out_geo.size.h - 64 - 24 - geo_loc_y).max(min_y);
                 let clamped_loc = (target_loc.0, target_loc.1.clamp(min_y, max_y));
                 self.space.map_element(window.clone(), clamped_loc, false);
             }
@@ -812,10 +890,18 @@ impl PenumbraServerState {
         }
         match resize.edges {
             E::Top | E::TopLeft | E::TopRight => {
-                let min_top_y = if self.window_has_ssd(&resize.window) {
-                    30 + crate::decorations::SSD_TITLEBAR_H
+                let out_top = self
+                    .external_outputs
+                    .values()
+                    .next()
+                    .or(self.output_b.as_ref())
+                    .and_then(|o| self.space.output_geometry(o))
+                    .map(|g| g.loc.y)
+                    .unwrap_or(0);
+                let min_top_y = out_top + if self.window_has_ssd(&resize.window) {
+                    36 + crate::decorations::SSD_TITLEBAR_H
                 } else {
-                    30
+                    36
                 };
                 let clamped_h = (resize.initial_window_size.h - dy).clamp(min_h, max_h);
                 new_y = (resize.initial_window_loc.y + (resize.initial_window_size.h - clamped_h))
@@ -857,6 +943,7 @@ impl PenumbraServerState {
     }
 
     /// Returns true if a desktop layer-shell surface at `pos` wants keyboard focus.
+    #[cfg(feature = "native-drm")]
     pub(crate) fn desktop_layer_allows_keyboard(
         &self,
         pos: Point<f64, smithay::utils::Logical>,
@@ -1270,12 +1357,17 @@ impl PenumbraServerState {
         }
 
         // Publish open external desktop windows for penumbra-desktop-shell dock integration
+        let focused_surf = self.seat.get_keyboard().and_then(|kb| kb.current_focus());
         let mut desktop_listing = String::new();
         for window in self.space.elements() {
             if Some(window) == self.root_shell.as_ref() || self.is_phone_task(window) {
                 continue;
             }
             if let Some(t) = window.toplevel() {
+                let id = smithay::reexports::wayland_server::Resource::id(t.wl_surface());
+                let is_minimized = self.minimized_desktop_windows.contains(&id);
+                let is_focused = !is_minimized
+                    && focused_surf.as_ref() == Some(t.wl_surface());
                 let (app_id, title) = with_states(t.wl_surface(), |states| {
                     states
                         .data_map
@@ -1291,7 +1383,12 @@ impl PenumbraServerState {
                 });
                 if !app_id.is_empty() || !title.is_empty() {
                     let clean_title = title.replace(['\n', '\r', '\t'], " ");
-                    desktop_listing.push_str(&format!("{}\t{}\n", app_id, clean_title));
+                    desktop_listing.push_str(&format!(
+                        "{}\t{}\t{}\n",
+                        app_id,
+                        clean_title,
+                        if is_focused { "1" } else { "0" }
+                    ));
                 }
             }
         }
@@ -1300,6 +1397,67 @@ impl PenumbraServerState {
         if desktop_listing != existing_desktop {
             let _ = write_atomic(&desktop_path, &desktop_listing);
         }
+    }
+
+    pub fn constrain_popup_geometry(
+        &self,
+        surface: &PopupSurface,
+        positioner: &PositionerState,
+    ) -> Rectangle<i32, smithay::utils::Logical> {
+        let mut parent_offset: Point<i32, smithay::utils::Logical> = (0, 0).into();
+        let mut root_surf = surface.get_parent_surface();
+        while let Some(ref ps) = root_surf {
+            if let Some(smithay::desktop::PopupKind::Xdg(parent_xdg)) = self.popups.find_popup(ps) {
+                let pgeo = parent_xdg.with_pending_state(|s| s.geometry);
+                parent_offset += pgeo.loc;
+                root_surf = parent_xdg.get_parent_surface();
+            } else {
+                break;
+            }
+        }
+
+        if let Some(ref root) = root_surf {
+            if self
+                .phone_tasks
+                .iter()
+                .any(|t| t.window.toplevel().is_some_and(|tl| tl.wl_surface() == root))
+            {
+                let app_h = self.active_phone_app_height();
+                let target = Rectangle::new(
+                    (-parent_offset.x, -parent_offset.y).into(),
+                    (PHONE_W, app_h).into(),
+                );
+                return positioner.get_unconstrained_geometry(target);
+            }
+
+            if let Some(win) = self
+                .space
+                .elements()
+                .find(|w| w.toplevel().is_some_and(|tl| tl.wl_surface() == root))
+            {
+                if let Some(win_loc) = self.space.element_location(win) {
+                    let out_geo = self
+                        .external_outputs
+                        .values()
+                        .next()
+                        .or(self.output_b.as_ref())
+                        .and_then(|o| self.space.output_geometry(o))
+                        .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
+                    let win_geo = win.geometry();
+                    let target = Rectangle::new(
+                        (
+                            out_geo.loc.x - (win_loc.x + win_geo.loc.x + parent_offset.x),
+                            (out_geo.loc.y + 36) - (win_loc.y + win_geo.loc.y + parent_offset.y),
+                        )
+                            .into(),
+                        (out_geo.size.w, (out_geo.size.h - 36 - 64).max(200)).into(),
+                    );
+                    return positioner.get_unconstrained_geometry(target);
+                }
+            }
+        }
+
+        positioner.get_geometry()
     }
     /// Returns `true` if a desktop window belongs to the active workspace and is not minimized.
     pub fn is_desktop_window_visible(&self, window: &Window) -> bool {
@@ -1476,6 +1634,45 @@ impl PenumbraServerState {
                     }
                 } else if let Some(app) = line.strip_prefix("focus_app:") {
                     self.focus_desktop_app(app);
+                } else if let Some(app) = line.strip_prefix("toggle_app:") {
+                    let q = app.trim().to_lowercase();
+                    let focused_surf = self.seat.get_keyboard().and_then(|kb| kb.current_focus());
+                    let is_currently_focused = focused_surf.as_ref().is_some_and(|fs| {
+                        self.space.elements().any(|w| {
+                            Some(w) != self.root_shell.as_ref()
+                                && !self.is_phone_task(w)
+                                && self.is_desktop_window_visible(w)
+                                && w.toplevel().is_some_and(|t| {
+                                    t.wl_surface() == fs
+                                        && with_states(t.wl_surface(), |states| {
+                                            states
+                                                .data_map
+                                                .get::<XdgToplevelSurfaceData>()
+                                                .and_then(|d| d.lock().ok())
+                                                .is_some_and(|d| {
+                                                    let aid = d.app_id.as_deref().unwrap_or("").to_lowercase();
+                                                    let title = d.title.as_deref().unwrap_or("").to_lowercase();
+                                                    let q_base = q.strip_suffix(".desktop").unwrap_or(&q);
+                                                    let aid_base = aid.strip_suffix(".desktop").unwrap_or(&aid);
+                                                    (!aid_base.is_empty() && (aid_base == q_base || q_base.contains(aid_base) || aid_base.contains(q_base)))
+                                                        || (!title.is_empty() && (title.contains(q_base) || q_base.contains(&title)))
+                                                })
+                                        })
+                                })
+                        })
+                    });
+                    if is_currently_focused {
+                        if let Some(fs) = focused_surf {
+                            let target = self.space.elements().find_map(|w| {
+                                w.toplevel().filter(|t| t.wl_surface() == &fs).cloned()
+                            });
+                            if let Some(t) = target {
+                                self.minimize_request(t);
+                            }
+                        }
+                    } else {
+                        self.focus_desktop_app(app);
+                    }
                 } else if line == "close_focused" {
                     self.close_focused_desktop_window();
                 } else if line == "toggle_maximize_focused" {
@@ -1511,10 +1708,8 @@ impl PenumbraServerState {
         let active = self.is_text_input_active();
         if active != self.last_text_input_active {
             self.last_text_input_active = active;
-            let cmd = if active { "show" } else { "hide" };
-            let cmd_path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-cmd");
-            let _ = std::fs::write(cmd_path, cmd);
-            info!(active, "Text input active state changed -> notified OSK daemon ({})", cmd);
+            penumbra_services::osk::set_configured_osk_visible(Some(active));
+            info!(active, "Text input active state changed -> notified configured OSK");
         }
     }
 
@@ -1580,9 +1775,16 @@ impl PenumbraServerState {
     /// Dynamically resizes the active phone application window when an OSK layer surface
     /// activates or deactivates on Output A.
     pub fn update_osk_window_layout(&mut self) {
-        let keyboard_open = {
+        let (keyboard_open, configured_osk_h) = {
             let path = runtime_path(phone::SHELL_STATE_FILE).with_file_name("penumbra-keyboard-state");
-            std::fs::read_to_string(path).map(|c| c.contains("open=1")).unwrap_or(false)
+            let content = std::fs::read_to_string(path).unwrap_or_default();
+            let open = content.contains("open=1");
+            let h = content
+                .lines()
+                .find_map(|line| line.strip_prefix("height="))
+                .and_then(|v| v.trim().parse::<i32>().ok())
+                .filter(|&h| h > 0);
+            (open, h)
         };
         let mut osk_h = 0i32;
         {
@@ -1598,17 +1800,17 @@ impl PenumbraServerState {
                     || ns.contains("wvkbd");
                 if is_penumbra_osk {
                     if keyboard_open {
-                        let h = map_a.layer_geometry(l).map(|g| g.size.h).unwrap_or(280);
+                        let h = configured_osk_h
+                            .unwrap_or_else(|| map_a.layer_geometry(l).map(|g| g.size.h).unwrap_or(280));
                         osk_h = osk_h.max(h.clamp(0, 500));
                     }
                 } else if is_third_party_osk {
                     let h = map_a.layer_geometry(l).map(|g| g.size.h).unwrap_or(0);
                     let has_buffer = l.bbox().size.h > 0;
                     if has_buffer && h > 0 {
-                        // Third-party OSKs anchor to the bottom edge (including nav bar 32px),
-                        // so subtract NAV_BAR_H when shrinking APP_H above the nav bar.
-                        let effective = (h - NAV_BAR_H).max(0);
-                        osk_h = osk_h.max(effective.clamp(0, 500));
+                        // penumbra-nav-bar already reserves NAV_BAR_H (32px) via exclusive_zone,
+                        // so third-party OSKs sit directly above the nav bar with full height `h`.
+                        osk_h = osk_h.max(h.clamp(0, 500));
                     }
                 }
             }
@@ -1977,8 +2179,15 @@ impl XdgShellHandler for PenumbraServerState {
                 win_h = win_h.min(max_h);
 
                 let app_idx = window_count.saturating_sub(1);
-                offset_x = 412 + usable_zone.loc.x + 40 + ((app_idx as i32 * 35) % 300);
-                offset_y = usable_zone.loc.y + 30 + ((app_idx as i32 * 30) % 150);
+                let out_geo = self
+                    .space
+                    .output_geometry(out_b)
+                    .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
+                offset_x = out_geo.loc.x + usable_zone.loc.x + 40 + ((app_idx as i32 * 35) % 300);
+                offset_y = out_geo.loc.y
+                    + usable_zone.loc.y.max(36)
+                    + crate::decorations::SSD_TITLEBAR_H
+                    + ((app_idx as i32 * 30) % 150);
             }
 
             surface.with_pending_state(|state| {
@@ -1993,9 +2202,10 @@ impl XdgShellHandler for PenumbraServerState {
     }
 
     fn new_popup(&mut self, surface: PopupSurface, positioner: PositionerState) {
-        let geo = positioner.get_geometry();
+        let geo = self.constrain_popup_geometry(&surface, &positioner);
         surface.with_pending_state(|state| {
             state.geometry = geo;
+            state.positioner = positioner;
         });
         if let Err(err) = self
             .popups
@@ -2014,8 +2224,9 @@ impl XdgShellHandler for PenumbraServerState {
         positioner: PositionerState,
         token: u32,
     ) {
+        let geo = self.constrain_popup_geometry(&surface, &positioner);
         surface.with_pending_state(|state| {
-            state.geometry = positioner.get_geometry();
+            state.geometry = geo;
             state.positioner = positioner;
         });
         surface.send_repositioned(token);
@@ -2086,13 +2297,14 @@ impl XdgShellHandler for PenumbraServerState {
             .and_then(|o| self.space.output_geometry(o))
             .unwrap_or_else(|| Rectangle::new((PHONE_W, 0).into(), (1920, 1080).into()));
         let top_inset = if self.window_has_ssd(&window) {
-            30 + crate::decorations::SSD_TITLEBAR_H
+            36 + crate::decorations::SSD_TITLEBAR_H
         } else {
-            30
+            36
         };
-        let work_loc = (out_geo.loc.x, out_geo.loc.y + top_inset);
+        let geo_loc_y = window.geometry().loc.y;
+        let work_loc = (out_geo.loc.x, out_geo.loc.y + top_inset - geo_loc_y);
         let work_size: smithay::utils::Size<i32, smithay::utils::Logical> =
-            (out_geo.size.w, (out_geo.size.h - top_inset - 76).max(200)).into();
+            (out_geo.size.w, (out_geo.size.h - top_inset - 64).max(200)).into();
         surface.with_pending_state(|state| {
             state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Maximized);
             state.size = Some(work_size);
@@ -2124,6 +2336,28 @@ impl XdgShellHandler for PenumbraServerState {
     fn minimize_request(&mut self, surface: ToplevelSurface) {
         let id = smithay::reexports::wayland_server::Resource::id(surface.wl_surface());
         self.minimized_desktop_windows.insert(id);
+
+        let had_focus = self
+            .seat
+            .get_keyboard()
+            .and_then(|kb| kb.current_focus())
+            .is_some_and(|s| &s == surface.wl_surface());
+        if had_focus {
+            let next_surf = self
+                .space
+                .elements()
+                .rev()
+                .filter(|w| {
+                    Some(*w) != self.root_shell.as_ref()
+                        && !self.is_phone_task(w)
+                        && self.is_desktop_window_visible(w)
+                })
+                .find_map(|w| w.toplevel().map(|t| t.wl_surface().clone()));
+            let serial = smithay::utils::SERIAL_COUNTER.next_serial();
+            if let Some(kb) = self.seat.get_keyboard() {
+                kb.set_focus(self, next_surf, serial);
+            }
+        }
     }
 
     fn fullscreen_request(
@@ -2257,13 +2491,8 @@ impl WlrLayerShellHandler for PenumbraServerState {
             Some((output_size.w.max(1), STATUS_BAR_H))
         } else if ns.contains("quick") || ns.contains("lock") {
             Some((output_size.w.max(1), output_size.h.max(1)))
-        } else if ns.contains("keyboard")
-            || ns == "osk"
-            || ns.contains("squeekboard")
-            || ns.contains("phosh-osk")
-            || ns.contains("stevia")
-        {
-            Some((output_size.w.max(1), 316))
+        } else if ns == "penumbra-keyboard" {
+            Some((output_size.w.max(1), 380))
         } else {
             None
         };
@@ -3395,12 +3624,37 @@ impl PenumbraCompositor {
                             }
                         }
                     } else if let Some(surface) = state.active_phone_surface() {
+                        let geo_loc = state
+                            .phone_tasks
+                            .first()
+                            .map(|t| t.window.geometry().loc)
+                            .unwrap_or_default();
                         let app_rect = phys_rect(0, APP_Y, PHONE_W, APP_H);
-                        app_elements = cropped(
-                            surface_elements(renderer, &surface, (0, APP_Y), 1.0),
+                        let popup_clip = phys_rect(0, 0, PHONE_W, PHONE_H);
+                        let popups: Vec<_> =
+                            smithay::desktop::PopupManager::popups_for_surface(&surface).collect();
+                        for (popup, popup_offset) in popups.into_iter().rev() {
+                            app_elements.extend(cropped(
+                                surface_elements(
+                                    renderer,
+                                    popup.wl_surface(),
+                                    (popup_offset.x, APP_Y + popup_offset.y),
+                                    1.0,
+                                ),
+                                1.0,
+                                popup_clip,
+                            ));
+                        }
+                        app_elements.extend(cropped(
+                            surface_elements(
+                                renderer,
+                                &surface,
+                                (-geo_loc.x, APP_Y - geo_loc.y),
+                                1.0,
+                            ),
                             1.0,
                             app_rect,
-                        );
+                        ));
                     }
                 }
 

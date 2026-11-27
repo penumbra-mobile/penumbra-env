@@ -542,6 +542,22 @@ fn app_elements(
         let geo_loc = expanding_task
             .map(|t| t.window.geometry().loc)
             .unwrap_or_default();
+        // Smithay draws a single element slice front-to-back (index 0 on top),
+        // so popups must precede the parent surface, with nested popups reversed.
+        let popups: Vec<_> =
+            smithay::desktop::PopupManager::popups_for_surface(&surface).collect();
+        for (popup, popup_offset) in popups.into_iter().rev() {
+            elements.extend(cropped(
+                surface_elements(
+                    renderer,
+                    popup.wl_surface(),
+                    canvas.loc(popup_offset.x, APP_Y + popup_offset.y),
+                    canvas.scale,
+                ),
+                canvas.scale,
+                phone_clip,
+            ));
+        }
         elements.extend(cropped(
             surface_elements(
                 renderer,
@@ -943,6 +959,11 @@ fn render_frame(state: &mut NativeState, buffer: &mut Dmabuf) -> Result<(), Box<
     for window in server.space.elements() {
         if let Some(toplevel) = window.toplevel() {
             send_frames_surface_tree(toplevel.wl_surface(), time);
+            for (popup, _) in
+                smithay::desktop::PopupManager::popups_for_surface(toplevel.wl_surface())
+            {
+                send_frames_surface_tree(popup.wl_surface(), time);
+            }
         }
     }
     for layer in layer_map_for_output(&server.output_a).layers() {
@@ -1585,6 +1606,7 @@ pub fn run(_compositor: &mut PenumbraCompositor) -> Result<(), Box<dyn Error>> {
                 state.server.show_power_dialog();
             }
         }
+        native_input::tick_long_press(&mut state.server, &mut state.input);
 
         if let Err(error) = state.display.flush_clients() {
             tracing::error!(?error, "Wayland client flush failed");

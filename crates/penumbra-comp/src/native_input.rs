@@ -39,9 +39,33 @@ const KEY_VOLUMEUP_RAW: u32 = 115;
 const KEY_VOLUMEUP_XKB: u32 = 123;
 const KEY_VOLUMEDOWN_RAW: u32 = 114;
 const KEY_VOLUMEDOWN_XKB: u32 = 122;
+const BTN_LEFT: u32 = 0x110;
+const BTN_RIGHT: u32 = 0x111;
+const LONG_PRESS_MS: u64 = 500;
+const LONG_PRESS_SLOP_PX: f64 = 12.0;
+const DOUBLE_TAP_SELECT_MS: u64 = 350;
+const DOUBLE_TAP_SELECT_SLOP_PX: f64 = 36.0;
+const TEXT_SELECT_DRAG_THRESHOLD_PX: f64 = 8.0;
 
 /// Focus target and origin for a pointer position.
 type Focus = Option<(WlSurface, Point<f64, Logical>)>;
+
+/// Tracks a single-finger tap-and-hold to synthesize a right-click context menu.
+struct LongPressState {
+    slot: i32,
+    start_pos: Point<f64, Logical>,
+    started_at: std::time::Instant,
+    focus: Focus,
+    triggered: bool,
+}
+
+/// Tracks a double-tap-and-drag gesture to synthesize `BTN_LEFT` text selection.
+struct TextSelectDrag {
+    slot: i32,
+    start_pos: Point<f64, Logical>,
+    focus: Focus,
+    active: bool,
+}
 
 /// The finger currently driving touch on a surface.
 #[derive(Clone)]
@@ -92,6 +116,10 @@ pub(crate) struct InputState {
     started: std::time::Instant,
     touches: std::collections::HashMap<i32, TouchContact>,
     edge_gesture: Option<EdgeBackGesture>,
+    long_press: Option<LongPressState>,
+    text_select_drag: Option<TextSelectDrag>,
+    popup_pointer_slot: Option<(i32, Focus)>,
+    last_app_tap: Option<(std::time::Instant, Point<f64, Logical>)>,
     pub nav_tracker: Option<NavTouchTracker>,
     pub shade_tracker: Option<ShadeTouchTracker>,
     pub power_press_time: Option<std::time::Instant>,
@@ -117,6 +145,10 @@ impl InputState {
             started: std::time::Instant::now(),
             touches: std::collections::HashMap::new(),
             edge_gesture: None,
+            long_press: None,
+            text_select_drag: None,
+            popup_pointer_slot: None,
+            last_app_tap: None,
             nav_tracker: None,
             shade_tracker: None,
             power_press_time: None,
@@ -612,8 +644,16 @@ pub(crate) fn handle(
                     }
                     let is_overview = server.shell_state.mode == PhoneMode::Overview;
                     let in_overview_zone = is_overview && pos.y >= STATUS_BAR_H as f64;
+                    let osk_covers_nav = server.active_osk_height > 0
+                        && pos.y >= (PHONE_H - server.active_osk_height) as f64;
+                    let app_drawer_open = server.app_drawer_progress > 0.05;
 
-                    if !server.shell_state.is_locked && !server.shell_state.drawer_open && ((is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone) {
+                    if !server.shell_state.is_locked
+                        && !server.shell_state.drawer_open
+                        && !osk_covers_nav
+                        && !app_drawer_open
+                        && ((is_nav_zone && (!server.phone_tasks.is_empty() || server.phone_app_visible() || is_overview || server.shell_state.mode == PhoneMode::App)) || in_overview_zone)
+                    {
                         if input.nav_tracker.is_none() {
                             let mut grabbed_card = None;
                             if is_overview {
@@ -740,10 +780,74 @@ pub(crate) fn handle(
                 });
             }
 
+            // If tapping inside an xdg_popup (context menu / dropdown), drive it via
+            // wl_pointer (hover + BTN_LEFT) without stealing wl_keyboard focus from parent.
+            let is_popup_target = focus
+                .as_ref()
+                .is_some_and(|(s, _)| server.popups.find_popup(s).is_some());
+            if is_popup_target {
+                input.long_press = None;
+                input.text_select_drag = None;
+                input.popup_pointer_slot = Some((slot, focus.clone()));
+                send_motion(server, input, pos, focus);
+                let serial = input.next_serial();
+                let time = input.time();
+                input.pointer.button(
+                    server,
+                    &ButtonEvent {
+                        button: BTN_LEFT,
+                        state: ButtonState::Pressed,
+                        serial,
+                        time,
+                    },
+                );
+                input.pointer.frame(server);
+                return;
+            }
+
             input.touches.insert(slot, TouchContact {
                 focus: focus.clone(),
             });
             server.pointer_location = pos;
+
+            if input.touches.len() == 1
+                && !is_kbd_target
+                && !in_osk_region
+                && !server.shell_state.is_locked
+                && !server.shell_state.drawer_open
+                && focus.is_some()
+            {
+                let now = std::time::Instant::now();
+                let is_double_tap = input
+                    .last_app_tap
+                    .is_some_and(|(t, p)| {
+                        now.duration_since(t) <= std::time::Duration::from_millis(DOUBLE_TAP_SELECT_MS)
+                            && (pos.x - p.x).hypot(pos.y - p.y) <= DOUBLE_TAP_SELECT_SLOP_PX
+                    });
+                if is_double_tap {
+                    input.last_app_tap = None;
+                    input.text_select_drag = Some(TextSelectDrag {
+                        slot,
+                        start_pos: pos,
+                        focus: focus.clone(),
+                        active: false,
+                    });
+                } else {
+                    input.last_app_tap = Some((now, pos));
+                    input.text_select_drag = None;
+                }
+
+                input.long_press = Some(LongPressState {
+                    slot,
+                    start_pos: pos,
+                    started_at: now,
+                    focus: focus.clone(),
+                    triggered: false,
+                });
+            } else {
+                input.long_press = None;
+                input.text_select_drag = None;
+            }
 
             let serial = input.next_serial();
             let down_event = DownEvent {
@@ -772,8 +876,7 @@ pub(crate) fn handle(
                     // If a Wayland text_input is already active on this app and the OSK was dismissed,
                     // tapping the app again should bring the OSK back up automatically.
                     if server.is_text_input_active() && server.active_osk_height == 0 {
-                        let cmd_path = crate::phone::runtime_path("penumbra-keyboard-cmd");
-                        let _ = std::fs::write(cmd_path, "show");
+                        penumbra_services::osk::set_configured_osk_visible(Some(true));
                     }
                 }
             }
@@ -941,6 +1044,67 @@ pub(crate) fn handle(
                     }
                     return;
                 }
+            }
+
+            if let Some((pslot, ref pfocus)) = input.popup_pointer_slot {
+                if pslot == slot {
+                    let target = server.phone_focus_under(pos).or_else(|| pfocus.clone());
+                    send_motion(server, input, pos, target);
+                    return;
+                }
+            }
+
+            if let Some(ref lp) = input.long_press {
+                if lp.slot == slot && !lp.triggered {
+                    let dist = (pos.x - lp.start_pos.x).hypot(pos.y - lp.start_pos.y);
+                    if dist > LONG_PRESS_SLOP_PX {
+                        input.long_press = None;
+                    }
+                }
+            }
+
+            let mut activate_select_drag: Option<(Point<f64, Logical>, Focus)> = None;
+            let mut active_select_focus: Option<Focus> = None;
+            if let Some(ref mut drag) = input.text_select_drag {
+                if drag.slot == slot {
+                    if !drag.active {
+                        let dist = (pos.x - drag.start_pos.x).hypot(pos.y - drag.start_pos.y);
+                        if dist > TEXT_SELECT_DRAG_THRESHOLD_PX {
+                            drag.active = true;
+                            input.long_press = None;
+                            activate_select_drag = Some((drag.start_pos, drag.focus.clone()));
+                        }
+                    } else {
+                        active_select_focus = Some(drag.focus.clone());
+                    }
+                }
+            }
+            if let Some((start_pos, start_focus)) = activate_select_drag {
+                input.touches.remove(&slot);
+                input.touch_handle.cancel(server);
+                input.touch_handle.frame(server);
+                let init_target = server.phone_focus_under(start_pos).or(start_focus);
+                send_motion(server, input, start_pos, init_target);
+                let serial = input.next_serial();
+                let time = input.time();
+                input.pointer.button(
+                    server,
+                    &ButtonEvent {
+                        button: BTN_LEFT,
+                        state: ButtonState::Pressed,
+                        serial,
+                        time,
+                    },
+                );
+                input.pointer.frame(server);
+                let move_target = server.phone_focus_under(pos);
+                send_motion(server, input, pos, move_target);
+                return;
+            }
+            if let Some(fallback_focus) = active_select_focus {
+                let move_target = server.phone_focus_under(pos).or(fallback_focus);
+                send_motion(server, input, pos, move_target);
+                return;
             }
 
             if let Some(contact) = input.touches.get(&slot) {
@@ -1131,10 +1295,8 @@ pub(crate) fn handle(
 
                     // If tap occurred in bottom-right keyboard button area without dragging:
                     if nav.start_pos.y >= 880.0 && nav.start_pos.x >= 355.0 && dx.abs() < 15.0 && dy.abs() < 15.0 {
-                        let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-                        let cmd_file = std::path::PathBuf::from(runtime_dir).join("penumbra-keyboard-cmd");
-                        let _ = std::fs::write(cmd_file, "toggle");
-                        tracing::info!("Bottom-right keyboard button tapped -> toggling virtual keyboard");
+                        penumbra_services::osk::toggle_configured_osk();
+                        tracing::info!("Bottom-right keyboard button tapped -> toggling active virtual keyboard");
                         server.nav_gesture_active = false;
                         server.nav_gesture_progress = 0.0;
                         server.nav_switch_active = false;
@@ -1247,10 +1409,85 @@ pub(crate) fn handle(
                     return;
                 }
             }
+            if let Some((pslot, _)) = input.popup_pointer_slot.take() {
+                if pslot == slot {
+                    let serial = input.next_serial();
+                    let time = input.time();
+                    input.pointer.button(
+                        server,
+                        &ButtonEvent {
+                            button: BTN_LEFT,
+                            state: ButtonState::Released,
+                            serial,
+                            time,
+                        },
+                    );
+                    input.pointer.frame(server);
+                    return;
+                }
+            }
+            if let Some(drag) = input.text_select_drag.take() {
+                if drag.slot == slot && drag.active {
+                    let serial = input.next_serial();
+                    let time = input.time();
+                    input.pointer.button(
+                        server,
+                        &ButtonEvent {
+                            button: BTN_LEFT,
+                            state: ButtonState::Released,
+                            serial,
+                            time,
+                        },
+                    );
+                    input.pointer.frame(server);
+                    return;
+                }
+            }
+            if let Some(lp) = input.long_press.take() {
+                if lp.slot == slot && lp.triggered {
+                    return;
+                }
+            }
             end_touch(server, input, slot);
         }
         InputEvent::TouchCancel { event } => {
             let slot: i32 = event.slot().into();
+            if let Some((pslot, _)) = input.popup_pointer_slot.take() {
+                if pslot == slot {
+                    let serial = input.next_serial();
+                    let time = input.time();
+                    input.pointer.button(
+                        server,
+                        &ButtonEvent {
+                            button: BTN_LEFT,
+                            state: ButtonState::Released,
+                            serial,
+                            time,
+                        },
+                    );
+                    input.pointer.frame(server);
+                    return;
+                }
+            }
+            if let Some(drag) = input.text_select_drag.take() {
+                if drag.slot == slot && drag.active {
+                    let serial = input.next_serial();
+                    let time = input.time();
+                    input.pointer.button(
+                        server,
+                        &ButtonEvent {
+                            button: BTN_LEFT,
+                            state: ButtonState::Released,
+                            serial,
+                            time,
+                        },
+                    );
+                    input.pointer.frame(server);
+                }
+            }
+            if input.long_press.as_ref().is_some_and(|lp| lp.slot == slot) {
+                input.long_press = None;
+            }
             end_touch(server, input, slot);
             input.touch_handle.cancel(server);
             if server.screen_blanked {
@@ -1294,4 +1531,54 @@ pub(crate) fn handle(
         }
         _ => {}
     }
+}
+
+/// Checks if an active single-finger touch has held still for `LONG_PRESS_MS`
+/// and synthesizes a right-click (`BTN_RIGHT`) for Android-style context menus.
+pub(crate) fn tick_long_press(server: &mut PenumbraServerState, input: &mut InputState) {
+    let should_trigger = input.long_press.as_ref().is_some_and(|lp| {
+        !lp.triggered && lp.started_at.elapsed() >= std::time::Duration::from_millis(LONG_PRESS_MS)
+    });
+    if !should_trigger {
+        return;
+    }
+
+    let (slot, pos, focus) = {
+        let lp = input.long_press.as_mut().unwrap();
+        lp.triggered = true;
+        (lp.slot, lp.start_pos, lp.focus.clone())
+    };
+
+    tracing::info!(x = pos.x, y = pos.y, "Tap-and-hold (500ms) -> context menu right-click");
+    input.touches.remove(&slot);
+    input.touch_handle.cancel(server);
+    input.touch_handle.frame(server);
+
+    let target = server.phone_focus_under(pos).or(focus);
+    send_motion(server, input, pos, target);
+
+    let time = input.time();
+    let serial_down = input.next_serial();
+    input.pointer.button(
+        server,
+        &ButtonEvent {
+            button: BTN_RIGHT,
+            state: ButtonState::Pressed,
+            serial: serial_down,
+            time,
+        },
+    );
+    input.pointer.frame(server);
+
+    let serial_up = input.next_serial();
+    input.pointer.button(
+        server,
+        &ButtonEvent {
+            button: BTN_RIGHT,
+            state: ButtonState::Released,
+            serial: serial_up,
+            time: time.wrapping_add(1),
+        },
+    );
+    input.pointer.frame(server);
 }
