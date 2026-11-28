@@ -147,8 +147,15 @@ export component MessagingWindow inherits Window {
     callback add-contact-number(string);
     callback open-contacts();
 
+    property <bool> wide-layout: root.width >= 680px;
+    property <length> sidebar-width: Math.min(360px, Math.max(280px, root.width * 0.35));
+
     // Threads list
-    if root.active-peer == "" && !root.composing-new: VerticalLayout {
+    if root.wide-layout || (root.active-peer == "" && !root.composing-new): VerticalLayout {
+        x: 0px;
+        y: 0px;
+        width: root.wide-layout ? root.sidebar-width : root.width;
+        height: root.height;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -428,8 +435,98 @@ export component MessagingWindow inherits Window {
         }
     }
 
+    if root.wide-layout: Rectangle {
+        x: root.sidebar-width;
+        y: 0px;
+        width: 1px;
+        height: root.height;
+        background: #ffffff14;
+    }
+
+    if root.wide-layout || root.active-peer != "" || root.composing-new: Rectangle {
+        x: root.wide-layout ? (root.sidebar-width + 1px) : 0px;
+        y: 0px;
+        width: root.wide-layout ? (root.width - root.sidebar-width - 1px) : root.width;
+        height: root.height;
+        background: transparent;
+
+    if root.wide-layout && root.active-peer == "" && !root.composing-new: VerticalLayout {
+        width: 100%;
+        height: 100%;
+        alignment: center;
+        spacing: 14px;
+        padding: 32px;
+
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                width: 68px;
+                height: 68px;
+                border-radius: 34px;
+                background: root.surface-low;
+                border-width: 1px;
+                border-color: #ffffff14;
+                HorizontalLayout {
+                    alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        MsgIcon { name: "message"; icon-size: 30px; icon-color: root.primary; }
+                    }
+                }
+            }
+        }
+        Text {
+            text: @tr("Select a conversation");
+            font-size: 18px;
+            font-weight: 600;
+            color: root.on-surface;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: @tr("Choose a thread from the left or start a new SMS");
+            font-size: 13px;
+            color: root.on-surface-variant;
+            horizontal-alignment: center;
+        }
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                height: 44px;
+                border-radius: 22px;
+                background: empty-new-ta.pressed ? root.primary : root.primary-container;
+                border-width: 1px;
+                border-color: #ffffff1f;
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        MsgIcon { name: "add"; icon-size: 16px; icon-color: root.on-primary-container; }
+                    }
+                    Text {
+                        text: @tr("New message");
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        vertical-alignment: center;
+                    }
+                }
+                empty-new-ta := TouchArea {
+                    clicked => {
+                        root.new-recipient = "";
+                        root.recipient-filter-changed("");
+                        root.composing-new = true;
+                    }
+                }
+            }
+        }
+    }
+
     // New conversation recipient entry and contact picker
     if root.composing-new && root.active-peer == "": VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -621,6 +718,8 @@ export component MessagingWindow inherits Window {
 
     // Active chat thread view
     if root.active-peer != "": VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -631,7 +730,7 @@ export component MessagingWindow inherits Window {
             spacing: 8px;
             height: 44px;
 
-            Rectangle {
+            if !root.wide-layout: Rectangle {
                 width: 44px;
                 height: 44px;
                 border-radius: 22px;
@@ -902,6 +1001,7 @@ export component MessagingWindow inherits Window {
                 }
             }
         }
+    }
     }
 
     // Message action sheet (Copy / Delete)

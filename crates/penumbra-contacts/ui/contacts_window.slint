@@ -120,10 +120,15 @@ export component ContactsWindow inherits Window {
     callback call-number(string);
     callback message-number(string);
 
-    // =========================================================================
-    // 1. CONTACTS LIST
-    // =========================================================================
-    if root.mode == "list": VerticalLayout {
+    property <bool> wide-layout: root.width >= 680px;
+    property <length> sidebar-width: Math.min(360px, Math.max(280px, root.width * 0.35));
+
+    // Contacts list
+    if root.wide-layout || root.mode == "list": VerticalLayout {
+        x: 0px;
+        y: 0px;
+        width: root.wide-layout ? root.sidebar-width : root.width;
+        height: root.height;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -282,9 +287,13 @@ export component ContactsWindow inherits Window {
                 for c in root.contacts: Rectangle {
                     height: 72px;
                     border-radius: 24px;
-                    background: row-ta.pressed ? root.surface-high : root.surface-low;
+                    background: (root.wide-layout && c.id == root.sel-id && root.mode != "list")
+                        ? root.primary-container.with-alpha(0.35)
+                        : (row-ta.pressed ? root.surface-high : root.surface-low);
                     border-width: 1px;
-                    border-color: row-ta.pressed ? #ffffff26 : #ffffff14;
+                    border-color: (root.wide-layout && c.id == root.sel-id && root.mode != "list")
+                        ? root.primary.with-alpha(0.45)
+                        : (row-ta.pressed ? #ffffff26 : #ffffff14);
                     animate background { duration: 100ms; }
 
                     // Placed before action buttons so quick-action pills receive their own clicks
@@ -397,10 +406,103 @@ export component ContactsWindow inherits Window {
         }
     }
 
-    // =========================================================================
-    // 2. CONTACT DETAIL VIEW
-    // =========================================================================
+    if root.wide-layout: Rectangle {
+        x: root.sidebar-width;
+        y: 0px;
+        width: 1px;
+        height: root.height;
+        background: #ffffff14;
+    }
+
+    if root.wide-layout || root.mode != "list": Rectangle {
+        x: root.wide-layout ? (root.sidebar-width + 1px) : 0px;
+        y: 0px;
+        width: root.wide-layout ? (root.width - root.sidebar-width - 1px) : root.width;
+        height: root.height;
+        background: transparent;
+
+    if root.wide-layout && root.mode == "list": VerticalLayout {
+        width: 100%;
+        height: 100%;
+        alignment: center;
+        spacing: 14px;
+        padding: 32px;
+
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                width: 68px;
+                height: 68px;
+                border-radius: 34px;
+                background: root.surface-low;
+                border-width: 1px;
+                border-color: #ffffff14;
+                HorizontalLayout {
+                    alignment: center;
+                    VerticalLayout {
+                        alignment: center;
+                        ContactIcon { name: "person"; icon-size: 30px; icon-color: root.primary; }
+                    }
+                }
+            }
+        }
+        Text {
+            text: @tr("Select a contact");
+            font-size: 18px;
+            font-weight: 600;
+            color: root.on-surface;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: @tr("Choose a contact from the left or add a new one");
+            font-size: 13px;
+            color: root.on-surface-variant;
+            horizontal-alignment: center;
+        }
+        HorizontalLayout {
+            alignment: center;
+            Rectangle {
+                height: 44px;
+                border-radius: 22px;
+                background: empty-add-ta.pressed ? root.primary : root.primary-container;
+                border-width: 1px;
+                border-color: #ffffff1f;
+                HorizontalLayout {
+                    padding-left: 18px;
+                    padding-right: 18px;
+                    spacing: 8px;
+                    VerticalLayout {
+                        alignment: center;
+                        ContactIcon { name: "add"; icon-size: 16px; icon-color: root.on-primary-container; }
+                    }
+                    Text {
+                        text: @tr("Add contact");
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: root.on-primary-container;
+                        vertical-alignment: center;
+                    }
+                }
+                empty-add-ta := TouchArea {
+                    clicked => {
+                        root.sel-id = "";
+                        root.sel-name = "";
+                        root.sel-phone = "";
+                        root.sel-email = "";
+                        root.sel-notes = "";
+                        root.sel-initials = "?";
+                        root.sel-favorite = false;
+                        root.mode = "edit";
+                    }
+                }
+            }
+        }
+    }
+
+    // Contact detail view
     if root.mode == "detail": VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -408,14 +510,14 @@ export component ContactsWindow inherits Window {
         spacing: 16px;
 
         HorizontalLayout {
-            alignment: space-between;
+            alignment: root.wide-layout ? end : space-between;
             height: 44px;
-            VerticalLayout {
+            if !root.wide-layout: VerticalLayout {
                 alignment: center;
                 Rectangle {
-                    width: 40px;
-                    height: 40px;
-                    border-radius: 20px;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 22px;
                     background: back-ta.pressed ? root.primary-container : root.surface-high;
                     border-width: 1px;
                     border-color: #ffffff14;
@@ -624,10 +726,10 @@ export component ContactsWindow inherits Window {
         }
     }
 
-    // =========================================================================
-    // 3. ADD / EDIT CONTACT
-    // =========================================================================
+    // Add / edit contact
     if root.mode == "edit": VerticalLayout {
+        width: 100%;
+        height: 100%;
         padding-left: 16px;
         padding-right: 16px;
         padding-top: 12px;
@@ -780,5 +882,6 @@ export component ContactsWindow inherits Window {
                 }
             }
         }
+    }
     }
 }
